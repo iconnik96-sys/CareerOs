@@ -10,6 +10,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { OnboardingPage } from './pages/OnboardingPage';
+import { DemoOne } from './components/ui/demo';
 // App Pages
 import { DashboardPage } from './pages/DashboardPage';
 import { CareerProfilePage } from './pages/CareerProfilePage';
@@ -48,6 +49,7 @@ export const App = () => {
             <Route path="/register" element={<RegisterPage />}/>
             <Route path="/forgot-password" element={<ForgotPasswordPage />}/>
             <Route path="/onboarding" element={<OnboardingPage />}/>
+            <Route path="/cosmic-demo" element={<DemoOne />}/>
 
             {/* Protected App Routes with AppLayout Shell */}
             <Route element={<ProtectedRoute>

@@ -13,6 +13,11 @@ const envDir = fs.existsSync(path.resolve(currentDir, '.env'))
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(currentDir, './src')
+    }
+  },
   envDir,
   server: {
     port: 3000,

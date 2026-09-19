@@ -928,3 +928,261 @@ input, textarea, select {
     padding: 1.25rem 1rem 5rem 1rem;
   }
 }
+
+/* ==========================================================================
+   Cosmic Parallax Background System
+   ========================================================================== */
+
+:root {
+  --animation-iteration: infinite;
+}
+
+@keyframes animStar {
+  from {
+    transform: translateY(0px);
+  }
+  to {
+    transform: translateY(-2000px);
+  }
+}
+
+@keyframes animGravity {
+  0% {
+    transform: translateY(-26px);
+    opacity: 0;
+  }
+  30%, 80% {
+    letter-spacing: 40px;
+    padding-left: 40px;
+    transform: translateY(0px);
+    opacity: 1;
+  }
+  92%, 100% {
+    letter-spacing: 35px;
+    padding-left: 35px;
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+}
+
+@keyframes animDont {
+  0%, 15% {
+    transform: translateY(-26px);
+    opacity: 0;
+  }
+  35%, 80% {
+    transform: translateY(0px);
+    opacity: 1;
+  }
+  92%, 100% {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+}
+
+@keyframes animLet {
+  0%, 25% {
+    transform: translateY(-26px);
+    opacity: 0;
+  }
+  45%, 80% {
+    transform: translateY(0px);
+    opacity: 1;
+  }
+  92%, 100% {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+}
+
+@keyframes animGo {
+  0%, 35% {
+    transform: translateY(-26px);
+    opacity: 0;
+  }
+  55%, 80% {
+    transform: translateY(0px);
+    opacity: 1;
+  }
+  92%, 100% {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+}
+
+/* Cosmic Container & Elements */
+.cosmic-parallax-container {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  background: radial-gradient(ellipse at bottom, #111827 0%, #090d16 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* Star Layers */
+.cosmic-stars,
+#stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  background: transparent;
+  animation: animStar 50s linear var(--animation-iteration, infinite);
+  z-index: 1;
+  pointer-events: none;
+}
+
+#stars::after {
+  content: " ";
+  position: absolute;
+  top: 2000px;
+  width: 1px;
+  height: 1px;
+  background: transparent;
+  box-shadow: inherit;
+}
+
+.cosmic-stars-medium,
+#stars2 {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 2px;
+  background: transparent;
+  animation: animStar 100s linear var(--animation-iteration, infinite);
+  z-index: 1;
+  pointer-events: none;
+}
+
+#stars2::after {
+  content: " ";
+  position: absolute;
+  top: 2000px;
+  width: 2px;
+  height: 2px;
+  background: transparent;
+  box-shadow: inherit;
+}
+
+.cosmic-stars-large,
+#stars3 {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 3px;
+  background: transparent;
+  animation: animStar 150s linear var(--animation-iteration, infinite);
+  z-index: 1;
+  pointer-events: none;
+}
+
+#stars3::after {
+  content: " ";
+  position: absolute;
+  top: 2000px;
+  width: 3px;
+  height: 3px;
+  background: transparent;
+  box-shadow: inherit;
+}
+
+/* Horizon & Planetary Glow */
+#horizon {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 240px;
+  pointer-events: none;
+  z-index: 2;
+  overflow: hidden;
+}
+
+#horizon .glow {
+  position: absolute;
+  bottom: -220px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1600px;
+  height: 440px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.4) 0%, rgba(99, 102, 241, 0.15) 45%, rgba(0, 0, 0, 0) 70%);
+  filter: blur(28px);
+}
+
+#earth {
+  position: absolute;
+  bottom: -980px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1400px;
+  height: 1100px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 12%, #0f172a 0%, #090d16 65%, #020617 100%);
+  box-shadow: 0 0 100px -20px rgba(59, 130, 246, 0.45), inset 0 2px 20px rgba(255, 255, 255, 0.12);
+  border-top: 1px solid rgba(147, 197, 253, 0.25);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Center Cosmic Headings */
+#title {
+  position: relative;
+  z-index: 5;
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  font-weight: 800;
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  text-align: center;
+  color: #ffffff;
+  letter-spacing: 20px;
+  text-shadow: 0 0 35px rgba(59, 130, 246, 0.6);
+  animation: animGravity 8s cubic-bezier(0.68, -0.55, 0.265, 1.55) var(--animation-iteration, infinite);
+  margin-bottom: 1.5rem;
+}
+
+#subtitle {
+  position: relative;
+  z-index: 5;
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  font-weight: 600;
+  font-size: clamp(0.9rem, 2vw, 1.25rem);
+  text-align: center;
+  color: #94a3b8;
+  letter-spacing: 6px;
+  display: flex;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.subtitle-part-1 {
+  display: inline-block;
+  animation: animDont 8s cubic-bezier(0.68, -0.55, 0.265, 1.55) var(--animation-iteration, infinite);
+  color: #60a5fa;
+}
+
+.subtitle-part-2 {
+  display: inline-block;
+  animation: animLet 8s cubic-bezier(0.68, -0.55, 0.265, 1.55) var(--animation-iteration, infinite);
+  color: #a78bfa;
+}
+
+.subtitle-part-3 {
+  display: inline-block;
+  animation: animGo 8s cubic-bezier(0.68, -0.55, 0.265, 1.55) var(--animation-iteration, infinite);
+  color: #34d399;
+}
+
+/* Utility classes for demo and standalone usage */
+.w-full { width: 100%; }
+.h-screen { height: 100vh; }
+.justify-center { justify-content: center; }
+.items-center { align-items: center; }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles, ArrowRight, FileCheck, Target, Milestone, Layers, HelpCircle, BarChart3, CheckCircle2, TrendingUp, Cpu } from 'lucide-react';
 import { Button } from '../components/common/Button';
+import { CosmicParallaxBg } from '../components/ui/parallax-cosmic-background';
 export const LandingPage = () => {
     const steps = [
         { num: '01', title: 'Create your profile', desc: 'Specify your degree, graduation year, target role, and preferred working locations.' },
@@ -74,113 +75,135 @@ export const LandingPage = () => {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section style={{
-            padding: '5rem 1.5rem 4rem 1.5rem',
-            maxWidth: '1100px',
-            margin: '0 auto',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center'
-        }}>
+      {/* Hero Section with Cosmic Parallax Starfield */}
+      <div style={{ position: 'relative', overflow: 'hidden', width: '100%', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.35rem 0.85rem',
-            borderRadius: 'var(--radius-full)',
-            background: 'rgba(59, 130, 246, 0.12)',
-            border: '1px solid rgba(59, 130, 246, 0.25)',
-            color: 'var(--primary)',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
-            marginBottom: '1.5rem'
+          position: 'absolute',
+          inset: 0,
+          zIndex: 0,
+          pointerEvents: 'none',
+          opacity: 0.85
         }}>
-          <Cpu size={15}/> BUILT FOR COLLEGE STUDENTS & FRESHERS
+          <CosmicParallaxBg loop={true} />
         </div>
 
-        <h1 className="text-h1" style={{ fontSize: '3.25rem', maxWidth: '850px', marginBottom: '1.25rem' }}>
-          Build the career <br />
-          <span style={{
-            background: 'linear-gradient(135deg, #3b82f6, #6366f1, #10b981)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-        }}>
-            you're aiming for.
-          </span>
-        </h1>
-
-        <p style={{ fontSize: '1.15rem', color: 'var(--text-secondary)', maxWidth: '640px', lineHeight: 1.6, marginBottom: '2.5rem' }}>
-          CareerOS helps students and freshers turn their current skills into a personalized path toward their target career. Know what skills you're missing, build the right projects, and prepare for top placements.
-        </p>
-
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <Link to="/register">
-            <Button variant="primary" size="lg" rightIcon={<ArrowRight size={18}/>}>
-              Get Started Free
-            </Button>
-          </Link>
-          <Link to="/login">
-            <Button variant="secondary" size="lg">
-              Sign In to Your Workspace
-            </Button>
-          </Link>
-        </div>
-
-
-        {/* Hero Interactive Preview Card */}
-        <div style={{
-            marginTop: '4rem',
-            width: '100%',
-            maxWidth: '960px',
-            background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.95) 100%)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '2rem',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px -10px rgba(59, 130, 246, 0.2)',
-            textAlign: 'left'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }}/>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }}/>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }}/>
-              </div>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>career-dashboard.careeros.app</span>
-            </div>
-            <span className="badge badge-success">
-              <CheckCircle2 size={12}/> Target Role: Java Backend Developer
-            </span>
+        <section style={{
+              position: 'relative',
+              zIndex: 1,
+              padding: '5rem 1.5rem 4rem 1.5rem',
+              maxWidth: '1100px',
+              margin: '0 auto',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
+          }}>
+          <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.35rem 0.85rem',
+              borderRadius: 'var(--radius-full)',
+              background: 'rgba(59, 130, 246, 0.12)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              color: 'var(--primary)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              marginBottom: '1.5rem'
+          }}>
+            <Cpu size={15}/> BUILT FOR COLLEGE STUDENTS & FRESHERS
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
-            <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-              <span className="text-sm text-muted">Career Readiness</span>
-              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>78%</div>
-              <span className="text-xs text-success" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                <TrendingUp size={12}/> +12% this month
+          <h1 className="text-h1" style={{ fontSize: '3.25rem', maxWidth: '850px', marginBottom: '1.25rem' }}>
+            Build the career <br />
+            <span style={{
+              background: 'linear-gradient(135deg, #3b82f6, #6366f1, #10b981)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+          }}>
+              you're aiming for.
+            </span>
+          </h1>
+
+          <p style={{ fontSize: '1.15rem', color: 'var(--text-secondary)', maxWidth: '640px', lineHeight: 1.6, marginBottom: '2.5rem' }}>
+            CareerOS helps students and freshers turn their current skills into a personalized path toward their target career. Know what skills you're missing, build the right projects, and prepare for top placements.
+          </p>
+
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Link to="/register">
+              <Button variant="primary" size="lg" rightIcon={<ArrowRight size={18}/>}>
+                Get Started Free
+              </Button>
+            </Link>
+            <Link to="/login">
+              <Button variant="secondary" size="lg">
+                Sign In to Your Workspace
+              </Button>
+            </Link>
+          </div>
+
+
+          {/* Hero Interactive Preview Card */}
+          <div style={{
+              marginTop: '4rem',
+              width: '100%',
+              maxWidth: '960px',
+              background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.95) 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '2rem',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px -10px rgba(59, 130, 246, 0.2)',
+              textAlign: 'left'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }}/>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }}/>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }}/>
+                </div>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>career-dashboard.careeros.app</span>
+              </div>
+              <span className="badge badge-success">
+                <CheckCircle2 size={12}/> Target Role: Java Backend Developer
               </span>
             </div>
 
-            <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-              <span className="text-sm text-muted">Applications Active</span>
-              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>24</div>
-              <span className="text-xs text-muted" style={{ marginTop: '4px', display: 'block' }}>3 Interviews • 1 Offer</span>
-            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
+              <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                <span className="text-sm text-muted">Career Readiness</span>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--success)', marginTop: '4px' }}>78%</div>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <TrendingUp size={14} className="text-success"/> +14% this month
+                </div>
+              </div>
 
-            <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-              <span className="text-sm text-muted">Top Missing Skills</span>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
-                <span className="badge badge-warning">AWS</span>
-                <span className="badge badge-warning">Kafka</span>
-                <span className="badge badge-warning">Redis</span>
+              <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                <span className="text-sm text-muted">Active Roadmaps</span>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>Java + Spring</div>
+                <div className="progress-bar-container" style={{ marginTop: '8px' }}>
+                  <div className="progress-bar-fill" style={{ width: '65%' }}/>
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                <span className="text-sm text-muted">Applications Tracked</span>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>12</div>
+                <span className="text-xs text-muted" style={{ marginTop: '4px', display: 'block' }}>3 Interviews • 1 Offer</span>
+              </div>
+
+              <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                <span className="text-sm text-muted">Top Missing Skills</span>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                  <span className="badge badge-warning">AWS</span>
+                  <span className="badge badge-warning">Kafka</span>
+                  <span className="badge badge-warning">Redis</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       {/* How It Works */}
       <section style={{ padding: '5rem 1.5rem', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>

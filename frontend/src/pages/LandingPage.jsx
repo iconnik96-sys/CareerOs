@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles, ArrowRight, FileCheck, Target, Milestone, Layers, HelpCircle, BarChart3, CheckCircle2, TrendingUp, Cpu } from 'lucide-react';
 import { Button } from '../components/common/Button';
-import { CosmicParallaxBg } from '../components/ui/parallax-cosmic-background';
 export const LandingPage = () => {
     const steps = [
         { num: '01', title: 'Create your profile', desc: 'Specify your degree, graduation year, target role, and preferred working locations.' },
@@ -45,168 +44,144 @@ export const LandingPage = () => {
         }
     ];
     return (<div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' }}>
-      {/* Landing Navigation Header */}
-      <header style={{
-            padding: '1.25rem 2rem',
-            borderBottom: '1px solid var(--border-color)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            position: 'sticky',
-            top: 0,
-            backgroundColor: 'rgba(9, 13, 22, 0.85)',
-            backdropFilter: 'blur(12px)',
-            zIndex: 50
-        }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div className="brand-logo-icon">
-            <Sparkles size={20}/>
-          </div>
-          <span className="brand-name" style={{ fontSize: '1.4rem' }}>CareerOS</span>
+      {/* Fullscreen Video Hero Section */}
+      <div className="cinematic-hero-root">
+        {/* Fullscreen Looping Video Background */}
+        <video
+          className="cinematic-hero-video"
+          autoPlay
+          loop
+          muted
+          playsInline
+        >
+          <source
+            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4"
+            type="video/mp4"
+          />
+        </video>
+
+        {/* Glassmorphic Navigation Bar */}
+        <div className="cinematic-nav-wrapper">
+          <nav className="cinematic-nav-container">
+            <Link to="/" className="cinematic-logo" style={{ fontFamily: "'Instrument Serif', serif" }}>
+              CareerOS<sup className="cinematic-logo-sup">®</sup>
+            </Link>
+
+            <div className="cinematic-nav-links">
+              <a href="#" className="cinematic-nav-link active">Home</a>
+              <a href="#how-it-works" className="cinematic-nav-link">How It Works</a>
+              <a href="#features" className="cinematic-nav-link">Features</a>
+              <Link to="/roadmap" className="cinematic-nav-link">Roadmap</Link>
+            </div>
+
+            <div className="cinematic-nav-actions">
+              <Link to="/login" className="cinematic-nav-login-btn">
+                Sign In
+              </Link>
+              <Link to="/register" className="cinematic-nav-cta-btn">
+                Get Started Free
+              </Link>
+            </div>
+          </nav>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <Link to="/login">
-            <Button variant="ghost">Sign In</Button>
-          </Link>
-          <Link to="/register">
-            <Button variant="primary">Get Started Free</Button>
-          </Link>
-        </div>
-      </header>
-
-      {/* Hero Section with Cosmic Parallax Starfield */}
-      <div style={{ position: 'relative', overflow: 'hidden', width: '100%', borderBottom: '1px solid var(--border-color)' }}>
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          zIndex: 0,
-          pointerEvents: 'none',
-          opacity: 0.85
-        }}>
-          <CosmicParallaxBg loop={true} />
-        </div>
-
-        <section style={{
-              position: 'relative',
-              zIndex: 1,
-              padding: '5rem 1.5rem 4rem 1.5rem',
-              maxWidth: '1100px',
-              margin: '0 auto',
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center'
-          }}>
-          <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.35rem 0.85rem',
-              borderRadius: 'var(--radius-full)',
-              background: 'rgba(59, 130, 246, 0.12)',
-              border: '1px solid rgba(59, 130, 246, 0.25)',
-              color: 'var(--primary)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              marginBottom: '1.5rem'
-          }}>
-            <Cpu size={15}/> BUILT FOR COLLEGE STUDENTS & FRESHERS
+        {/* Cinematic Hero Content */}
+        <section className="cinematic-hero-body">
+          <div className="cinematic-badge animate-fade-rise">
+            <Cpu size={14} style={{ color: 'rgba(255, 255, 255, 0.7)' }} />
+            <span>BUILT FOR COLLEGE STUDENTS & FRESHERS</span>
           </div>
 
-          <h1 className="text-h1" style={{ fontSize: '3.25rem', maxWidth: '850px', marginBottom: '1.25rem' }}>
-            Build the career <br />
-            <span style={{
-              background: 'linear-gradient(135deg, #3b82f6, #6366f1, #10b981)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-          }}>
-              you're aiming for.
-            </span>
+          <h1
+            className="cinematic-heading animate-fade-rise"
+            style={{ fontFamily: "'Instrument Serif', serif" }}
+          >
+            Build the career <em className="not-italic text-muted-foreground">you're aiming for.</em>
           </h1>
 
-          <p style={{ fontSize: '1.15rem', color: 'var(--text-secondary)', maxWidth: '640px', lineHeight: 1.6, marginBottom: '2.5rem' }}>
+          <p className="cinematic-subtext animate-fade-rise-delay">
             CareerOS helps students and freshers turn their current skills into a personalized path toward their target career. Know what skills you're missing, build the right projects, and prepare for top placements.
           </p>
 
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <Link to="/register">
-              <Button variant="primary" size="lg" rightIcon={<ArrowRight size={18}/>}>
-                Get Started Free
-              </Button>
-            </Link>
-            <Link to="/login">
-              <Button variant="secondary" size="lg">
-                Sign In to Your Workspace
-              </Button>
-            </Link>
-          </div>
-
-
-          {/* Hero Interactive Preview Card */}
-          <div style={{
-              marginTop: '4rem',
-              width: '100%',
-              maxWidth: '960px',
-              background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.95) 100%)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: 'var(--radius-xl)',
-              padding: '2rem',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px -10px rgba(59, 130, 246, 0.2)',
-              textAlign: 'left'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }}/>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }}/>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }}/>
-                </div>
-                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>career-dashboard.careeros.app</span>
-              </div>
-              <span className="badge badge-success">
-                <CheckCircle2 size={12}/> Target Role: Java Backend Developer
-              </span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
-              <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                <span className="text-sm text-muted">Career Readiness</span>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--success)', marginTop: '4px' }}>78%</div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <TrendingUp size={14} className="text-success"/> +14% this month
-                </div>
-              </div>
-
-              <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                <span className="text-sm text-muted">Active Roadmaps</span>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>Java + Spring</div>
-                <div className="progress-bar-container" style={{ marginTop: '8px' }}>
-                  <div className="progress-bar-fill" style={{ width: '65%' }}/>
-                </div>
-              </div>
-
-              <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                <span className="text-sm text-muted">Applications Tracked</span>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>12</div>
-                <span className="text-xs text-muted" style={{ marginTop: '4px', display: 'block' }}>3 Interviews • 1 Offer</span>
-              </div>
-
-              <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                <span className="text-sm text-muted">Top Missing Skills</span>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
-                  <span className="badge badge-warning">AWS</span>
-                  <span className="badge badge-warning">Kafka</span>
-                  <span className="badge badge-warning">Redis</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Link
+            to="/register"
+            className="cinematic-cta-button animate-fade-rise-delay-2"
+          >
+            Get Started Free
+          </Link>
         </section>
       </div>
 
+      {/* Hero Interactive Preview Card Section */}
+      <section style={{
+        maxWidth: '1000px',
+        width: '100%',
+        margin: '-1.5rem auto 3.5rem auto',
+        padding: '0 1.5rem',
+        position: 'relative',
+        zIndex: 20
+      }}>
+        <div style={{
+            background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '2rem',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px -10px rgba(59, 130, 246, 0.2)',
+            textAlign: 'left'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }}/>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }}/>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }}/>
+              </div>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>career-dashboard.careeros.app</span>
+            </div>
+            <span className="badge badge-success">
+              <CheckCircle2 size={12}/> Target Role: Java Backend Developer
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <span className="text-sm text-muted">Career Readiness</span>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--success)', marginTop: '4px' }}>78%</div>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <TrendingUp size={14} className="text-success"/> +14% this month
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <span className="text-sm text-muted">Active Roadmaps</span>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>Java + Spring</div>
+              <div className="progress-bar-container" style={{ marginTop: '8px' }}>
+                <div className="progress-bar-fill" style={{ width: '65%' }}/>
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <span className="text-sm text-muted">Applications Tracked</span>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>12</div>
+              <span className="text-xs text-muted" style={{ marginTop: '4px', display: 'block' }}>3 Interviews • 1 Offer</span>
+            </div>
+
+            <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <span className="text-sm text-muted">Top Missing Skills</span>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                <span className="badge badge-warning">AWS</span>
+                <span className="badge badge-warning">Kafka</span>
+                <span className="badge badge-warning">Redis</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How It Works */}
-      <section style={{ padding: '5rem 1.5rem', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
+      <section id="how-it-works" style={{ padding: '5rem 1.5rem', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
           <span className="badge badge-primary" style={{ marginBottom: '0.5rem' }}>WORKFLOW</span>
           <h2 className="text-h2">How CareerOS Works</h2>
@@ -238,7 +213,7 @@ export const LandingPage = () => {
       </section>
 
       {/* Features Grid */}
-      <section style={{ padding: '5rem 1.5rem', backgroundColor: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+      <section id="features" style={{ padding: '5rem 1.5rem', backgroundColor: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
             <span className="badge badge-primary" style={{ marginBottom: '0.5rem' }}>FEATURES</span>

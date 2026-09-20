@@ -1186,3 +1186,326 @@ input, textarea, select {
 .h-screen { height: 100vh; }
 .justify-center { justify-content: center; }
 .items-center { align-items: center; }
+
+/* ==========================================================================
+   Cinematic Hero Section Design System (Scoped to Landing Hero)
+   ========================================================================== */
+.cinematic-hero-root {
+  --background: 201 100% 13%;
+  --foreground: 0 0% 100%;
+  --muted-foreground: 240 4% 66%;
+  --primary: 0 0% 100%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 10%;
+  --muted: 0 0% 10%;
+  --accent: 0 0% 10%;
+  --border: 0 0% 18%;
+  --input: 0 0% 18%;
+  --font-display: 'Instrument Serif', serif;
+  --font-body: 'Inter', sans-serif;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: hsl(201 100% 13%);
+  color: hsl(0 0% 100%);
+  font-family: var(--font-body);
+}
+
+.cinematic-hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Liquid Glass Effect */
+.liquid-glass {
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  background-blend-mode: luminosity;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 4px 16px rgba(0, 0, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: hsl(var(--foreground, 0 0% 100%));
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+}
+
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.2) 20%,
+    rgba(255,255,255,0.05) 40%, rgba(255,255,255,0.05) 60%,
+    rgba(255,255,255,0.2) 80%, rgba(255,255,255,0.6) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.liquid-glass:hover {
+  transform: scale(1.03);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.35), 0 8px 25px rgba(59, 130, 246, 0.35);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+/* Animations */
+@keyframes fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-rise {
+  animation: fade-rise 0.8s ease-out both;
+}
+
+.animate-fade-rise-delay {
+  animation: fade-rise 0.8s ease-out 0.2s both;
+}
+
+.animate-fade-rise-delay-2 {
+  animation: fade-rise 0.8s ease-out 0.4s both;
+}
+
+/* Cinematic Hero Typography & Component Helpers */
+.cinematic-hero-root .text-foreground {
+  color: hsl(var(--foreground, 0 0% 100%));
+}
+
+.cinematic-hero-root .text-muted-foreground {
+  color: hsl(var(--muted-foreground, 240 4% 66%));
+}
+
+/* Floating Glassmorphic Navigation Bar */
+.cinematic-nav-wrapper {
+  position: relative;
+  z-index: 50;
+  width: 100%;
+  padding: 1.25rem 1.5rem 0 1.5rem;
+}
+
+.cinematic-nav-container {
+  max-width: 76rem;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1.5rem;
+  background: rgba(8, 14, 28, 0.78);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+
+.cinematic-logo {
+  font-family: var(--font-display, 'Instrument Serif', serif);
+  font-size: 1.85rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15rem;
+}
+
+.cinematic-logo-sup {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.cinematic-nav-links {
+  display: none;
+  align-items: center;
+  gap: 2rem;
+}
+
+@media (min-width: 820px) {
+  .cinematic-nav-links {
+    display: flex;
+  }
+}
+
+.cinematic-nav-link {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.cinematic-nav-link:hover,
+.cinematic-nav-link.active {
+  color: #ffffff;
+}
+
+.cinematic-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cinematic-nav-login-btn {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0.5rem 1.15rem;
+  border-radius: 9999px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cinematic-nav-login-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.cinematic-nav-cta-btn {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff;
+  padding: 0.55rem 1.35rem;
+  border-radius: 9999px;
+  text-decoration: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.cinematic-nav-cta-btn:hover {
+  transform: scale(1.03);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.12) 100%);
+  border-color: rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 6px 20px rgba(59, 130, 246, 0.35);
+  color: #ffffff;
+}
+
+/* Lifted Hero Section (placed high above the student background) */
+.cinematic-hero-body {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 3.5rem;
+  padding-bottom: 7rem;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 76rem;
+  width: 100%;
+}
+
+.cinematic-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.95rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.725rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 1.25rem;
+}
+
+.cinematic-heading {
+  font-family: var(--font-display, 'Instrument Serif', serif);
+  font-size: clamp(2.5rem, 5.5vw, 5.25rem);
+  line-height: 0.98;
+  letter-spacing: -2px;
+  font-weight: 400;
+  max-width: 74rem;
+  color: #ffffff;
+  margin-bottom: 0;
+}
+
+.cinematic-heading em {
+  font-style: normal;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.cinematic-subtext {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: clamp(0.95rem, 1.5vw, 1.05rem);
+  max-width: 38rem;
+  margin-top: 1.25rem;
+  line-height: 1.55;
+  font-weight: 400;
+}
+
+.cinematic-cta-button {
+  border-radius: 9999px !important;
+  padding: 0.95rem 2.85rem;
+  font-size: 1.025rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-top: 1.75rem;
+  cursor: pointer;
+  text-decoration: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 8px 30px rgba(0, 0, 0, 0.5);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cinematic-cta-button:hover {
+  transform: scale(1.03);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.14) 100%);
+  border-color: rgba(255, 255, 255, 0.65);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55), 0 12px 35px rgba(59, 130, 246, 0.4);
+  color: #ffffff;
+}
+
+

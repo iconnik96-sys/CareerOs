@@ -372,10 +372,10 @@ export const AICareerStudioPage = () => {
                                                     const textToCopy = outputFormat === 'cover_letter'
                                                         ? clResult.cover_letter
                                                         : outputFormat === 'inmail'
-                                                        ? clResult.linkedin_inmail
-                                                        : outputFormat === 'connection_note'
-                                                        ? clResult.short_connection_note
-                                                        : clResult.talking_points?.join('\n• ');
+                                                            ? clResult.linkedin_inmail
+                                                            : outputFormat === 'connection_note'
+                                                                ? clResult.short_connection_note
+                                                                : clResult.talking_points?.join('\n• ');
                                                     copyToClipboard(textToCopy, () => {
                                                         setCopiedCl(true);
                                                         setTimeout(() => setCopiedCl(false), 2000);
@@ -392,10 +392,10 @@ export const AICareerStudioPage = () => {
                                                     const contentToExport = outputFormat === 'cover_letter'
                                                         ? clResult.cover_letter
                                                         : outputFormat === 'inmail'
-                                                        ? `Subject: ${clResult.subject_line}\n\n${clResult.linkedin_inmail}${clResult.short_connection_note ? `\n\n---\nShort LinkedIn Note (<280 chars):\n${clResult.short_connection_note}` : ''}`
-                                                        : outputFormat === 'connection_note'
-                                                        ? `LinkedIn Connection Note:\n"${clResult.short_connection_note}"\n\nInMail Pitch:\n${clResult.linkedin_inmail}`
-                                                        : `Strategic Interview Talking Points for ${clCompany}:\n\n${clResult.talking_points?.map((tp, idx) => `• ${tp}`).join('\n\n')}`;
+                                                            ? `Subject: ${clResult.subject_line}\n\n${clResult.linkedin_inmail}${clResult.short_connection_note ? `\n\n---\nShort LinkedIn Note (<280 chars):\n${clResult.short_connection_note}` : ''}`
+                                                            : outputFormat === 'connection_note'
+                                                                ? `LinkedIn Connection Note:\n"${clResult.short_connection_note}"\n\nInMail Pitch:\n${clResult.linkedin_inmail}`
+                                                                : `Strategic Interview Talking Points for ${clCompany}:\n\n${clResult.talking_points?.map((tp, idx) => `• ${tp}`).join('\n\n')}`;
 
                                                     downloadCoverLetterPdf(`Cover_Letter_${clCompany}_${clFullName.replace(/\s+/g, '_')}.pdf`, {
                                                         candidateName: clFullName,

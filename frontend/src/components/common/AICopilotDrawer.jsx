@@ -87,24 +87,7 @@ export const AICopilotDrawer = ({ isOpen, onClose }) => {
     };
     if (!isOpen)
         return null;
-    return (<div style={{
-        position: 'fixed',
-        bottom: '1.5rem',
-        right: '1.5rem',
-        width: '420px',
-        maxWidth: 'calc(100vw - 2rem)',
-        height: '600px',
-        maxHeight: 'calc(100vh - 4rem)',
-        backgroundColor: 'var(--bg-secondary)',
-        border: '1px solid var(--border-color)',
-        borderRadius: 'var(--radius-xl)',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.45), 0 0 20px rgba(124, 58, 237, 0.15)',
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        animation: 'fadeIn 0.2s ease'
-    }}>
+    return (<div className="copilot-drawer-container">
         {/* Header */}
         <div style={{
             padding: '1rem 1.25rem',

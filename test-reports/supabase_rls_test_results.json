@@ -1,0 +1,102 @@
+[
+  {
+    "id": "RLS-ANON-01",
+    "table": "profiles",
+    "scenario": "Anonymous Read User Data",
+    "passed": true,
+    "severity": "None",
+    "location": "schema.sql",
+    "details": "RLS blocked unauthenticated access.",
+    "evidence": "HTTP 403"
+  },
+  {
+    "id": "RLS-ANON-02",
+    "table": "user_skills",
+    "scenario": "Anonymous Read User Data",
+    "passed": true,
+    "severity": "None",
+    "location": "schema.sql",
+    "details": "RLS blocked unauthenticated access.",
+    "evidence": "HTTP 403"
+  },
+  {
+    "id": "RLS-ANON-03",
+    "table": "resumes",
+    "scenario": "Anonymous Read User Data",
+    "passed": true,
+    "severity": "None",
+    "location": "schema.sql",
+    "details": "RLS blocked unauthenticated access.",
+    "evidence": "HTTP 403"
+  },
+  {
+    "id": "RLS-ANON-04",
+    "table": "applications",
+    "scenario": "Anonymous Read User Data",
+    "passed": true,
+    "severity": "None",
+    "location": "schema.sql",
+    "details": "RLS blocked unauthenticated access.",
+    "evidence": "HTTP 403"
+  },
+  {
+    "id": "RLS-ANON-05",
+    "table": "analyses",
+    "scenario": "Anonymous Read User Data",
+    "passed": true,
+    "severity": "None",
+    "location": "schema.sql",
+    "details": "RLS blocked unauthenticated access.",
+    "evidence": "HTTP 403"
+  },
+  {
+    "id": "RLS-ANON-06",
+    "table": "projects",
+    "scenario": "Anonymous Read User Data",
+    "passed": true,
+    "severity": "None",
+    "location": "schema.sql",
+    "details": "RLS blocked unauthenticated access.",
+    "evidence": "HTTP 403"
+  },
+  {
+    "id": "RLS-ANON-07",
+    "table": "roadmaps",
+    "scenario": "Anonymous Read User Data",
+    "passed": true,
+    "severity": "None",
+    "location": "schema.sql",
+    "details": "RLS blocked unauthenticated access.",
+    "evidence": "HTTP 403"
+  },
+  {
+    "id": "RLS-GLOBAL-MUT-01",
+    "table": "role_roadmaps",
+    "scenario": "Global Table Mutation Check",
+    "passed": true,
+    "severity": "None",
+    "location": "schema.sql",
+    "details": "Mutation response status 403.",
+    "evidence": "HTTP 403"
+  },
+  {
+    "id": "RLS-GLOBAL-MUT-02",
+    "table": "interview_questions",
+    "scenario": "Global Table Mutation Check",
+    "passed": true,
+    "severity": "None",
+    "location": "schema.sql",
+    "details": "Mutation response status 403.",
+    "evidence": "HTTP 403"
+  },
+  {
+    "id": "RLS-GLOBAL-MUT-03",
+    "table": "jobs",
+    "scenario": "Global Table Mutation Check",
+    "passed": true,
+    "severity": "None",
+    "location": "schema.sql",
+    "details": "Mutation response status 403.",
+    "evidence": "HTTP 403"
+  }
+]

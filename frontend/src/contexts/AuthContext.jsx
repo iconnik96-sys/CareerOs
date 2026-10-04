@@ -283,19 +283,19 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (<AuthContext.Provider value={{
-            user,
-            profile,
-            loading,
-            isSupabaseConnected: isSupabaseConfigured,
-            login,
-            signup,
-            loginWithGoogle,
-            logout,
-            deleteAccount,
-            resetPassword,
-            refreshProfile
-        }}>
-      {children}
+        user,
+        profile,
+        loading,
+        isSupabaseConnected: isSupabaseConfigured,
+        login,
+        signup,
+        loginWithGoogle,
+        logout,
+        deleteAccount,
+        resetPassword,
+        refreshProfile
+    }}>
+        {children}
     </AuthContext.Provider>);
 };
 

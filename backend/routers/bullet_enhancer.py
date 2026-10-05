@@ -9,10 +9,10 @@ router = APIRouter(prefix="/api/ai", tags=["Resume Bullet Enhancer"])
 logger = logging.getLogger("BulletEnhancerRouter")
 
 class BulletEnhanceRequest(BaseModel):
-    raw_bullet: str = Field(..., example="I created a backend API in Spring Boot for user authentication and stored data in postgres.")
-    target_role: Optional[str] = Field(default="Backend Engineer", example="Java Backend Engineer")
-    technologies: List[str] = Field(default_factory=lambda: ["Spring Boot", "PostgreSQL", "JWT", "Docker"])
-    focus_area: Optional[str] = Field(default="Impact & Metrics", example="Impact & Metrics / Technical Depth / Architecture")
+    raw_bullet: str = Field(..., min_length=5, max_length=2000, example="I created a backend API in Spring Boot for user authentication and stored data in postgres.")
+    target_role: Optional[str] = Field(default="Backend Engineer", max_length=150, example="Java Backend Engineer")
+    technologies: List[str] = Field(default_factory=lambda: ["Spring Boot", "PostgreSQL", "JWT", "Docker"], max_length=50)
+    focus_area: Optional[str] = Field(default="Impact & Metrics", max_length=100, example="Impact & Metrics / Technical Depth / Architecture")
 
 class BulletVariation(BaseModel):
     version_title: str

@@ -10,14 +10,14 @@ logger = logging.getLogger("CoverLetterRouter")
 
 
 class CoverLetterRequest(BaseModel):
-    full_name: str = Field(..., example="Alex Rivera")
-    target_role: str = Field(..., example="Java Backend Developer")
-    company_name: str = Field(..., example="Stripe")
-    job_description: Optional[str] = Field(default="", example="Building high throughput payment microservices with Spring Boot and Kafka")
-    skills: List[str] = Field(default_factory=lambda: ["Java", "Spring Boot", "PostgreSQL", "Docker", "AWS"])
-    key_projects: Optional[str] = Field(default="Distributed Payment Ledger with Spring Boot and Kafka, Cloud Order Service with Docker")
-    tone: Optional[str] = Field(default="Confident & Impactful", example="Confident & Impactful")
-    recipient_name: Optional[str] = Field(default="Hiring Manager")
+    full_name: str = Field(..., min_length=1, max_length=120, example="Alex Rivera")
+    target_role: str = Field(..., min_length=1, max_length=150, example="Java Backend Developer")
+    company_name: str = Field(..., min_length=1, max_length=150, example="Stripe")
+    job_description: Optional[str] = Field(default="", max_length=15000, example="Building high throughput payment microservices with Spring Boot and Kafka")
+    skills: List[str] = Field(default_factory=lambda: ["Java", "Spring Boot", "PostgreSQL", "Docker", "AWS"], max_length=50)
+    key_projects: Optional[str] = Field(default="Distributed Payment Ledger with Spring Boot and Kafka, Cloud Order Service with Docker", max_length=5000)
+    tone: Optional[str] = Field(default="Confident & Impactful", max_length=100, example="Confident & Impactful")
+    recipient_name: Optional[str] = Field(default="Hiring Manager", max_length=100)
 
 
 class CoverLetterResponse(BaseModel):
@@ -29,15 +29,15 @@ class CoverLetterResponse(BaseModel):
 
 
 class OutreachRequest(BaseModel):
-    full_name: str = Field(..., example="Alex Rivera")
-    target_role: str = Field(..., example="Software Engineer - Fresher")
-    company_name: str = Field(..., example="Amazon")
-    recipient_role: str = Field(default="Recruiter", example="Technical Recruiter / Alumni")
-    recipient_name: Optional[str] = Field(default="Hiring Team")
-    channel: str = Field(default="LinkedIn", example="LinkedIn / Email")
-    purpose: str = Field(default="Referral Request", example="Job Application / Referral / Coffee Chat")
-    skills: List[str] = Field(default_factory=lambda: ["Java", "Distributed Systems", "SQL"])
-    experience: Optional[str] = Field(default="", example="2+ years building backend microservices with Spring Boot and AWS")
+    full_name: str = Field(..., min_length=1, max_length=120, example="Alex Rivera")
+    target_role: str = Field(..., min_length=1, max_length=150, example="Software Engineer - Fresher")
+    company_name: str = Field(..., min_length=1, max_length=150, example="Amazon")
+    recipient_role: str = Field(default="Recruiter", max_length=100, example="Technical Recruiter / Alumni")
+    recipient_name: Optional[str] = Field(default="Hiring Team", max_length=100)
+    channel: str = Field(default="LinkedIn", max_length=50, example="LinkedIn / Email")
+    purpose: str = Field(default="Referral Request", max_length=100, example="Job Application / Referral / Coffee Chat")
+    skills: List[str] = Field(default_factory=lambda: ["Java", "Distributed Systems", "SQL"], max_length=50)
+    experience: Optional[str] = Field(default="", max_length=5000, example="2+ years building backend microservices with Spring Boot and AWS")
 
 
 class OutreachResponse(BaseModel):
@@ -49,15 +49,15 @@ class OutreachResponse(BaseModel):
 
 
 class RagCompanyOutreachRequest(BaseModel):
-    full_name: str = Field(..., example="Aarav Sharma")
-    target_role: str = Field(..., example="Backend Engineer")
-    company_name: str = Field(..., example="Razorpay")
-    purpose: Optional[str] = Field(default="Job Application", example="Job Application / Referral Request / Application Follow-up / Coffee Chat")
-    skills: List[str] = Field(default_factory=lambda: ["Java", "Spring Boot", "PostgreSQL", "Redis"])
-    key_projects: Optional[str] = Field(default="Distributed Payment Microservice with Spring Boot, Redis caching, and Docker.")
-    recipient_role: Optional[str] = Field(default="Engineering Manager")
-    recipient_name: Optional[str] = Field(default="", example="Hiring Team")
-    tone: Optional[str] = Field(default="Confident & Technically Grounded")
+    full_name: str = Field(..., min_length=1, max_length=120, example="Aarav Sharma")
+    target_role: str = Field(..., min_length=1, max_length=150, example="Backend Engineer")
+    company_name: str = Field(..., min_length=1, max_length=150, example="Razorpay")
+    purpose: Optional[str] = Field(default="Job Application", max_length=100, example="Job Application / Referral Request / Application Follow-up / Coffee Chat")
+    skills: List[str] = Field(default_factory=lambda: ["Java", "Spring Boot", "PostgreSQL", "Redis"], max_length=50)
+    key_projects: Optional[str] = Field(default="Distributed Payment Microservice with Spring Boot, Redis caching, and Docker.", max_length=5000)
+    recipient_role: Optional[str] = Field(default="Engineering Manager", max_length=100)
+    recipient_name: Optional[str] = Field(default="", max_length=100, example="Hiring Team")
+    tone: Optional[str] = Field(default="Confident & Technically Grounded", max_length=100)
 
 
 class RagCompanyOutreachResponse(BaseModel):

@@ -24,7 +24,7 @@ def parse_job_skills(job):
         return raw_skills
     if isinstance(raw_skills, str) and raw_skills.strip():
         s = raw_skills.strip()
-        if s.startswith('[') and s.endsWith(']'):
+        if s.startswith('[') and s.endswith(']'):
             import json
             try:
                 return json.loads(s)

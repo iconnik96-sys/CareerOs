@@ -113,8 +113,16 @@ CREATE TABLE IF NOT EXISTS public.analyses (
     missing_skills JSONB DEFAULT '[]'::jsonb,
     recommendations JSONB DEFAULT '[]'::jsonb,
     skill_breakdown JSONB DEFAULT '[]'::jsonb,
+    detected_skills JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_analyses_user_id ON public.analyses(user_id);
+CREATE INDEX IF NOT EXISTS idx_applications_user_id ON public.applications(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_resumes_user_id ON public.resumes(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_skills_user_id ON public.user_skills(user_id);
+CREATE INDEX IF NOT EXISTS idx_projects_user_id ON public.projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_roadmaps_user_target ON public.roadmaps(user_id, target_role);
 
 -- 10. Projects Table
 CREATE TABLE IF NOT EXISTS public.projects (
@@ -301,19 +309,27 @@ CREATE POLICY "Users can manage own resumes"
     ON public.resumes FOR ALL 
     USING (auth.uid() = user_id);
 
--- 5. Jobs RLS (Public read, authenticated insert)
+-- 5. Jobs RLS (Public read, service_role manage)
 CREATE POLICY "Anyone can view jobs" 
     ON public.jobs FOR SELECT 
     USING (true);
 
-CREATE POLICY "Authenticated users can add jobs" 
-    ON public.jobs FOR INSERT 
-    WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Service role can manage jobs" 
+    ON public.jobs FOR ALL 
+    TO service_role 
+    USING (true) 
+    WITH CHECK (true);
 
--- 6. Job Skills RLS (Public read)
+-- 6. Job Skills RLS (Public read, service_role manage)
 CREATE POLICY "Anyone can view job skills" 
     ON public.job_skills FOR SELECT 
     USING (true);
+
+CREATE POLICY "Service role can manage job skills" 
+    ON public.job_skills FOR ALL 
+    TO service_role 
+    USING (true) 
+    WITH CHECK (true);
 
 -- 7. Applications RLS
 CREATE POLICY "Users can view own applications" 
@@ -342,14 +358,16 @@ CREATE POLICY "Users can manage own projects"
     ON public.projects FOR ALL 
     USING (auth.uid() = user_id);
 
--- 10. Role Roadmaps RLS (Public read, authenticated manage)
+-- 10. Role Roadmaps RLS (Public read, service_role manage)
 CREATE POLICY "Anyone can view role roadmaps" 
     ON public.role_roadmaps FOR SELECT 
     USING (true);
 
-CREATE POLICY "Authenticated users can manage role roadmaps" 
+CREATE POLICY "Service role can manage role roadmaps" 
     ON public.role_roadmaps FOR ALL 
-    WITH CHECK (auth.role() = 'authenticated');
+    TO service_role 
+    USING (true) 
+    WITH CHECK (true);
 
 -- 11. User Roadmaps RLS
 CREATE POLICY "Users can view own roadmaps" 
@@ -360,14 +378,16 @@ CREATE POLICY "Users can manage own roadmaps"
     ON public.roadmaps FOR ALL 
     USING (auth.uid() = user_id);
 
--- 12. Interview Questions RLS (Public read, authenticated manage)
+-- 12. Interview Questions RLS (Public read, service_role manage)
 CREATE POLICY "Anyone can view interview questions" 
     ON public.interview_questions FOR SELECT 
     USING (true);
 
-CREATE POLICY "Authenticated users can manage interview questions" 
+CREATE POLICY "Service role can manage interview questions" 
     ON public.interview_questions FOR ALL 
-    WITH CHECK (auth.role() = 'authenticated');
+    TO service_role 
+    USING (true) 
+    WITH CHECK (true);
 
 -- ====================================================================
 -- Supabase Storage Setup (resumes bucket)

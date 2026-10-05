@@ -8,11 +8,11 @@ router = APIRouter(prefix="/api/ai", tags=["Mock Interview Evaluator"])
 logger = logging.getLogger("InterviewEvaluatorRouter")
 
 class InterviewEvalRequest(BaseModel):
-    question: str = Field(..., example="How does HashMap work internally in Java?")
-    candidate_answer: str = Field(..., example="It uses an array of nodes and hashCode to find bucket index. In Java 8, when a bucket has more than 8 elements, it converts to a red-black tree.")
-    topic: Optional[str] = Field(default="Java", example="Java")
-    difficulty: Optional[str] = Field(default="Medium", example="Medium")
-    target_role: Optional[str] = Field(default="Java Backend Developer", example="Java Backend Developer")
+    question: str = Field(..., min_length=5, max_length=2000, example="How does HashMap work internally in Java?")
+    candidate_answer: str = Field(..., min_length=2, max_length=8000, example="It uses an array of nodes and hashCode to find bucket index. In Java 8, when a bucket has more than 8 elements, it converts to a red-black tree.")
+    topic: Optional[str] = Field(default="Java", max_length=100, example="Java")
+    difficulty: Optional[str] = Field(default="Medium", max_length=50, example="Medium")
+    target_role: Optional[str] = Field(default="Java Backend Developer", max_length=150, example="Java Backend Developer")
 
 class DimensionScore(BaseModel):
     name: str
@@ -33,11 +33,11 @@ class InterviewEvalResponse(BaseModel):
 import uuid
 
 class QuestionGenRequest(BaseModel):
-    role: Optional[str] = Field(default=None, example="Java Backend Developer")
-    target_role: Optional[str] = Field(default=None, example="Java Backend Developer")
-    difficulty: Optional[str] = Field(default="All", example="Medium")
-    topic: Optional[str] = Field(default="All", example="Java")
-    count: Optional[int] = Field(default=10, example=10)
+    role: Optional[str] = Field(default=None, max_length=150, example="Java Backend Developer")
+    target_role: Optional[str] = Field(default=None, max_length=150, example="Java Backend Developer")
+    difficulty: Optional[str] = Field(default="All", max_length=50, example="Medium")
+    topic: Optional[str] = Field(default="All", max_length=100, example="Java")
+    count: Optional[int] = Field(default=10, ge=1, le=25, example=10)
 
 class InterviewQuestionItem(BaseModel):
     id: str

@@ -9,12 +9,12 @@ router = APIRouter(prefix="/api/ai", tags=["Career Copilot Chat"])
 logger = logging.getLogger("CareerCopilotRouter")
 
 class ChatMessage(BaseModel):
-    role: str # "user" or "assistant" or "system"
-    content: str
+    role: str = Field(..., max_length=20) # "user" or "assistant" or "system"
+    content: str = Field(..., max_length=5000)
 
 class CopilotChatRequest(BaseModel):
-    message: str = Field(..., example="How do I prepare for a Spring Boot fresher interview in 2 weeks?")
-    history: List[ChatMessage] = Field(default_factory=list)
+    message: str = Field(..., min_length=1, max_length=4000, example="How do I prepare for a Spring Boot fresher interview in 2 weeks?")
+    history: List[ChatMessage] = Field(default_factory=list, max_length=20)
     user_context: Optional[dict] = Field(default_factory=lambda: {
         "full_name": "Alex Rivera",
         "target_role": "Java Backend Developer",

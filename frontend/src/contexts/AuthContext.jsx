@@ -186,25 +186,35 @@ export const AuthProvider = ({ children }) => {
                 return { error: error.message };
 
             if (data.user) {
-                setUser(data.user);
-                const freshProfile = {
-                    user_id: data.user.id,
-                    full_name: fullName,
-                    degree: '',
-                    college: '',
-                    graduation_year: 2026,
-                    target_role: '',
-                    location: '',
-                    career_readiness: 0,
-                    onboarding_completed: false
-                };
-                setProfile(freshProfile);
+                if (data.session) {
+                    setUser(data.user);
+                    const freshProfile = {
+                        user_id: data.user.id,
+                        full_name: fullName,
+                        degree: '',
+                        college: '',
+                        graduation_year: 2026,
+                        target_role: '',
+                        location: '',
+                        career_readiness: 0,
+                        onboarding_completed: false
+                    };
+                    setProfile(freshProfile);
 
-                profileService.createProfile(data.user.id, freshProfile).then(() => {
-                    loadProfile(data.user.id).catch(console.error);
-                }).catch((err) => {
-                    console.warn('Profile create on signup notice:', err);
-                });
+                    profileService.createProfile(data.user.id, freshProfile).then(() => {
+                        loadProfile(data.user.id).catch(console.error);
+                    }).catch((err) => {
+                        console.warn('Profile create on signup notice:', err);
+                    });
+                    return { success: true };
+                } else {
+                    // Email verification required by Supabase project config
+                    return {
+                        success: true,
+                        needsEmailConfirmation: true,
+                        message: 'Registration successful! Please check your email inbox to confirm your account before logging in.'
+                    };
+                }
             }
             return {};
         }

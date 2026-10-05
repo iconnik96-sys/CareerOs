@@ -15,12 +15,12 @@ class SkillBreakdownItem(BaseModel):
 
 
 class JobMatchAnalysisRequest(BaseModel):
-    user_skills: List[str] = Field(default_factory=list, example=["Java", "Spring Boot", "PostgreSQL", "Docker"])
-    resume_text: Optional[str] = Field(default="", example="Candidate resume content...")
-    job_title: str = Field(..., example="Junior Java Backend Engineer")
-    company: str = Field(..., example="Razorpay")
-    job_description: str = Field(..., example="We are looking for enthusiastic freshers or early-career Java developers...")
-    target_role: Optional[str] = Field(default="Java Backend Developer")
+    user_skills: List[str] = Field(default_factory=list, max_length=50, example=["Java", "Spring Boot", "PostgreSQL", "Docker"])
+    resume_text: Optional[str] = Field(default="", max_length=50000, example="Candidate resume content...")
+    job_title: str = Field(..., min_length=1, max_length=150, example="Junior Java Backend Engineer")
+    company: str = Field(..., min_length=1, max_length=150, example="Razorpay")
+    job_description: str = Field(..., min_length=10, max_length=25000, example="We are looking for enthusiastic freshers or early-career Java developers...")
+    target_role: Optional[str] = Field(default="Java Backend Developer", max_length=150)
 
 
 class JobMatchAnalysisResponse(BaseModel):
@@ -34,10 +34,10 @@ class JobMatchAnalysisResponse(BaseModel):
 
 
 class RagJobMatchRequest(BaseModel):
-    resume_text: str = Field(..., example="5+ projects in Java, Spring Boot, Docker, Redis...")
-    user_skills: Optional[List[str]] = Field(default_factory=list)
-    target_role: Optional[str] = Field(default="All")
-    top_k: Optional[int] = Field(default=4)
+    resume_text: str = Field(..., min_length=10, max_length=50000, example="5+ projects in Java, Spring Boot, Docker, Redis...")
+    user_skills: Optional[List[str]] = Field(default_factory=list, max_length=50)
+    target_role: Optional[str] = Field(default="All", max_length=150)
+    top_k: Optional[int] = Field(default=4, ge=1, le=10)
 
 
 class RetrievedJobMatch(BaseModel):

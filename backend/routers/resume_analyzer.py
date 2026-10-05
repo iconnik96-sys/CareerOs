@@ -131,10 +131,12 @@ class SkillBreakdownCategory(BaseModel):
     score: int
 
 
+MAX_RESUME_FILE_SIZE = 5 * 1024 * 1024 # 5 MB
+
 class DeepAnalysisRequest(BaseModel):
-    resume_text: str = Field(..., example="Full text of candidate's resume...")
-    target_role: Optional[str] = Field(default="Java Backend Developer", example="Java Backend Developer")
-    job_description: Optional[str] = Field(default="", example="Target job description context...")
+    resume_text: str = Field(..., min_length=10, max_length=50000, example="Full text of candidate's resume...")
+    target_role: Optional[str] = Field(default="Java Backend Developer", max_length=150, example="Java Backend Developer")
+    job_description: Optional[str] = Field(default="", max_length=20000, example="Target job description context...")
 
 
 class DeepAnalysisResponse(BaseModel):
@@ -160,12 +162,28 @@ class ResumeParseResponse(BaseModel):
 async def parse_resume_file(file: UploadFile = File(...)):
     """
     Extracts text and detected skills from an uploaded resume file (PDF or TXT).
+    Validates file format and enforces strict 5MB size limit.
     """
+    filename = (file.filename or "resume.pdf").strip()
+    is_pdf = filename.lower().endswith(".pdf") or (file.content_type and "pdf" in file.content_type.lower())
+    is_txt = filename.lower().endswith(".txt") or (file.content_type and "text" in file.content_type.lower())
+
+    if not is_pdf and not is_txt:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file format. Please upload a valid PDF (.pdf) or Text (.txt) resume file."
+        )
+
     content_bytes = await file.read()
-    filename = file.filename or "resume.pdf"
     file_size = len(content_bytes)
 
-    if filename.lower().endswith(".pdf") or (file.content_type and "pdf" in file.content_type.lower()):
+    if file_size > MAX_RESUME_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="File size exceeds the 5 MB limit. Please upload a smaller resume."
+        )
+
+    if is_pdf:
         extracted_text = extract_text_from_pdf_bytes(content_bytes)
     else:
         try:
@@ -191,8 +209,8 @@ async def parse_resume_file(file: UploadFile = File(...)):
 @router.post("/deep-resume-analysis", response_model=DeepAnalysisResponse)
 def deep_resume_analysis(req: DeepAnalysisRequest):
     resume_text = req.resume_text.strip()
-    if not resume_text:
-        raise HTTPException(status_code=400, detail="Resume text is required for analysis.")
+    if not resume_text or len(resume_text) < 10:
+        raise HTTPException(status_code=400, detail="Resume text is required and must contain at least 10 characters for analysis.")
 
     if not llm_engine.is_available():
         raise HTTPException(
@@ -210,7 +228,7 @@ Job Description Context:
 {req.job_description or "Standard competitive requirements for " + (req.target_role or "Java Backend Developer")}
 
 Candidate Resume Content:
-\"\"\"{resume_text}\"\"\"
+\"\"\"{resume_text[:25000]}\"\"\"
 
 Instructions:
 1. Extract and evaluate the actual projects, technical skills, databases, frameworks, and metrics present in this specific resume.
@@ -281,12 +299,26 @@ async def analyze_resume_upload(
     job_description: str = Form("")
 ):
     """
-    Combined single-step endpoint: uploads file, parses PDF/TXT text, and runs deep analysis.
+    Combined single-step endpoint: uploads file, validates size/MIME, parses PDF/TXT text, and runs deep analysis.
     """
-    content_bytes = await file.read()
-    filename = file.filename or "resume.pdf"
+    filename = (file.filename or "resume.pdf").strip()
+    is_pdf = filename.lower().endswith(".pdf") or (file.content_type and "pdf" in file.content_type.lower())
+    is_txt = filename.lower().endswith(".txt") or (file.content_type and "text" in file.content_type.lower())
 
-    if filename.lower().endswith(".pdf") or file.content_type == "application/pdf":
+    if not is_pdf and not is_txt:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file format. Please upload a valid PDF (.pdf) or Text (.txt) resume file."
+        )
+
+    content_bytes = await file.read()
+    if len(content_bytes) > MAX_RESUME_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="File size exceeds the 5 MB limit. Please upload a smaller resume."
+        )
+
+    if is_pdf:
         resume_text = extract_text_from_pdf_bytes(content_bytes)
     else:
         try:

@@ -30,9 +30,9 @@ class RoadmapPhaseItem(BaseModel):
 
 
 class RoadmapGenerateRequest(BaseModel):
-    target_role: str = Field(..., example="Java Backend Developer")
-    current_skills: List[str] = Field(default_factory=list, example=["Java", "SQL", "Git"])
-    experience_level: Optional[str] = Field(default="0-2 years (Fresher)", example="0-2 years (Fresher)")
+    target_role: str = Field(..., min_length=2, max_length=150, example="Java Backend Developer")
+    current_skills: List[str] = Field(default_factory=list, max_length=50, example=["Java", "SQL", "Git"])
+    experience_level: Optional[str] = Field(default="0-2 years (Fresher)", max_length=100, example="0-2 years (Fresher)")
 
 
 class RoadmapGenerateResponse(BaseModel):
@@ -134,7 +134,7 @@ Return your response as a valid JSON object matching this exact schema:
 
 
 class SuggestSkillsRequest(BaseModel):
-    role: str = Field(..., example="Data Analyst")
+    role: str = Field(..., min_length=1, max_length=150, example="Data Analyst")
 
 
 class SuggestSkillsResponse(BaseModel):

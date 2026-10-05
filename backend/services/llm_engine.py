@@ -43,7 +43,6 @@ class LLMEngine:
     def api_key(self) -> str:
         key = (
             os.getenv("GROQ_API_KEY") or
-            os.getenv("VITE_GROQ_API_KEY") or
             os.getenv("GROQ_KEY") or
             ""
         ).strip()
@@ -63,11 +62,11 @@ class LLMEngine:
         return self.is_available()
 
     def get_client(self) -> Any:
-        """Returns an authenticated Groq client instance."""
+        """Returns an authenticated Groq client instance with timeout protection."""
         if not self.is_available():
             return None
         try:
-            return Groq(api_key=self.api_key)
+            return Groq(api_key=self.api_key, timeout=30.0)
         except Exception as e:
             logger.error(f"Error initializing Groq client: {e}")
             return None
@@ -97,7 +96,7 @@ class LLMEngine:
         json_mode: bool = False,
         model_override: Optional[str] = None
     ) -> Optional[str]:
-        """Calls Groq Chat Completions API with optional system prompt or multi-turn messages."""
+        """Calls Groq Chat Completions API with strict 30s timeout and model fallback."""
         if not self.is_available():
             logger.warning("Groq API key not configured or Groq SDK unavailable.")
             return None
@@ -127,6 +126,7 @@ class LLMEngine:
                     "model": current_model,
                     "messages": call_messages,
                     "temperature": temperature,
+                    "timeout": 30.0
                 }
                 if json_mode:
                     kwargs["response_format"] = {"type": "json_object"}

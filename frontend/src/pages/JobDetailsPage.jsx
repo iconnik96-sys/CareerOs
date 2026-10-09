@@ -11,6 +11,7 @@ import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { CircularProgress } from '../components/common/CircularProgress';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { sanitizeUrl } from '../utils/security';
 
 export const JobDetailsPage = () => {
     const { id } = useParams();
@@ -149,7 +150,7 @@ export const JobDetailsPage = () => {
             <Button variant="secondary" onClick={handleTrackApplication} leftIcon={<Layers size={16}/>}>
               Track Application
             </Button>
-            <a href={job.source_url || '#'} target="_blank" rel="noreferrer">
+            <a href={sanitizeUrl(job.source_url)} target="_blank" rel="noopener noreferrer">
               <Button variant="primary" rightIcon={<ExternalLink size={15}/>}>
                 Apply on Official Site
               </Button>

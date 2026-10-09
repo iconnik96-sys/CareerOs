@@ -15,31 +15,27 @@ CREATE TABLE IF NOT EXISTS public.role_roadmaps (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.role_roadmaps ADD COLUMN IF NOT EXISTS role_id TEXT;
+ALTER TABLE public.role_roadmaps ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.role_roadmaps ADD COLUMN IF NOT EXISTS phases JSONB DEFAULT '[]'::jsonb;
+
 CREATE INDEX IF NOT EXISTS idx_role_roadmaps_role_id ON public.role_roadmaps(role_id);
 
 -- Enable RLS and grant read access
 ALTER TABLE public.role_roadmaps ENABLE ROW LEVEL SECURITY;
 
-DO $$ 
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies 
-        WHERE tablename = 'role_roadmaps' AND policyname = 'Anyone can view role roadmaps'
-    ) THEN
-        CREATE POLICY "Anyone can view role roadmaps" 
-            ON public.role_roadmaps FOR SELECT 
-            USING (true);
-    END IF;
+DROP POLICY IF EXISTS "Anyone can view role roadmaps" ON public.role_roadmaps;
+CREATE POLICY "Anyone can view role roadmaps" 
+    ON public.role_roadmaps FOR SELECT 
+    USING (true);
 
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies 
-        WHERE tablename = 'role_roadmaps' AND policyname = 'Authenticated users can manage role roadmaps'
-    ) THEN
-        CREATE POLICY "Authenticated users can manage role roadmaps" 
-            ON public.role_roadmaps FOR ALL 
-            WITH CHECK (auth.role() = 'authenticated');
-    END IF;
-END $$;
+DROP POLICY IF EXISTS "Service role can manage role roadmaps" ON public.role_roadmaps;
+DROP POLICY IF EXISTS "Authenticated users can manage role roadmaps" ON public.role_roadmaps;
+CREATE POLICY "Service role can manage role roadmaps" 
+    ON public.role_roadmaps FOR ALL 
+    TO service_role 
+    USING (true) 
+    WITH CHECK (true);
 
 
 -- ====================================================================

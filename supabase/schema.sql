@@ -1,5 +1,5 @@
 -- ====================================================================
--- CareerOS — Supabase PostgreSQL Schema & Security Policies
+-- CareerOS — Supabase PostgreSQL Schema & Security Policies (Idempotent)
 -- ====================================================================
 
 -- 1. Enable UUID Extension
@@ -25,6 +25,20 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure profiles columns exist on previously created tables
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS degree TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS college TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS graduation_year INTEGER;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS target_role TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS experience_level TEXT DEFAULT '0-2 years (Fresher)';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS expected_salary INTEGER;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS remote_preference TEXT DEFAULT 'Hybrid';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS career_readiness INTEGER DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false;
 
 -- 3. Skills Directory Table (Shared across all jobs and profiles)
 CREATE TABLE IF NOT EXISTS public.skills (
@@ -56,6 +70,9 @@ CREATE TABLE IF NOT EXISTS public.resumes (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.resumes ADD COLUMN IF NOT EXISTS parsed_text TEXT;
+ALTER TABLE public.resumes ADD COLUMN IF NOT EXISTS file_size INTEGER DEFAULT 0;
+
 -- 6. Jobs Directory Table (With role_id filter association)
 CREATE TABLE IF NOT EXISTS public.jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -73,6 +90,15 @@ CREATE TABLE IF NOT EXISTS public.jobs (
     skills JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure jobs columns exist if table was created previously
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS role_id TEXT NOT NULL DEFAULT 'backend';
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS skills JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS is_remote BOOLEAN DEFAULT false;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS job_type TEXT DEFAULT 'Full-time';
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS experience_min INTEGER DEFAULT 0;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS experience_max INTEGER DEFAULT 2;
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS salary_range TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_jobs_role_id ON public.jobs(role_id);
 
@@ -101,6 +127,9 @@ CREATE TABLE IF NOT EXISTS public.applications (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS salary TEXT;
+ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS notes TEXT;
+
 -- 9. AI Analyses Table
 CREATE TABLE IF NOT EXISTS public.analyses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -116,6 +145,13 @@ CREATE TABLE IF NOT EXISTS public.analyses (
     detected_skills JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.analyses ADD COLUMN IF NOT EXISTS detected_skills JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.analyses ADD COLUMN IF NOT EXISTS skill_breakdown JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.analyses ADD COLUMN IF NOT EXISTS recommendations JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.analyses ADD COLUMN IF NOT EXISTS missing_skills JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.analyses ADD COLUMN IF NOT EXISTS strengths JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.analyses ADD COLUMN IF NOT EXISTS target_role TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_analyses_user_id ON public.analyses(user_id);
 CREATE INDEX IF NOT EXISTS idx_applications_user_id ON public.applications(user_id, status);
@@ -137,6 +173,10 @@ CREATE TABLE IF NOT EXISTS public.projects (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS technologies JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS github_url TEXT;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS live_url TEXT;
+
 -- 11. Canonical Role Roadmaps Table (Database-Driven Role Roadmaps)
 CREATE TABLE IF NOT EXISTS public.role_roadmaps (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -147,6 +187,10 @@ CREATE TABLE IF NOT EXISTS public.role_roadmaps (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.role_roadmaps ADD COLUMN IF NOT EXISTS role_id TEXT;
+ALTER TABLE public.role_roadmaps ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.role_roadmaps ADD COLUMN IF NOT EXISTS phases JSONB DEFAULT '[]'::jsonb;
 
 CREATE INDEX IF NOT EXISTS idx_role_roadmaps_role_id ON public.role_roadmaps(role_id);
 
@@ -161,6 +205,8 @@ CREATE TABLE IF NOT EXISTS public.roadmaps (
     UNIQUE(user_id, target_role)
 );
 
+ALTER TABLE public.roadmaps ADD COLUMN IF NOT EXISTS phases JSONB DEFAULT '[]'::jsonb;
+
 -- 13. Role-Based Interview Questions Table
 CREATE TABLE IF NOT EXISTS public.interview_questions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -173,6 +219,10 @@ CREATE TABLE IF NOT EXISTS public.interview_questions (
     sample_answer TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.interview_questions ADD COLUMN IF NOT EXISTS role_id TEXT;
+ALTER TABLE public.interview_questions ADD COLUMN IF NOT EXISTS tips JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.interview_questions ADD COLUMN IF NOT EXISTS sample_answer TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_interview_questions_role ON public.interview_questions(role_id, difficulty, topic);
 
@@ -188,27 +238,33 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER update_profiles_updated_at
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
+CREATE TRIGGER update_profiles_updated_at
 BEFORE UPDATE ON public.profiles
 FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
-CREATE OR REPLACE TRIGGER update_resumes_updated_at
+DROP TRIGGER IF EXISTS update_resumes_updated_at ON public.resumes;
+CREATE TRIGGER update_resumes_updated_at
 BEFORE UPDATE ON public.resumes
 FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
-CREATE OR REPLACE TRIGGER update_applications_updated_at
+DROP TRIGGER IF EXISTS update_applications_updated_at ON public.applications;
+CREATE TRIGGER update_applications_updated_at
 BEFORE UPDATE ON public.applications
 FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
-CREATE OR REPLACE TRIGGER update_projects_updated_at
+DROP TRIGGER IF EXISTS update_projects_updated_at ON public.projects;
+CREATE TRIGGER update_projects_updated_at
 BEFORE UPDATE ON public.projects
 FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
-CREATE OR REPLACE TRIGGER update_role_roadmaps_updated_at
+DROP TRIGGER IF EXISTS update_role_roadmaps_updated_at ON public.role_roadmaps;
+CREATE TRIGGER update_role_roadmaps_updated_at
 BEFORE UPDATE ON public.role_roadmaps
 FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
-CREATE OR REPLACE TRIGGER update_roadmaps_updated_at
+DROP TRIGGER IF EXISTS update_roadmaps_updated_at ON public.roadmaps;
+CREATE TRIGGER update_roadmaps_updated_at
 BEFORE UPDATE ON public.roadmaps
 FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
@@ -234,7 +290,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE TRIGGER on_auth_user_created
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
@@ -253,7 +310,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION public.delete_user_account() TO authenticated;
 
 -- ====================================================================
--- Row Level Security (RLS) Policies
+-- Row Level Security (RLS) Policies (Safe Idempotent Definitions)
 -- ====================================================================
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -270,50 +327,61 @@ ALTER TABLE public.roadmaps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.interview_questions ENABLE ROW LEVEL SECURITY;
 
 -- 1. Profiles RLS
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile" 
     ON public.profiles FOR SELECT 
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" 
     ON public.profiles FOR UPDATE 
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile" 
     ON public.profiles FOR INSERT 
     WITH CHECK (auth.uid() = user_id);
 
 -- 2. Skills RLS (Public read, authenticated insert)
+DROP POLICY IF EXISTS "Anyone can view skills" ON public.skills;
 CREATE POLICY "Anyone can view skills" 
     ON public.skills FOR SELECT 
     USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can create skills" ON public.skills;
 CREATE POLICY "Authenticated users can create skills" 
     ON public.skills FOR INSERT 
     WITH CHECK (auth.role() = 'authenticated');
 
 -- 3. User Skills RLS
+DROP POLICY IF EXISTS "Users can view own skills" ON public.user_skills;
 CREATE POLICY "Users can view own skills" 
     ON public.user_skills FOR SELECT 
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage own skills" ON public.user_skills;
 CREATE POLICY "Users can manage own skills" 
     ON public.user_skills FOR ALL 
     USING (auth.uid() = user_id);
 
 -- 4. Resumes RLS
+DROP POLICY IF EXISTS "Users can view own resumes" ON public.resumes;
 CREATE POLICY "Users can view own resumes" 
     ON public.resumes FOR SELECT 
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage own resumes" ON public.resumes;
 CREATE POLICY "Users can manage own resumes" 
     ON public.resumes FOR ALL 
     USING (auth.uid() = user_id);
 
 -- 5. Jobs RLS (Public read, service_role manage)
+DROP POLICY IF EXISTS "Anyone can view jobs" ON public.jobs;
 CREATE POLICY "Anyone can view jobs" 
     ON public.jobs FOR SELECT 
     USING (true);
 
+DROP POLICY IF EXISTS "Service role can manage jobs" ON public.jobs;
 CREATE POLICY "Service role can manage jobs" 
     ON public.jobs FOR ALL 
     TO service_role 
@@ -321,10 +389,12 @@ CREATE POLICY "Service role can manage jobs"
     WITH CHECK (true);
 
 -- 6. Job Skills RLS (Public read, service_role manage)
+DROP POLICY IF EXISTS "Anyone can view job skills" ON public.job_skills;
 CREATE POLICY "Anyone can view job skills" 
     ON public.job_skills FOR SELECT 
     USING (true);
 
+DROP POLICY IF EXISTS "Service role can manage job skills" ON public.job_skills;
 CREATE POLICY "Service role can manage job skills" 
     ON public.job_skills FOR ALL 
     TO service_role 
@@ -332,37 +402,45 @@ CREATE POLICY "Service role can manage job skills"
     WITH CHECK (true);
 
 -- 7. Applications RLS
+DROP POLICY IF EXISTS "Users can view own applications" ON public.applications;
 CREATE POLICY "Users can view own applications" 
     ON public.applications FOR SELECT 
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage own applications" ON public.applications;
 CREATE POLICY "Users can manage own applications" 
     ON public.applications FOR ALL 
     USING (auth.uid() = user_id);
 
 -- 8. Analyses RLS
+DROP POLICY IF EXISTS "Users can view own analyses" ON public.analyses;
 CREATE POLICY "Users can view own analyses" 
     ON public.analyses FOR SELECT 
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage own analyses" ON public.analyses;
 CREATE POLICY "Users can manage own analyses" 
     ON public.analyses FOR ALL 
     USING (auth.uid() = user_id);
 
 -- 9. Projects RLS
+DROP POLICY IF EXISTS "Users can view own projects" ON public.projects;
 CREATE POLICY "Users can view own projects" 
     ON public.projects FOR SELECT 
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage own projects" ON public.projects;
 CREATE POLICY "Users can manage own projects" 
     ON public.projects FOR ALL 
     USING (auth.uid() = user_id);
 
 -- 10. Role Roadmaps RLS (Public read, service_role manage)
+DROP POLICY IF EXISTS "Anyone can view role roadmaps" ON public.role_roadmaps;
 CREATE POLICY "Anyone can view role roadmaps" 
     ON public.role_roadmaps FOR SELECT 
     USING (true);
 
+DROP POLICY IF EXISTS "Service role can manage role roadmaps" ON public.role_roadmaps;
 CREATE POLICY "Service role can manage role roadmaps" 
     ON public.role_roadmaps FOR ALL 
     TO service_role 
@@ -370,19 +448,23 @@ CREATE POLICY "Service role can manage role roadmaps"
     WITH CHECK (true);
 
 -- 11. User Roadmaps RLS
+DROP POLICY IF EXISTS "Users can view own roadmaps" ON public.roadmaps;
 CREATE POLICY "Users can view own roadmaps" 
     ON public.roadmaps FOR SELECT 
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage own roadmaps" ON public.roadmaps;
 CREATE POLICY "Users can manage own roadmaps" 
     ON public.roadmaps FOR ALL 
     USING (auth.uid() = user_id);
 
 -- 12. Interview Questions RLS (Public read, service_role manage)
+DROP POLICY IF EXISTS "Anyone can view interview questions" ON public.interview_questions;
 CREATE POLICY "Anyone can view interview questions" 
     ON public.interview_questions FOR SELECT 
     USING (true);
 
+DROP POLICY IF EXISTS "Service role can manage interview questions" ON public.interview_questions;
 CREATE POLICY "Service role can manage interview questions" 
     ON public.interview_questions FOR ALL 
     TO service_role 
@@ -397,6 +479,7 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('resumes', 'resumes', false)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "Users can upload own resume files" ON storage.objects;
 CREATE POLICY "Users can upload own resume files"
 ON storage.objects FOR INSERT
 TO authenticated
@@ -405,6 +488,7 @@ WITH CHECK (
     (storage.foldername(name))[1] = auth.uid()::text
 );
 
+DROP POLICY IF EXISTS "Users can view own resume files" ON storage.objects;
 CREATE POLICY "Users can view own resume files"
 ON storage.objects FOR SELECT
 TO authenticated
@@ -413,6 +497,7 @@ USING (
     (storage.foldername(name))[1] = auth.uid()::text
 );
 
+DROP POLICY IF EXISTS "Users can update own resume files" ON storage.objects;
 CREATE POLICY "Users can update own resume files"
 ON storage.objects FOR UPDATE
 TO authenticated
@@ -421,6 +506,7 @@ USING (
     (storage.foldername(name))[1] = auth.uid()::text
 );
 
+DROP POLICY IF EXISTS "Users can delete own resume files" ON storage.objects;
 CREATE POLICY "Users can delete own resume files"
 ON storage.objects FOR DELETE
 TO authenticated

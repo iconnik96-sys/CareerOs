@@ -9,6 +9,7 @@ import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { Modal } from '../components/common/Modal';
+import { sanitizeUrl } from '../utils/security';
 
 // Master list of industry-standard technologies for instant suggestions
 const MASTER_TECH_SKILLS = Array.from(new Set([
@@ -507,10 +508,10 @@ export const CareerProfilePage = () => {
                     </div>
 
                     <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem' }}>
-                      {proj.github_url && (<a href={proj.github_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary)' }}>
+                      {proj.github_url && (<a href={sanitizeUrl(proj.github_url)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary)' }}>
                           <GitBranch size={13}/> Repository
                         </a>)}
-                      {proj.live_url && (<a href={proj.live_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', color: 'var(--success)' }}>
+                      {proj.live_url && (<a href={sanitizeUrl(proj.live_url)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', color: 'var(--success)' }}>
                           <Globe size={13}/> Live Demo
                         </a>)}
                     </div>

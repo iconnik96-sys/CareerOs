@@ -5,17 +5,17 @@ Last updated: 2026-10-05
 
 ## Executive Summary
 
-Total issues: 13
+Total issues: 14
 P0: 2
 P1: 3
-P2: 4
+P2: 5
 P3: 3
 P4: 1
 
 Critical security issues: 2
 High security issues: 3
 Functional bugs: 3
-Production issues: 5
+Production issues: 6
 Blocked checks: 0 (Local & Remote Schema verifiable)
 
 ---
@@ -679,20 +679,79 @@ FIXED
 
 ---
 
+## BUG-014 — Unsanitized External URLs in Project Cards and Job Details (`javascript:` Scheme XSS)
+
+Severity: P2
+Category: Security / Frontend
+Status: FIXED
+
+### Attack / Reproduction
+1. An attacker sets a project repository URL or live demo URL on their profile or a job application link with a payload such as `javascript:alert(document.cookie)` or `data:text/html,...`.
+2. When a viewer clicks the link, the browser executes the script payload in the origin of CareerOS.
+
+### Preconditions
+User-supplied or external URL rendered directly in `<a href={...}>`.
+
+### Steps
+1. Navigate to Career Profile -> Add Project.
+2. Enter `javascript:alert(1)` as the GitHub Repository URL.
+3. Save project and click "Repository".
+
+### Expected Result
+URLs with dangerous schemes like `javascript:` must be sanitized to `'#'` and rejected from script execution. Links must use `rel="noopener noreferrer"`.
+
+### Actual Result
+Previously, raw strings were rendered into `<a href={proj.github_url}>` without scheme verification.
+
+### Security Impact
+Cross-Site Scripting (XSS) / URI Scheme Injection allowing arbitrary JavaScript execution in the context of the user session upon link click.
+
+### Affected Users
+Users interacting with user-supplied or third-party project and job links.
+
+### Affected Components
+- `frontend/src/pages/CareerProfilePage.jsx`
+- `frontend/src/pages/JobDetailsPage.jsx`
+
+### Root Cause
+Missing client-side URL protocol whitelist validation before binding to anchor `href`.
+
+### Recommended Fix
+Create `frontend/src/utils/security.js` with `sanitizeUrl()` to strictly allow `http:`, `https:`, `mailto:`, and relative paths, falling back to `'#'` for any disallowed scheme.
+
+### Files Involved
+- `frontend/src/utils/security.js`
+- `frontend/src/pages/CareerProfilePage.jsx`
+- `frontend/src/pages/JobDetailsPage.jsx`
+
+### Tests Required
+Verify that `javascript:...` and `data:...` URLs evaluate to safe fallback `#` and cannot trigger script execution.
+
+### Verification
+PASS. Implemented `sanitizeUrl()` in `frontend/src/utils/security.js`. Wrapped all project and job external links with `sanitizeUrl()` and `rel="noopener noreferrer"`.
+
+### Regression Result
+Valid HTTP/HTTPS repository and application URLs open properly in a new tab with `noopener noreferrer`.
+
+### Final Status
+FIXED
+
+---
+
 # Final Production Readiness Report
 
 ## Summary of Results
-- **Total Bugs Discovered:** 13
-- **Total Bugs Fixed:** 13
+- **Total Bugs Discovered:** 14
+- **Total Bugs Fixed:** 14
 - **Remaining Bugs:** 0
 - **Blocked Checks:** 0
 
 ## Security & Architecture Findings
-1. **Database & RLS:** All canonical tables (`role_roadmaps`, `interview_questions`, `jobs`, `job_skills`) are secured with read-only public access and service-role write restrictions. User tables (`analyses`, `applications`, `resumes`, `user_skills`, `projects`, `roadmaps`) are strictly isolated with `auth.uid() = user_id`.
+1. **Database & RLS:** All canonical tables (`role_roadmaps`, `interview_questions`, `jobs`, `job_skills`) are secured with read-only public access and service-role write restrictions. User tables (`analyses`, `applications`, `resumes`, `user_skills`, `projects`, `roadmaps`) are strictly isolated with `auth.uid() = user_id`. Schema execution is fully idempotent.
 2. **CORS & HTTP Headers:** Configured strict origin whitelist and complete HTTP security headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`, `Permissions-Policy`).
 3. **AI & Rate Limiting:** Bound payload inputs with min/max character limits on all AI endpoints and applied IP sliding-window rate limiting (60 req/min). Groq API client has a strict 30-second timeout.
 4. **File Upload Security:** Multi-layer resume file upload validation (5MB max limit, PDF/TXT extension and MIME validation, content length check).
-5. **Frontend & DevOps:** Production Nginx config hardened with security headers, gzip level 6, and immutable caching; Dockerfile hardened with non-root UID 1000 and container health checks; Global React Error Boundary prevents blank-screen UI crashes.
+5. **Frontend Security & DevOps:** External URLs sanitized against `javascript:` injection; Production Nginx config hardened with security headers, gzip level 6, and immutable caching; Dockerfile hardened with non-root UID 1000 and container health checks; Global React Error Boundary prevents blank-screen UI crashes.
 
 ## Manual Verification Steps for Remote Supabase Deployment
 When deploying to your live remote Supabase project:

@@ -4,11 +4,12 @@ import { useToast } from '../contexts/ToastContext';
 import { interviewService } from '../services/interviewService';
 import { aiFastApiService } from '../services/aiFastApiService';
 import { getRoleSlug, getRoleDisplayName, ROLE_TOPICS_MAP } from '../utils/careerRoles';
-import { Sparkles, CheckCircle2, Eye, EyeOff, Lightbulb, Check, RefreshCw, Send, HelpCircle, Plus } from 'lucide-react';
+import { Sparkles, CheckCircle2, Eye, EyeOff, Lightbulb, Check, RefreshCw, Send, HelpCircle, Plus, Mic, Play, Radio } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { LiveInterviewModal } from '../components/interview/LiveInterviewModal';
 
 const DIFFICULTIES = ['All', 'Easy', 'Medium', 'Hard'];
 const QUESTION_COUNTS = [5, 10, 15, 20];
@@ -31,6 +32,7 @@ export const InterviewPrepPage = () => {
     const [error, setError] = useState(null);
     const [revealedIds, setRevealedIds] = useState([]);
     const [masteredIds, setMasteredIds] = useState([]);
+    const [liveModalOpen, setLiveModalOpen] = useState(false);
 
     // Dynamic role topics
     const topics = ROLE_TOPICS_MAP[roleSlug] || ['All', 'Fundamentals', 'Architecture', 'Security', 'Testing'];
@@ -167,6 +169,58 @@ export const InterviewPrepPage = () => {
           </p>
         </div>
       </div>
+
+      {/* Hero: AI Live Interactive Voice Mock Interview Arena */}
+      <Card style={{
+        marginBottom: '1.5rem',
+        padding: '1.5rem',
+        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.08) 100%)',
+        border: '1px solid rgba(99, 102, 241, 0.3)',
+        borderRadius: 'var(--radius-xl)',
+        boxShadow: '0 8px 24px -4px rgba(99, 102, 241, 0.15)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.25rem' }}>
+          <div style={{ maxWidth: '600px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <span className="badge badge-purple" style={{ backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>
+                <Radio size={12} className="animate-pulse" /> ZERO-LATENCY INTERVIEW ARENA
+              </span>
+              <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>
+                Natural Voice Controls
+              </span>
+            </div>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0.25rem 0 0.5rem 0' }}>
+              Practice Live Voice Interview with AI
+            </h2>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+              Experience real-time turn-taking across 4 formats (Technical, DSA, Behavioral STAR, System Design). Includes natural conversational controls—say <em>"Could you repeat that?"</em> or click repeat anytime at zero token cost!
+            </p>
+          </div>
+
+          <Button 
+            variant="primary" 
+            size="lg"
+            onClick={() => setLiveModalOpen(true)}
+            leftIcon={<Mic size={18} />}
+            style={{
+              padding: '0.85rem 1.75rem',
+              fontSize: '0.95rem',
+              fontWeight: 800,
+              boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
+            }}
+          >
+            Launch AI Mock Interview
+          </Button>
+        </div>
+      </Card>
+
+      {/* Live Interview Arena Modal */}
+      <LiveInterviewModal 
+        isOpen={liveModalOpen} 
+        onClose={() => setLiveModalOpen(false)} 
+        defaultRole={roleDisplayName}
+        initialQuestions={questions}
+      />
 
       {/* Filter & Generator Bar */}
       <Card style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>

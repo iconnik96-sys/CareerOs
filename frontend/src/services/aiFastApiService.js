@@ -125,6 +125,24 @@ export const aiFastApiService = {
             throw formatApiError(err);
         }
     },
+    async clarifyInterviewQuestion(req) {
+        try {
+            const res = await client.post('/api/ai/clarify-interview-question', req);
+            return res.data;
+        }
+        catch (err) {
+            throw formatApiError(err);
+        }
+    },
+    async executeVoiceTurn(req) {
+        try {
+            const res = await client.post('/api/ai/interview-voice-turn', req);
+            return res.data;
+        }
+        catch (err) {
+            throw formatApiError(err);
+        }
+    },
     async jobMatchAnalysis(req) {
         try {
             const res = await client.post('/api/ai/job-match-analysis', req);

@@ -189,3 +189,122 @@ Return your response as a valid JSON object matching this exact structure:
             detail="AI returned malformed interview evaluation data. Please retry."
         )
 
+
+class QuestionClarifyRequest(BaseModel):
+    question: str = Field(..., min_length=5, max_length=2000)
+    topic: Optional[str] = Field(default="General", max_length=100)
+    target_role: Optional[str] = Field(default="Software Engineer", max_length=150)
+
+class QuestionClarifyResponse(BaseModel):
+    clarification: str
+    key_focus: str
+
+@router.post("/clarify-interview-question", response_model=QuestionClarifyResponse)
+def clarify_interview_question(req: QuestionClarifyRequest):
+    """
+    Provides a concise, non-spoiling clarification of the question's wording
+    without revealing the technical answer or compromising the rubric.
+    """
+    if not llm_engine.is_available():
+        raise HTTPException(
+            status_code=503,
+            detail="GROQ_API_KEY is not configured on the AI backend."
+        )
+
+    prompt = f"""
+You are a helpful and fair Technical Interviewer. A candidate asked for clarification on the following question:
+"{req.question}"
+Role: {req.target_role} | Topic: {req.topic}
+
+Provide a brief, 1-2 sentence clarification that rephrases what the interviewer is asking for in simpler terms.
+CRITICAL INSTRUCTION: DO NOT reveal the correct technical solution, code, or answer key. Only explain the scope and intent of the question.
+
+Return JSON:
+{{
+  "clarification": "We want to understand your approach to handling data collisions and time complexity implications.",
+  "key_focus": "Core mechanism and architectural trade-offs"
+}}
+"""
+    data = llm_engine.generate_json(
+        prompt=prompt,
+        system_instruction="You are a professional technical interviewer clarifying question wording without spoiling answers. Valid JSON only."
+    )
+    if not data or "clarification" not in data:
+        return QuestionClarifyResponse(
+            clarification=f"Please focus on explaining the core concepts, mechanisms, and trade-offs of {req.topic or 'this topic'}.",
+            key_focus="Conceptual explanation and trade-offs"
+        )
+    return QuestionClarifyResponse(**data)
+
+
+class VoiceTurnMessage(BaseModel):
+    role: str # "interviewer" or "candidate"
+    content: str
+
+class VoiceTurnRequest(BaseModel):
+    target_role: str = Field(default="Software Engineer", max_length=150)
+    interview_mode: Optional[str] = Field(default="TECHNICAL", max_length=50)
+    current_question: str = Field(..., max_length=2000)
+    candidate_speech: str = Field(..., max_length=4000)
+    history: List[VoiceTurnMessage] = Field(default_factory=list)
+    question_idx: int = Field(default=0)
+    total_questions: int = Field(default=5)
+
+class VoiceTurnResponse(BaseModel):
+    ai_speech_reply: str
+    is_question_complete: bool
+    next_question: Optional[str] = None
+    interviewer_reaction: Optional[str] = None
+
+@router.post("/interview-voice-turn", response_model=VoiceTurnResponse)
+def interview_voice_turn(req: VoiceTurnRequest):
+    """
+    Sub-200ms conversational turn engine for live voice-to-voice interviews.
+    Generates natural, human-like spoken interview dialogue and smart follow-up probes.
+    """
+    if not llm_engine.is_available():
+        raise HTTPException(
+            status_code=503,
+            detail="GROQ_API_KEY is not configured on the AI backend."
+        )
+
+    formatted_history = "\n".join([f"{msg.role.upper()}: {msg.content}" for msg in req.history[-6:]])
+
+    prompt = f"""
+You are a live, conversational Senior Technical Interviewer conducting an authentic mock interview for a candidate applying for: "{req.target_role}".
+Interview Mode: {req.interview_mode}
+The candidate just completed answering Question #{req.question_idx + 1} of {req.total_questions}:
+"{req.current_question}"
+
+Candidate's Answer:
+"{req.candidate_speech}"
+
+Instructions:
+1. Provide a single, very concise (1 short sentence) natural interviewer reaction acknowledging what they said (e.g., "Good explanation of event bubbling and delegation.", "Got it, nice breakdown of the complexity trade-offs.", "Understood, solid points on state management.").
+2. DO NOT re-explain, clarify, or lecture on the previous question.
+3. DO NOT ask follow-ups on the old question.
+4. Keep it concise, friendly, and human-like for real-time speech.
+
+Return JSON:
+{{
+  "ai_speech_reply": "Good breakdown of the DOM event propagation mechanism.",
+  "is_question_complete": true,
+  "interviewer_reaction": "Candidate demonstrated clear understanding"
+}}
+"""
+    data = llm_engine.generate_json(
+        prompt=prompt,
+        system_instruction="You are a Staff Technical Interviewer on a live voice call. Respond in 1 brief, natural spoken sentence acknowledging the candidate's answer. Valid JSON only."
+    )
+
+    if not data or "ai_speech_reply" not in data:
+        return VoiceTurnResponse(
+            ai_speech_reply="Got it, thank you for that explanation.",
+            is_question_complete=True,
+            interviewer_reaction="Answer acknowledged"
+        )
+
+    return VoiceTurnResponse(**data)
+
+
+

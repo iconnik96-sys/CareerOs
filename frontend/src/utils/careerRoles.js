@@ -147,8 +147,14 @@ export function isJobMatchingRole(job, targetRole = '') {
 
     const targetSlug = getRoleSlug(targetRole);
 
-    // 1. Check explicit role_id if set in the database
-    if (job.role_id) {
+    // 1. Check title first to accurately detect role and avoid default role_id collision
+    if (job.title) {
+        const titleSlug = getRoleSlug(job.title);
+        if (titleSlug === targetSlug) return true;
+    }
+
+    // 2. Check explicit role_id if set in the database and not just fallback backend
+    if (job.role_id && job.role_id !== 'backend') {
         const jobSlug = getRoleSlug(job.role_id);
         if (jobSlug === targetSlug) return true;
     }
@@ -360,7 +366,7 @@ export function parseJobSkills(job) {
     }
 
     // 3. Fallback: Automatically extract matched skills from the role's skills map using title + description
-    const roleSlug = getRoleSlug(job.role_id || job.title);
+    const roleSlug = getRoleSlug(job.title || job.role_id);
     const roleDisplayName = getRoleDisplayName(roleSlug);
     const candidateSkills = ROLE_SKILLS_MAP[roleDisplayName] || DEFAULT_FALLBACK_SKILLS;
 
@@ -477,23 +483,59 @@ export const DEFAULT_ACTIONS = [
     { title: 'Bridge top identified skill gaps', desc: 'Follow your personalized milestone roadmap to master missing technologies.', link: '/roadmap' }
 ];
 
+const TECH_ALIAS_MAP = {
+    'js': 'javascript',
+    'javascript': 'javascript',
+    'ts': 'typescript',
+    'typescript': 'typescript',
+    'py': 'python',
+    'python': 'python',
+    'react': 'react',
+    'react.js': 'react',
+    'reactjs': 'react',
+    'next': 'next.js',
+    'next.js': 'next.js',
+    'nextjs': 'next.js',
+    'vue': 'vue',
+    'vue.js': 'vue',
+    'vuejs': 'vue',
+    'node': 'node.js',
+    'node.js': 'node.js',
+    'nodejs': 'node.js',
+    'postgres': 'postgresql',
+    'postgresql': 'postgresql',
+    'k8s': 'kubernetes',
+    'kubernetes': 'kubernetes',
+    'golang': 'go',
+    'go': 'go'
+};
+
 /**
  * Normalizes and checks if two skill names match
  */
 export function isSkillMatch(skillA, skillB) {
     if (!skillA || !skillB) return false;
-    const a = skillA.toLowerCase().trim();
-    const b = skillB.toLowerCase().trim();
+    let a = skillA.toLowerCase().trim();
+    let b = skillB.toLowerCase().trim();
 
     if (a === b) return true;
+
+    // Check alias normalization
+    const normA = TECH_ALIAS_MAP[a] || a;
+    const normB = TECH_ALIAS_MAP[b] || b;
+    if (normA === normB) return true;
+
     if (a.includes(b) || b.includes(a)) return true;
+    if (normA.includes(normB) || normB.includes(normA)) return true;
 
     const aParts = a.split(/[/,&+]/).map(p => p.trim()).filter(Boolean);
     const bParts = b.split(/[/,&+]/).map(p => p.trim()).filter(Boolean);
 
     for (const ap of aParts) {
+        const nap = TECH_ALIAS_MAP[ap] || ap;
         for (const bp of bParts) {
-            if (ap === bp || (ap.length > 2 && bp.length > 2 && (ap.includes(bp) || bp.includes(ap)))) {
+            const nbp = TECH_ALIAS_MAP[bp] || bp;
+            if (ap === bp || nap === nbp || (ap.length > 2 && bp.length > 2 && (ap.includes(bp) || bp.includes(ap)))) {
                 return true;
             }
         }

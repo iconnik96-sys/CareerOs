@@ -22,7 +22,7 @@ export const ApplicationsPage = () => {
     const { showToast } = useToast();
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState('kanban');
+    const [viewMode, setViewMode] = useState('table');
     // Modal State
     const [modalOpen, setModalOpen] = useState(false);
     const [editingAppId, setEditingAppId] = useState(null);
@@ -135,11 +135,11 @@ export const ApplicationsPage = () => {
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {/* View Mode Switcher */}
           <div style={{ display: 'flex', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', padding: '2px', border: '1px solid var(--border-color)' }}>
-            <button onClick={() => setViewMode('kanban')} className={`btn-ghost btn-sm ${viewMode === 'kanban' ? 'active' : ''}`} style={{ backgroundColor: viewMode === 'kanban' ? 'var(--primary-light)' : 'transparent', color: viewMode === 'kanban' ? 'var(--primary)' : 'var(--text-secondary)' }}>
-              <Kanban size={15}/> Kanban
-            </button>
             <button onClick={() => setViewMode('table')} className={`btn-ghost btn-sm ${viewMode === 'table' ? 'active' : ''}`} style={{ backgroundColor: viewMode === 'table' ? 'var(--primary-light)' : 'transparent', color: viewMode === 'table' ? 'var(--primary)' : 'var(--text-secondary)' }}>
               <TableIcon size={15}/> Table
+            </button>
+            <button onClick={() => setViewMode('kanban')} className={`btn-ghost btn-sm ${viewMode === 'kanban' ? 'active' : ''}`} style={{ backgroundColor: viewMode === 'kanban' ? 'var(--primary-light)' : 'transparent', color: viewMode === 'kanban' ? 'var(--primary)' : 'var(--text-secondary)' }}>
+              <Kanban size={15}/> Kanban
             </button>
           </div>
 

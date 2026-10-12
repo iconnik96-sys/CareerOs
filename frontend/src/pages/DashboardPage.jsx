@@ -269,17 +269,26 @@ export const DashboardPage = () => {
                     justifyContent: 'space-between',
                     gap: '1rem'
                 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                        <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
-                          {job.title}
-                        </span>
-                        <span className="badge badge-success">{job.match_score || 90}% Match</span>
+                  {(() => {
+                    const userSkillNames = (userSkills || []).map(s => (typeof s === 'string' ? s : s.skill?.name || s.name || '')).filter(Boolean);
+                    const match = jobService.calculateSkillMatch(userSkillNames, job.skills, job);
+                    const matchScore = match.score;
+                    const badgeClass = matchScore >= 70 ? 'badge-success' : matchScore >= 40 ? 'badge-primary' : (userSkillNames.length > 0 && matchScore > 0 ? 'badge-warning' : 'badge-neutral');
+
+                    return (
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                          <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
+                            {job.title}
+                          </span>
+                          <span className={`badge ${badgeClass}`}>{matchScore}% Match</span>
+                        </div>
+                        <div className="text-body text-xs">
+                          {job.company} • {job.location} • {job.salary_range}
+                        </div>
                       </div>
-                      <div className="text-body text-xs">
-                        {job.company} • {job.location} • {job.salary_range}
-                      </div>
-                    </div>
+                    );
+                  })()}
                     <Link to={`/jobs/${job.id}`}>
                       <Button variant="secondary" size="sm">
                         View Job

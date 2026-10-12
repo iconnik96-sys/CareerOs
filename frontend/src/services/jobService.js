@@ -28,9 +28,12 @@ export const jobService = {
                 return [];
             }
 
-            let allJobs = data || [];
+            let allJobs = (data || []).map(job => ({
+                ...job,
+                skills: parseJobSkills(job)
+            }));
 
-            // Apply intelligent track matching strictly based on title and description
+            // Apply intelligent track matching strictly based on title and description if requested
             if (filter.role && filter.role !== 'All') {
                 allJobs = allJobs.filter(job => isJobMatchingRole(job, filter.role));
             }
@@ -128,14 +131,26 @@ export const jobService = {
 
         if (!requiredSkills || requiredSkills.length === 0) {
             return {
-                score: 75,
-                matching: userSkillNames.slice(0, 3),
+                score: 0,
+                matching: [],
                 missing: [],
-                requiredSkills: userSkillNames.slice(0, 3)
+                requiredSkills: []
             };
         }
 
-        const normalizedUser = userSkillNames.map(s => (typeof s === 'string' ? s.trim() : s?.name || '')).filter(Boolean);
+        const normalizedUser = (userSkillNames || [])
+            .map(s => (typeof s === 'string' ? s.trim() : s?.name || s?.skill?.name || ''))
+            .filter(Boolean);
+
+        if (normalizedUser.length === 0) {
+            return {
+                score: 0,
+                matching: [],
+                missing: requiredSkills,
+                requiredSkills
+            };
+        }
+
         const matching = [];
         const missing = [];
 
@@ -153,7 +168,7 @@ export const jobService = {
             : 0;
 
         return {
-            score: Math.max(10, Math.min(100, score)),
+            score: Math.max(0, Math.min(100, score)),
             matching,
             missing,
             requiredSkills

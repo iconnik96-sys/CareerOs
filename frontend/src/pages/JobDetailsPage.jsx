@@ -89,7 +89,7 @@ export const JobDetailsPage = () => {
         ? matchingData.requiredSkills
         : parseJobSkills(job);
 
-    const roleName = getRoleDisplayName(job.role_id || job.title);
+    const roleName = getRoleDisplayName(job.title || job.role_id);
 
     // Dynamic preparation topics based on missing or required skills
     const prepTopics = matchingData.missing.length > 0

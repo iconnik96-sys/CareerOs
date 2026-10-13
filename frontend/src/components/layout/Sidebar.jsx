@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { LayoutDashboard, User, FileText, ScanSearch, Briefcase, Layers, Milestone, HelpCircle, Settings, LogOut, Sparkles } from 'lucide-react';
+import { LayoutDashboard, User, FileText, ScanSearch, Briefcase, Layers, Milestone, HelpCircle, Settings, LogOut, Sparkles, Terminal } from 'lucide-react';
 export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
     const { user, profile, logout } = useAuth();
     const navigate = useNavigate();
@@ -19,6 +19,7 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
         { to: '/applications', label: 'Applications', icon: <Layers size={18}/> },
         { to: '/roadmap', label: 'Career Roadmap', icon: <Milestone size={18}/> },
         { to: '/interview-prep', label: 'Interview Prep', icon: <HelpCircle size={18}/>, badge: 'AI Live' },
+        { to: '/simulations', label: 'Workplace Simulation', icon: <Terminal size={18}/>, badge: 'Practice' },
         { to: '/settings', label: 'Settings', icon: <Settings size={18}/> },
     ];
     return (<aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}>

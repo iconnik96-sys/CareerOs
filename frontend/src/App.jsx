@@ -25,6 +25,8 @@ import { ApplicationsPage } from './pages/ApplicationsPage';
 import { CareerRoadmapPage } from './pages/CareerRoadmapPage';
 import { InterviewPrepPage } from './pages/InterviewPrepPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { SimulationsPage } from './pages/SimulationsPage';
+import { SimulationWorkspacePage } from './pages/SimulationWorkspacePage';
 
 // Guard component that requires authenticated session
 const ProtectedRoute = ({ children }) => {
@@ -71,6 +73,8 @@ export const App = () => {
                                 <Route path="/applications" element={<ApplicationsPage />} />
                                 <Route path="/roadmap" element={<CareerRoadmapPage />} />
                                 <Route path="/interview-prep" element={<InterviewPrepPage />} />
+                                <Route path="/simulations" element={<SimulationsPage />} />
+                                <Route path="/simulations/:trackKey" element={<SimulationWorkspacePage />} />
                                 <Route path="/settings" element={<SettingsPage />} />
                             </Route>
 

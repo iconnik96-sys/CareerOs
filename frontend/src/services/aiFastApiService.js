@@ -116,6 +116,15 @@ export const aiFastApiService = {
             throw formatApiError(err);
         }
     },
+    async evaluateInterviewSession(req) {
+        try {
+            const res = await client.post('/api/ai/evaluate-interview-session', req);
+            return res.data;
+        }
+        catch (err) {
+            throw formatApiError(err);
+        }
+    },
     async generateInterviewQuestions(req) {
         try {
             const res = await client.post('/api/ai/generate-interview-questions', req);

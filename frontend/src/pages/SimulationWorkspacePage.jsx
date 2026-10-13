@@ -857,6 +857,47 @@ export const SimulationWorkspacePage = () => {
                                     </div>
                                 </div>
 
+                                {/* Unchanged Code or Unmodified Template Alert */}
+                                {reviewResult.is_unchanged_attempt && (
+                                    <div style={{
+                                        background: 'rgba(245, 158, 11, 0.12)',
+                                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                                        borderRadius: 'var(--radius-md)',
+                                        padding: '0.75rem 1rem',
+                                        marginBottom: '1rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        fontSize: '0.8125rem',
+                                        color: '#fbbf24'
+                                    }}>
+                                        <AlertCircle size={16} />
+                                        <span>
+                                            <strong>No Code Changes Detected:</strong> You re-submitted the exact same code. Your score remains strictly locked at <strong>{reviewResult.score}/100</strong>. Modify your code to fix the failing criteria below.
+                                        </span>
+                                    </div>
+                                )}
+
+                                {reviewResult.is_unmodified_starter && (
+                                    <div style={{
+                                        background: 'rgba(239, 68, 68, 0.12)',
+                                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                                        borderRadius: 'var(--radius-md)',
+                                        padding: '0.75rem 1rem',
+                                        marginBottom: '1rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        fontSize: '0.8125rem',
+                                        color: '#f87171'
+                                    }}>
+                                        <AlertCircle size={16} />
+                                        <span>
+                                            <strong>Unmodified Starter Code:</strong> You submitted the initial starter template without implementing the required logic. Please replace the TODO comments with working code.
+                                        </span>
+                                    </div>
+                                )}
+
                                 {/* Marcus Summary */}
                                 <div style={{ marginBottom: '1.25rem' }}>
                                     <div style={{ fontWeight: 700, fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '0.375rem', textTransform: 'uppercase' }}>
@@ -866,6 +907,63 @@ export const SimulationWorkspacePage = () => {
                                         {reviewResult.summary}
                                     </p>
                                 </div>
+
+                                {/* Acceptance Criteria Rubric Breakdown */}
+                                {reviewResult.criteria_breakdown && reviewResult.criteria_breakdown.length > 0 && (
+                                    <div style={{ marginBottom: '1.25rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '0.8125rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                                                Acceptance Criteria Rubric Breakdown
+                                            </span>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                {reviewResult.criteria_breakdown.filter(c => c.status === 'PASS').length} of {reviewResult.criteria_breakdown.length} Criteria Passed
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            {reviewResult.criteria_breakdown.map((crit, idx) => (
+                                                <div key={idx} style={{
+                                                    background: crit.status === 'PASS' ? 'rgba(16, 185, 129, 0.06)' : 'rgba(239, 68, 68, 0.06)',
+                                                    border: crit.status === 'PASS' ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(239, 68, 68, 0.25)',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    padding: '0.75rem 1rem',
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'flex-start',
+                                                    gap: '1rem'
+                                                }}>
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                                            {crit.status === 'PASS' ? (
+                                                                <CheckCircle2 size={16} color="var(--success)" />
+                                                            ) : (
+                                                                <XCircle size={16} color="var(--danger)" />
+                                                            )}
+                                                            <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                                                                {crit.criterion}
+                                                            </span>
+                                                        </div>
+                                                        {crit.feedback && (
+                                                            <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', paddingLeft: '1.5rem', lineHeight: 1.4 }}>
+                                                                {crit.feedback}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div style={{
+                                                        fontWeight: 800,
+                                                        fontSize: '0.8125rem',
+                                                        color: crit.status === 'PASS' ? 'var(--success)' : 'var(--danger)',
+                                                        background: crit.status === 'PASS' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                                        padding: '0.2rem 0.5rem',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        whiteSpace: 'nowrap'
+                                                    }}>
+                                                        {crit.points_awarded} / {crit.points_possible} pts
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Strengths & Improvements */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>

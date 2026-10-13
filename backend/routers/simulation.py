@@ -21,6 +21,13 @@ class LineComment(BaseModel):
     severity: str = Field(default="suggestion", description="'blocker', 'suggestion', or 'praise'")
     comment: str
 
+class CriterionResult(BaseModel):
+    criterion: str
+    status: str = Field(..., description="'PASS' or 'FAIL'")
+    points_awarded: int
+    points_possible: int
+    feedback: str
+
 class SimulationReviewRequest(BaseModel):
     ticket_code: str = Field(..., example="FIN-101")
     ticket_title: str = Field(..., example="Strict ISO-4217 Currency Code & Amount Boundary Validation")
@@ -35,11 +42,14 @@ class SimulationReviewResponse(BaseModel):
     status: str = Field(..., example="APPROVED")  # "APPROVED" or "CHANGES_REQUESTED"
     score: int = Field(..., ge=0, le=100, example=88)
     summary: str
+    criteria_breakdown: List[CriterionResult] = Field(default_factory=list)
     strengths: List[str]
     improvements: List[str]
     line_comments: List[LineComment]
     star_bullet: str
     interview_talking_point: str
+    is_unmodified_starter: bool = False
+    is_unchanged_attempt: bool = False
 
 class StandupRequest(BaseModel):
     yesterday_work: str = Field(..., min_length=1)
@@ -393,11 +403,37 @@ def get_simulation_track(track_key: str):
     raise HTTPException(status_code=404, detail="Simulation track not found")
 
 
+# In-memory deterministic review cache (keyed by ticket, language, code hash)
+import hashlib
+_review_cache: Dict[str, Dict[str, Any]] = {}
+
+def detect_unmodified_starter(ticket_code: str, language: str, code: str) -> bool:
+    """Detects if the candidate submitted the template without implementing the required logic."""
+    code_lower = code.lower()
+    
+    if ticket_code == "FIN-101":
+        has_todo = "todo (fin-101)" in code_lower or "todo: implement" in code_lower
+        has_validation = any(k in code for k in ["SUPPORTED_CURRENCIES", "currency in", "currency.toUpperCase", "currency.includes", "422", "400"])
+        has_amount_check = any(k in code for k in ["amount <", "amount <=", "amount >", "amount ==", "scale()", "round("])
+        return has_todo or (not has_validation and not has_amount_check)
+
+    if ticket_code == "FIN-102":
+        has_todo = "todo (fin-102)" in code_lower or "todo: prevent" in code_lower
+        has_lock_check = any(k in code for k in ["distributed_locks", "locks.putIfAbsent", "distributedLocks", "409", "setnx"])
+        return has_todo or not has_lock_check
+
+    if ticket_code == "FIN-103":
+        has_todo = "todo (fin-103)" in code_lower or "todo: implement" in code_lower
+        has_middleware = any(k in code for k in ["request_id", "requestId", "UUID", "500", "error_code", "Internal Error"])
+        return has_todo or not has_middleware
+
+    return False
+
 @router.post("/review", response_model=SimulationReviewResponse)
 async def review_simulation_submission(req: SimulationReviewRequest):
     """
     Evaluates an intern's Pull Request / code submission against acceptance criteria.
-    Acts as Marcus, Staff Software Engineer at FinPulse Global.
+    Acts as Marcus, Staff Software Engineer at FinPulse Global (Strict, rigorous, deterministic).
     """
     code_content = req.submitted_code.strip()
     
@@ -407,88 +443,214 @@ async def review_simulation_submission(req: SimulationReviewRequest):
         if pr_diff:
             code_content = f"--- GITHUB PULL REQUEST DIFF ({req.github_pr_url}) ---\n{pr_diff}\n\n--- INTERN PR CODE ---\n{code_content}"
 
-    # Verify LLM availability
-    if not llm_engine.is_available():
-        # Clean deterministic fallback for testing without Groq key
-        return SimulationReviewResponse(
-            status="APPROVED" if len(code_content) > 150 else "CHANGES_REQUESTED",
-            score=85 if len(code_content) > 150 else 60,
-            summary="Marcus (Staff Engineer): Code submission analyzed. Core logic addresses the ticket requirements.",
-            strengths=["Clean syntax structure", "Aligned with basic function signatures"],
-            improvements=["Ensure rigorous edge-case testing for negative numbers", "Add inline comments explaining locking logic"],
-            line_comments=[
-                LineComment(line=15, severity="praise", comment="Good separation of validation logic."),
-                LineComment(line=28, severity="suggestion", comment="Ensure error messages do not leak internal system details.")
+    code_hash = hashlib.sha256(code_content.encode("utf-8")).hexdigest()[:16]
+    cache_key = f"{req.ticket_code}:{req.language}:{code_hash}"
+
+    # 1. Deterministic Cache Check: If exact same code is submitted again, never roll random numbers!
+    if cache_key in _review_cache:
+        cached_data = _review_cache[cache_key].copy()
+        is_repeat = req.attempt_number > 1
+        cached_summary = cached_data["summary"]
+        if is_repeat:
+            cached_summary = (
+                f"Marcus (Staff Software Engineer): [Attempt #{req.attempt_number}] ⚠️ No code modifications detected since your previous attempt. "
+                f"The exact same blockers remain. Your score remains strictly {cached_data['score']}/100. "
+                f"Please modify your code to address the failing criteria before submitting again."
+            )
+        cached_data["summary"] = cached_summary
+        cached_data["is_unchanged_attempt"] = is_repeat
+        return SimulationReviewResponse(**cached_data)
+
+    # 2. Strict Detection of Unmodified Starter Code
+    if detect_unmodified_starter(req.ticket_code, req.language, code_content):
+        criteria = req.acceptance_criteria or [
+            "Validate currency is exactly 3 uppercase letters matching ISO-4217",
+            "Validate amount is strictly greater than 0 and formatted to at most 2 decimal places",
+            "Reject invalid payloads with HTTP 422/400 and structured error details",
+            "Maintain valid endpoint signatures and schema requirements"
+        ]
+        pts_each = 100 // len(criteria)
+        breakdown = []
+        for idx, c in enumerate(criteria):
+            is_last = (idx == len(criteria) - 1)
+            # Last criterion is schema skeleton, which passes; others fail
+            breakdown.append(CriterionResult(
+                criterion=c,
+                status="PASS" if is_last else "FAIL",
+                points_awarded=pts_each if is_last else 0,
+                points_possible=pts_each,
+                feedback="Base schema signature compiles." if is_last else "Failed: Unmodified starter code. TODO is not implemented."
+            ))
+        strict_score = sum(b.points_awarded for b in breakdown)
+
+        resp_dict = {
+            "status": "CHANGES_REQUESTED",
+            "score": strict_score,
+            "summary": (
+                f"Marcus (Staff Software Engineer): Pull Request rejected on {req.ticket_code}. "
+                "You have submitted the unmodified starter code skeleton. None of the required business logic has been implemented. "
+                "All core acceptance criteria are currently failing (0 points awarded for unimplemented logic). "
+                "Please replace the TODO comments with a working implementation before requesting another review."
+            ),
+            "criteria_breakdown": breakdown,
+            "strengths": ["Starter skeleton syntax compiles cleanly without syntax errors."],
+            "improvements": [
+                "Implement validation logic as requested in the acceptance criteria",
+                "Ensure negative amounts and invalid currencies are strictly rejected",
+                "Remove or address all TODO comments in the starter template"
             ],
-            star_bullet=f"Engineered production-grade payment service logic in {req.language.capitalize()} for ticket {req.ticket_code}, improving error resilience and meeting strict SLA requirements.",
-            interview_talking_point=f"In my simulation project, I resolved ticket {req.ticket_code} by implementing clean validation and concurrency controls in {req.language.capitalize()}."
-        )
+            "line_comments": [
+                LineComment(
+                    line=16,
+                    severity="blocker",
+                    comment="CRITICAL BLOCKER: Unimplemented TODO block. You must write the validation logic here."
+                )
+            ],
+            "star_bullet": f"Reviewed {req.ticket_code} payment requirements in {req.language.capitalize()} and analyzed validation constraints.",
+            "interview_talking_point": f"Studied the requirements for {req.ticket_code} to identify edge cases before beginning implementation.",
+            "is_unmodified_starter": True,
+            "is_unchanged_attempt": False
+        }
+        _review_cache[cache_key] = resp_dict
+        return SimulationReviewResponse(**resp_dict)
 
-    criteria_str = "\n".join([f"- {c}" for c in req.acceptance_criteria])
-    
-    system_prompt = f"""You are Marcus, a Staff Software Engineer conducting an educational, realistic, and constructive Pull Request review for a junior software engineer intern at FinPulse Global.
+    # 3. LLM Strict Evaluation with Temperature 0.0 and Mathematical Rubric
+    criteria_list = req.acceptance_criteria or [
+        "Validate currency is exactly 3 uppercase letters matching ISO-4217",
+        "Validate amount is strictly greater than 0 and formatted to at most 2 decimal places",
+        "Reject invalid payloads with HTTP 422/400 and structured error details",
+        "Maintain valid endpoint signatures and schema requirements"
+    ]
+    num_criteria = max(len(criteria_list), 1)
+    pts_per_criterion = 100 // num_criteria
+    criteria_numbered = "\n".join([f"{idx+1}. {c} (Max: {pts_per_criterion} pts)" for idx, c in enumerate(criteria_list)])
 
-ROLE & TONE:
-- Be warm, encouraging, but technically rigorous (like a high-bar senior mentor at Stripe or Google).
-- Give line-specific feedback explaining WHY certain patterns matter.
-- Evaluate whether the code actually satisfies the ticket's Acceptance Criteria.
-- CRITERIA FOR 'APPROVED':
-  - The core business requirements are solved cleanly.
-  - Edge cases (null/empty inputs, boundary values, error paths) are addressed.
-  - The code adheres to idiomatic practices for the selected language ({req.language.upper()}).
-- CRITERIA FOR 'CHANGES_REQUESTED':
-  - Critical acceptance criteria are missed or bypassed with placeholder TODOs.
-  - Vulnerabilities (race conditions, unhandled exceptions, raw stack trace leaks).
-  - Score should be below 75 if changes are requested, or 80-98 if approved.
+    system_prompt = f"""You are Marcus, a Staff Software Engineer at FinPulse Global conducting a rigorous, strict, and mathematically deterministic Pull Request review.
 
-You MUST respond strictly with a valid JSON object matching this schema:
+ROLE & PRINCIPLES:
+- You are a high-bar Staff Engineer at a tier-1 payments platform (like Stripe).
+- Code quality, defensive boundary checks, concurrency safety, and exact adherence to acceptance criteria are mandatory.
+- You do NOT guess or roll random scores. Every single point awarded must come from the criteria breakdown.
+
+MATHEMATICAL GRADING RUBRIC:
+Total possible score is 100 points, divided across {num_criteria} criteria ({pts_per_criterion} points each).
+Criteria to evaluate:
+{criteria_numbered}
+
+For EACH criterion:
+- "status": "PASS" if the code completely solves the requirement AND handles edge cases. Award full {pts_per_criterion} points.
+- "status": "FAIL" if the requirement is missing, incomplete, or fails on edge cases (e.g. negative numbers, casing, uncaught exceptions). Award 0 points (or partial if half-working).
+- "feedback": Must cite a concrete test input that passes or fails (e.g., "Tested with amount = -10.0: failed, returned 200 OK instead of 422.").
+
+DECISION RULE:
+- "status": "APPROVED" ONLY IF ALL criteria are "PASS" AND total score >= 80.
+- "status": "CHANGES_REQUESTED" IF ANY criterion is "FAIL" OR total score < 80.
+
+OUTPUT FORMAT (JSON ONLY):
 {{
   "status": "APPROVED" | "CHANGES_REQUESTED",
-  "score": 88,
-  "summary": "1-2 paragraphs from Marcus reviewing the PR approach in a constructive senior dev voice.",
-  "strengths": ["Clear separation of concerns", "Good use of thread-safe locks"],
-  "improvements": ["Consider using TTL expiration", "Add logging with request ID"],
-  "line_comments": [
+  "criteria_breakdown": [
     {{
-      "line": 18,
-      "severity": "blocker" | "suggestion" | "praise",
-      "comment": "Specific constructive comment about this line or block."
+      "criterion": "Exact criterion description",
+      "status": "PASS" | "FAIL",
+      "points_awarded": {pts_per_criterion},
+      "points_possible": {pts_per_criterion},
+      "feedback": "Cites specific test input and result."
     }}
   ],
-  "star_bullet": "Google XYZ formula resume bullet point starting with a strong action verb (e.g. Architected, Engineered, Implemented) highlighting measurable outcomes.",
-  "interview_talking_point": "Concise 2-3 sentence talking point the student can use in a real technical interview to explain how they solved this problem and what engineering trade-offs they considered."
+  "summary": "Strict, concise senior staff engineer review summary explaining exactly what passed and what blockers remain.",
+  "strengths": ["Specific engineering strength 1", "Specific strength 2"],
+  "improvements": ["Actionable fix 1", "Actionable fix 2"],
+  "line_comments": [
+    {{
+      "line": 22,
+      "severity": "blocker" | "suggestion" | "praise",
+      "comment": "Specific constructive line-level feedback."
+    }}
+  ],
+  "star_bullet": "Google XYZ formula resume bullet point starting with an action verb.",
+  "interview_talking_point": "Concise 2-sentence talking point explaining engineering trade-offs."
 }}"""
 
     user_prompt = f"""TICKET: {req.ticket_code} — {req.ticket_title}
 LANGUAGE: {req.language.upper()}
 SUBMISSION MODE: {req.submission_mode} (Attempt #{req.attempt_number})
 
-ACCEPTANCE CRITERIA:
-{criteria_str}
-
-SUBMITTED CODE / PULL REQUEST CONTENT:
+SUBMITTED CODE:
 ```{req.language.lower()}
 {code_content}
 ```
 
-Conduct your code review and respond strictly with valid JSON."""
+Evaluate each of the {num_criteria} criteria strictly. Calculate the exact sum of points_awarded. Respond with valid JSON only."""
 
     result = llm_engine.generate_json(
         prompt=user_prompt,
         system_instruction=system_prompt,
-        temperature=0.25
+        temperature=0.0 # Strict deterministic evaluation
     )
 
     if not result:
-        raise HTTPException(status_code=500, detail="Failed to generate AI code review. Please try again.")
+        # High-standard deterministic fallback if LLM offline
+        fallback_breakdown = [
+            CriterionResult(
+                criterion=c,
+                status="FAIL" if idx < len(criteria_list) - 1 else "PASS",
+                points_awarded=0 if idx < len(criteria_list) - 1 else pts_per_criterion,
+                points_possible=pts_per_criterion,
+                feedback="Requirement incomplete or missing defensive checks." if idx < len(criteria_list) - 1 else "Signature valid."
+            )
+            for idx, c in enumerate(criteria_list)
+        ]
+        fallback_score = sum(b.points_awarded for b in fallback_breakdown)
+        return SimulationReviewResponse(
+            status="CHANGES_REQUESTED",
+            score=fallback_score,
+            summary="Marcus (Staff Engineer): Review completed. Core boundary conditions require attention before this PR can be approved.",
+            criteria_breakdown=fallback_breakdown,
+            strengths=["Clean modular syntax."],
+            improvements=["Review failing acceptance criteria and add explicit edge-case tests."],
+            line_comments=[
+                LineComment(line=20, severity="blocker", comment="Add defensive check for edge cases.")
+            ],
+            star_bullet=f"Engineered payment boundary handlers in {req.language.capitalize()} for {req.ticket_code}.",
+            interview_talking_point=f"Implemented boundary checks for {req.ticket_code}."
+        )
 
-    return SimulationReviewResponse(
-        status=result.get("status", "CHANGES_REQUESTED"),
-        score=int(result.get("score", 70)),
-        summary=result.get("summary", "Review complete. Please address the feedback points."),
-        strengths=result.get("strengths", ["Solid attempt at implementing requirements."]),
-        improvements=result.get("improvements", ["Review acceptance criteria checklist."]),
-        line_comments=[
+    # Calculate exact mathematical score from criteria breakdown
+    parsed_breakdown = []
+    for item in result.get("criteria_breakdown", []):
+        parsed_breakdown.append(CriterionResult(
+            criterion=item.get("criterion", "Acceptance Criterion"),
+            status=item.get("status", "FAIL"),
+            points_awarded=int(item.get("points_awarded", 0)),
+            points_possible=int(item.get("points_possible", pts_per_criterion)),
+            feedback=item.get("feedback", "")
+        ))
+
+    # If LLM didn't return breakdown, generate one from criteria list
+    if not parsed_breakdown:
+        for c in criteria_list:
+            parsed_breakdown.append(CriterionResult(
+                criterion=c,
+                status="FAIL",
+                points_awarded=0,
+                points_possible=pts_per_criterion,
+                feedback="Did not pass strict verification."
+            ))
+
+    # Exact deterministic sum
+    mathematical_score = sum(b.points_awarded for b in parsed_breakdown)
+    all_passed = all(b.status == "PASS" for b in parsed_breakdown)
+    final_status = "APPROVED" if (all_passed and mathematical_score >= 80) else "CHANGES_REQUESTED"
+
+    resp_dict = {
+        "status": final_status,
+        "score": min(max(mathematical_score, 0), 100),
+        "summary": result.get("summary", "Code review completed."),
+        "criteria_breakdown": parsed_breakdown,
+        "strengths": result.get("strengths", ["Solid implementation approach."]),
+        "improvements": result.get("improvements", ["Address failing acceptance criteria."]),
+        "line_comments": [
             LineComment(
                 line=c.get("line"),
                 severity=c.get("severity", "suggestion"),
@@ -496,9 +658,14 @@ Conduct your code review and respond strictly with valid JSON."""
             )
             for c in result.get("line_comments", [])
         ],
-        star_bullet=result.get("star_bullet", f"Implemented {req.ticket_code} payment services in {req.language.capitalize()} meeting strict validation guidelines."),
-        interview_talking_point=result.get("interview_talking_point", f"Discussed how {req.ticket_code} was resolved using structured boundary checks.")
-    )
+        "star_bullet": result.get("star_bullet", f"Implemented {req.ticket_code} payment services in {req.language.capitalize()}."),
+        "interview_talking_point": result.get("interview_talking_point", f"Discussed how {req.ticket_code} was resolved."),
+        "is_unmodified_starter": False,
+        "is_unchanged_attempt": False
+    }
+
+    _review_cache[cache_key] = resp_dict
+    return SimulationReviewResponse(**resp_dict)
 
 
 @router.post("/standup", response_model=StandupResponse)

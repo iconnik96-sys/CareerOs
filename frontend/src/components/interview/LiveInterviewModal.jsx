@@ -5,7 +5,8 @@ import {
     X, Play, ShieldAlert, Award, ArrowRight, Code, MessageSquare, 
     Cpu, BookOpen, AlertCircle, RefreshCw, Send, Radio, Settings, Sliders,
     Clock, Timer, PhoneOff, Video, VideoOff, User, Bot, Activity,
-    Download, FileText, Printer, Target, Check, Flame, TrendingUp, CheckCircle, ExternalLink, ThumbsUp
+    Download, FileText, Printer, Target, Check, Flame, TrendingUp, CheckCircle, ExternalLink, ThumbsUp,
+    SkipForward, ListChecks
 } from 'lucide-react';
 import { Card } from '../common/Card';
 import { Button } from '../common/Button';
@@ -102,7 +103,9 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
     const [currentEvaluation, setCurrentEvaluation] = useState(null);
     const [sessionCompleted, setSessionCompleted] = useState(false);
     const [sessionHistory, setSessionHistory] = useState([]);
-    const [scorecardTab, setScorecardTab] = useState('overview'); // 'overview' | 'tips' | 'transcript' | 'model'
+    const [scorecardTab, setScorecardTab] = useState('overview'); // 'overview' | 'questions' | 'tips'
+    const [questionAttempts, setQuestionAttempts] = useState([]);
+    const questionAttemptsRef = useRef([]);
 
     // Speech Recognition & VAD Silence Timers
     const recognitionRef = useRef(null);
@@ -337,87 +340,6 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         return `${m}:${s}`;
     };
 
-    // Hands-Free AI Conversational Turn Processor
-    const triggerHandsFreeAiTurn = async (candidateSpeech) => {
-        if (!currentQuestion || isAiThinking) return;
-
-        setIsAiThinking(true);
-        setConversationLog(prev => [
-            ...prev,
-            { role: 'candidate', content: candidateSpeech, timestamp: new Date().toLocaleTimeString() }
-        ]);
-
-        // Clear live transcription accumulator
-        transcriptAccumulatorRef.current = '';
-        setTranscript('');
-        setInterimTranscript('');
-
-        try {
-            const turnHistory = conversationLog.map(l => ({ role: l.role, content: l.content }));
-            
-            const response = await aiFastApiService.executeVoiceTurn({
-                target_role: defaultRole,
-                interview_mode: selectedMode,
-                current_question: currentQuestion.question,
-                candidate_speech: candidateSpeech,
-                history: turnHistory,
-                question_idx: currentIdxRef.current,
-                total_questions: interviewQuestions.length
-            });
-
-            setIsAiThinking(false);
-            const aiSpeech = response.ai_speech_reply;
-
-            const nextIdx = currentIdxRef.current + 1;
-            const hasMore = nextIdx < interviewQuestions.length;
-
-            if (hasMore) {
-                // Advance state and ref immediately
-                setCurrentIdx(nextIdx);
-                currentIdxRef.current = nextIdx;
-                setRepeatCount(0);
-                setClarificationText(null);
-                setShowHint(false);
-
-                const nextQ = interviewQuestions[nextIdx];
-                const transitionAndNextQuestion = `${aiSpeech} Let's proceed to Question ${nextIdx + 1}: ${nextQ.question}`;
-                
-                setLatestAiSpeech(nextQ.question);
-                setConversationLog(prev => [
-                    ...prev,
-                    { role: 'interviewer', content: transitionAndNextQuestion, timestamp: new Date().toLocaleTimeString() }
-                ]);
-
-                speakAiTurn(transitionAndNextQuestion);
-            } else {
-                // All 5 questions completed: conclude call and calculate score
-                const concludingSpeech = `${aiSpeech} That concludes our ${interviewQuestions.length} interview questions. Generating your hiring performance scorecard now.`;
-                setLatestAiSpeech("Mock Interview Round Completed. Calculating Final Performance Scorecard...");
-                setConversationLog(prev => [
-                    ...prev,
-                    { role: 'interviewer', content: concludingSpeech, timestamp: new Date().toLocaleTimeString() }
-                ]);
-
-                speakAiTurn(concludingSpeech, () => {
-                    handleEndInterviewAndGrade();
-                });
-            }
-
-        } catch (err) {
-            console.error('Failed voice turn:', err);
-            setIsAiThinking(false);
-            const nextIdx = currentIdxRef.current + 1;
-            if (nextIdx < interviewQuestions.length) {
-                setCurrentIdx(nextIdx);
-                currentIdxRef.current = nextIdx;
-                const nextQ = interviewQuestions[nextIdx];
-                speakCurrentQuestion(nextQ, nextIdx);
-            } else {
-                handleEndInterviewAndGrade();
-            }
-        }
-    };
-
     // Speaks the AI's response aloud with strict half-duplex mic gating
     const speakAiTurn = (text, onCompleteCallback) => {
         isAiSpeakingRef.current = true;
@@ -490,6 +412,312 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         speakAiTurn(textToSpeak);
     };
 
+    // End Interview Call & Generate Final Strict 4-Vector Scorecard
+    const handleEndInterviewAndGrade = async () => {
+        stopListening();
+        speechController.cancel();
+        setIsAiSpeaking(false);
+        setEvaluating(true);
+
+        // Ensure any unvisited or unanswered questions in the session are marked as SKIPPED
+        interviewQuestions.forEach((q, idx) => {
+            if (!questionAttemptsRef.current[idx] || questionAttemptsRef.current[idx].status !== 'ANSWERED') {
+                questionAttemptsRef.current[idx] = {
+                    questionIdx: idx,
+                    id: q.id || `q_${idx+1}`,
+                    question: q.question,
+                    topic: q.topic || selectedMode,
+                    difficulty: q.difficulty || selectedDifficulty,
+                    status: 'SKIPPED',
+                    candidate_answer: '',
+                    score: 0
+                };
+            }
+        });
+        setQuestionAttempts([...questionAttemptsRef.current]);
+
+        const questionsPayload = interviewQuestions.map((q, idx) => {
+            const attempt = questionAttemptsRef.current[idx];
+            const isAnswered = attempt?.status === 'ANSWERED' && attempt?.candidate_answer?.trim()?.length >= 10;
+            return {
+                id: q.id || `q_${idx+1}`,
+                question: q.question,
+                topic: q.topic || selectedMode,
+                difficulty: q.difficulty || selectedDifficulty,
+                candidate_answer: isAnswered ? attempt.candidate_answer.trim() : '',
+                status: isAnswered ? 'ANSWERED' : 'SKIPPED'
+            };
+        });
+
+        const totalQ = questionsPayload.length || 5;
+        const skippedCount = questionsPayload.filter(q => q.status === 'SKIPPED').length;
+        const answeredCount = totalQ - skippedCount;
+
+        const buildFallbackStrictEval = () => {
+            const perQ = questionsPayload.map((qp, idx) => ({
+                question_idx: idx,
+                question: qp.question,
+                topic: qp.topic,
+                difficulty: qp.difficulty,
+                status: qp.status,
+                score: qp.status === 'SKIPPED' ? 0 : 65,
+                candidate_answer: qp.candidate_answer || '(Skipped — No answer provided)',
+                feedback: qp.status === 'SKIPPED' 
+                    ? 'Question was skipped by candidate. 0 marks awarded under strict grading.' 
+                    : 'Answer evaluated.',
+                dimension_scores: [
+                    { name: 'Technical Accuracy', score: qp.status === 'SKIPPED' ? 0 : 65, feedback: qp.status === 'SKIPPED' ? 'Skipped (0/100)' : 'Passable' },
+                    { name: 'Structural Flow & STAR', score: qp.status === 'SKIPPED' ? 0 : 65, feedback: qp.status === 'SKIPPED' ? 'Skipped (0/100)' : 'Passable' },
+                    { name: 'Depth & Edge Cases', score: qp.status === 'SKIPPED' ? 0 : 65, feedback: qp.status === 'SKIPPED' ? 'Skipped (0/100)' : 'Passable' },
+                    { name: 'Communication Clarity', score: qp.status === 'SKIPPED' ? 0 : 65, feedback: qp.status === 'SKIPPED' ? 'Skipped (0/100)' : 'Passable' }
+                ]
+            }));
+            const overallScore = totalQ > 0 ? Math.round(perQ.reduce((acc, q) => acc + q.score, 0) / totalQ) : 0;
+            const grade = overallScore >= 80 ? "Strong Hire" : overallScore >= 65 ? "Hire / Competent" : overallScore >= 50 ? "Needs Practice" : "Strong No Hire";
+            return {
+                overall_score: overallScore,
+                grade: grade,
+                summary_verdict: skippedCount === totalQ
+                    ? `Candidate skipped all ${totalQ} interview questions without answering. Zero marks awarded (0/100).`
+                    : `Candidate answered ${answeredCount} of ${totalQ} questions and skipped ${skippedCount} questions. Skipped questions received 0 marks. Overall score: ${overallScore}/100 (${grade}).`,
+                total_questions: totalQ,
+                answered_count: answeredCount,
+                skipped_count: skippedCount,
+                dimension_scores: [
+                    { name: 'Technical Accuracy', score: overallScore, feedback: `Average rating across all ${totalQ} questions.` },
+                    { name: 'Structural Flow & STAR', score: overallScore, feedback: `Average rating across all ${totalQ} questions.` },
+                    { name: 'Depth & Edge Cases', score: overallScore, feedback: `Average rating across all ${totalQ} questions.` },
+                    { name: 'Communication Clarity', score: overallScore, feedback: `Average rating across all ${totalQ} questions.` }
+                ],
+                per_question_results: perQ,
+                strengths: answeredCount > 0 ? ["Candidate completed spoken technical turns."] : [],
+                missing_points: skippedCount > 0 ? [`${skippedCount} of ${totalQ} questions were skipped (awarded 0 marks).`] : ["Review technical edge cases."]
+            };
+        };
+
+        try {
+            const evaluation = await aiFastApiService.evaluateInterviewSession({
+                target_role: defaultRole,
+                interview_mode: selectedMode,
+                difficulty: selectedDifficulty,
+                questions: questionsPayload
+            });
+
+            setCurrentEvaluation(evaluation);
+            setSessionCompleted(true);
+            sessionCompletedRef.current = true;
+            const finalScore = evaluation.overall_score ?? 0;
+            showToast(
+                `Interview Completed! Score: ${finalScore}/100 (${evaluation.grade || 'Evaluated'})`,
+                finalScore >= 60 ? 'success' : 'warning'
+            );
+        } catch (err) {
+            console.error('Final evaluation error:', err);
+            const fallback = buildFallbackStrictEval();
+            setCurrentEvaluation(fallback);
+            setSessionCompleted(true);
+            sessionCompletedRef.current = true;
+            showToast(`Interview Completed! Score: ${fallback.overall_score}/100 (${fallback.grade})`, fallback.overall_score >= 60 ? 'success' : 'warning');
+        } finally {
+            setEvaluating(false);
+        }
+    };
+
+    // Explicit Skip Question Handler (Awards strictly 0 marks)
+    const handleSkipCurrentQuestion = () => {
+        if (isAiThinking || evaluating) return;
+
+        stopListening();
+        speechController.cancel();
+        setIsAiSpeaking(false);
+
+        const thisIdx = currentIdxRef.current;
+        const qObj = interviewQuestions[thisIdx];
+
+        // Mark current question as explicitly SKIPPED with 0 marks
+        if (questionAttemptsRef.current[thisIdx]) {
+            questionAttemptsRef.current[thisIdx] = {
+                ...questionAttemptsRef.current[thisIdx],
+                status: 'SKIPPED',
+                candidate_answer: '',
+                score: 0
+            };
+            setQuestionAttempts([...questionAttemptsRef.current]);
+        }
+
+        setConversationLog(prev => [
+            ...prev,
+            { role: 'candidate', content: `[Candidate skipped Question #${thisIdx + 1} - 0 marks awarded]`, timestamp: new Date().toLocaleTimeString() }
+        ]);
+
+        showToast(`Question #${thisIdx + 1} skipped — 0 marks awarded.`, 'warning');
+
+        transcriptAccumulatorRef.current = '';
+        setTranscript('');
+        setInterimTranscript('');
+
+        const nextIdx = thisIdx + 1;
+        const hasMore = nextIdx < interviewQuestions.length;
+
+        if (hasMore) {
+            setCurrentIdx(nextIdx);
+            currentIdxRef.current = nextIdx;
+            setRepeatCount(0);
+            setClarificationText(null);
+            setShowHint(false);
+
+            const nextQ = interviewQuestions[nextIdx];
+            const transition = `Skipping question ${thisIdx + 1}. Proceeding to Question ${nextIdx + 1}: ${nextQ.question}`;
+            setLatestAiSpeech(nextQ.question);
+            setConversationLog(prev => [
+                ...prev,
+                { role: 'interviewer', content: transition, timestamp: new Date().toLocaleTimeString() }
+            ]);
+            speakAiTurn(transition);
+        } else {
+            const concluding = `Skipped final question. All ${interviewQuestions.length} questions completed. Calculating your performance scorecard now.`;
+            setLatestAiSpeech("All questions completed. Calculating Scorecard...");
+            setConversationLog(prev => [
+                ...prev,
+                { role: 'interviewer', content: concluding, timestamp: new Date().toLocaleTimeString() }
+            ]);
+            speakAiTurn(concluding, () => {
+                handleEndInterviewAndGrade();
+            });
+        }
+    };
+
+    // Advance to Next Question (If unsubmitted, treated as a skip with 0 marks)
+    const handleAdvanceNextQuestion = () => {
+        const thisIdx = currentIdxRef.current;
+        const currentAttempt = questionAttemptsRef.current[thisIdx];
+
+        // If candidate hasn't spoken an answer, advancing is skipping!
+        if (!currentAttempt || currentAttempt.status !== 'ANSWERED') {
+            handleSkipCurrentQuestion();
+            return;
+        }
+
+        const nextIdx = thisIdx + 1;
+        if (nextIdx < interviewQuestions.length) {
+            setCurrentIdx(nextIdx);
+            currentIdxRef.current = nextIdx;
+            setRepeatCount(0);
+            setClarificationText(null);
+            setShowHint(false);
+
+            const nextQ = interviewQuestions[nextIdx];
+            speakCurrentQuestion(nextQ, nextIdx);
+        } else {
+            handleEndInterviewAndGrade();
+        }
+    };
+
+    // Hands-Free AI Conversational Turn Processor
+    const triggerHandsFreeAiTurn = async (candidateSpeech) => {
+        if (!currentQuestion || isAiThinking) return;
+
+        // Detect verbal skip request
+        const cleanedSpeech = (candidateSpeech || '').trim().toLowerCase().replace(/[.?!,]/g, '');
+        const isSpokenSkip = cleanedSpeech.length < 10 || [
+            'skip', 'skipped', 'i skip', 'pass', 'i pass', 'next question',
+            'i dont know', 'dont know', 'no idea', 'skip this', 'next please', 'idk'
+        ].some(p => cleanedSpeech === p || cleanedSpeech.startsWith(p));
+
+        if (isSpokenSkip) {
+            handleSkipCurrentQuestion();
+            return;
+        }
+
+        setIsAiThinking(true);
+        const thisIdx = currentIdxRef.current;
+
+        // Record answered status and candidate speech
+        if (questionAttemptsRef.current[thisIdx]) {
+            questionAttemptsRef.current[thisIdx] = {
+                ...questionAttemptsRef.current[thisIdx],
+                status: 'ANSWERED',
+                candidate_answer: candidateSpeech
+            };
+            setQuestionAttempts([...questionAttemptsRef.current]);
+        }
+
+        setConversationLog(prev => [
+            ...prev,
+            { role: 'candidate', content: candidateSpeech, timestamp: new Date().toLocaleTimeString() }
+        ]);
+
+        // Clear live transcription accumulator
+        transcriptAccumulatorRef.current = '';
+        setTranscript('');
+        setInterimTranscript('');
+
+        try {
+            const turnHistory = conversationLog.map(l => ({ role: l.role, content: l.content }));
+            
+            const response = await aiFastApiService.executeVoiceTurn({
+                target_role: defaultRole,
+                interview_mode: selectedMode,
+                current_question: currentQuestion.question,
+                candidate_speech: candidateSpeech,
+                history: turnHistory,
+                question_idx: currentIdxRef.current,
+                total_questions: interviewQuestions.length
+            });
+
+            setIsAiThinking(false);
+            const aiSpeech = response.ai_speech_reply;
+
+            const nextIdx = currentIdxRef.current + 1;
+            const hasMore = nextIdx < interviewQuestions.length;
+
+            if (hasMore) {
+                // Advance state and ref immediately
+                setCurrentIdx(nextIdx);
+                currentIdxRef.current = nextIdx;
+                setRepeatCount(0);
+                setClarificationText(null);
+                setShowHint(false);
+
+                const nextQ = interviewQuestions[nextIdx];
+                const transitionAndNextQuestion = `${aiSpeech} Let's proceed to Question ${nextIdx + 1}: ${nextQ.question}`;
+                
+                setLatestAiSpeech(nextQ.question);
+                setConversationLog(prev => [
+                    ...prev,
+                    { role: 'interviewer', content: transitionAndNextQuestion, timestamp: new Date().toLocaleTimeString() }
+                ]);
+
+                speakAiTurn(transitionAndNextQuestion);
+            } else {
+                // All questions completed: conclude call and calculate score
+                const concludingSpeech = `${aiSpeech} That concludes our ${interviewQuestions.length} interview questions. Generating your hiring performance scorecard now.`;
+                setLatestAiSpeech("Mock Interview Round Completed. Calculating Final Performance Scorecard...");
+                setConversationLog(prev => [
+                    ...prev,
+                    { role: 'interviewer', content: concludingSpeech, timestamp: new Date().toLocaleTimeString() }
+                ]);
+
+                speakAiTurn(concludingSpeech, () => {
+                    handleEndInterviewAndGrade();
+                });
+            }
+
+        } catch (err) {
+            console.error('Failed voice turn:', err);
+            setIsAiThinking(false);
+            const nextIdx = currentIdxRef.current + 1;
+            if (nextIdx < interviewQuestions.length) {
+                setCurrentIdx(nextIdx);
+                currentIdxRef.current = nextIdx;
+                const nextQ = interviewQuestions[nextIdx];
+                speakCurrentQuestion(nextQ, nextIdx);
+            } else {
+                handleEndInterviewAndGrade();
+            }
+        }
+    };
+
     // Start Interview
     const handleStartInterview = async () => {
         try {
@@ -521,35 +749,80 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
 
         const modeObj = INTERVIEW_MODES.find(m => m.id === selectedMode);
 
+        // Pick a random subtopic from the mode's topics so each session focuses on a different angle
+        const randomTopic = modeObj && modeObj.topics && modeObj.topics.length > 0
+            ? modeObj.topics[Math.floor(Math.random() * modeObj.topics.length)]
+            : 'All';
+
         try {
             const fetched = await aiFastApiService.generateInterviewQuestions({
                 role: defaultRole,
                 target_role: defaultRole,
-                topic: modeObj ? modeObj.topics[0] : 'All',
+                topic: randomTopic,
                 difficulty: selectedDifficulty,
                 count: 5
             });
 
             if (fetched && fetched.length > 0) {
-                setInterviewQuestions(fetched);
+                // Shuffle questions randomly
+                const shuffledFetched = [...fetched].sort(() => 0.5 - Math.random());
+                setInterviewQuestions(shuffledFetched);
+                const initAttempts = shuffledFetched.map((q, idx) => ({
+                    questionIdx: idx,
+                    id: q.id || `q_${idx+1}`,
+                    question: q.question,
+                    topic: q.topic || selectedMode,
+                    difficulty: q.difficulty || selectedDifficulty,
+                    status: 'PENDING',
+                    candidate_answer: '',
+                    score: 0
+                }));
+                questionAttemptsRef.current = initAttempts;
+                setQuestionAttempts(initAttempts);
                 setIsStarted(true);
                 isStartedRef.current = true;
                 // Speak the first question (mic will automatically turn on only when question ends)
-                speakCurrentQuestion(fetched[0]);
+                speakCurrentQuestion(shuffledFetched[0]);
             } else {
-                const fallback = initialQuestions.slice(0, 5);
-                setInterviewQuestions(fallback);
+                // Shuffle database fallback questions so order is randomized
+                const shuffledFallback = [...initialQuestions].sort(() => 0.5 - Math.random()).slice(0, 5);
+                setInterviewQuestions(shuffledFallback);
+                const initAttempts = shuffledFallback.map((q, idx) => ({
+                    questionIdx: idx,
+                    id: q.id || `q_${idx+1}`,
+                    question: q.question,
+                    topic: q.topic || selectedMode,
+                    difficulty: q.difficulty || selectedDifficulty,
+                    status: 'PENDING',
+                    candidate_answer: '',
+                    score: 0
+                }));
+                questionAttemptsRef.current = initAttempts;
+                setQuestionAttempts(initAttempts);
                 setIsStarted(true);
                 isStartedRef.current = true;
-                speakCurrentQuestion(fallback[0]);
+                speakCurrentQuestion(shuffledFallback[0] || initialQuestions[0]);
             }
         } catch (err) {
             console.error('Failed to load live interview questions:', err);
             if (initialQuestions.length > 0) {
-                setInterviewQuestions(initialQuestions.slice(0, 5));
+                const shuffledFallback = [...initialQuestions].sort(() => 0.5 - Math.random()).slice(0, 5);
+                setInterviewQuestions(shuffledFallback);
+                const initAttempts = shuffledFallback.map((q, idx) => ({
+                    questionIdx: idx,
+                    id: q.id || `q_${idx+1}`,
+                    question: q.question,
+                    topic: q.topic || selectedMode,
+                    difficulty: q.difficulty || selectedDifficulty,
+                    status: 'PENDING',
+                    candidate_answer: '',
+                    score: 0
+                }));
+                questionAttemptsRef.current = initAttempts;
+                setQuestionAttempts(initAttempts);
                 setIsStarted(true);
                 isStartedRef.current = true;
-                speakCurrentQuestion(initialQuestions[0]);
+                speakCurrentQuestion(shuffledFallback[0] || initialQuestions[0]);
             } else {
                 showToast('Could not load questions. Please check your backend connection.', 'error');
             }
@@ -613,77 +886,44 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         }
     };
 
-    // Advance to Next Question
-    const handleAdvanceNextQuestion = () => {
-        const nextIdx = currentIdxRef.current + 1;
-        if (nextIdx < interviewQuestions.length) {
-            setCurrentIdx(nextIdx);
-            currentIdxRef.current = nextIdx;
-            setRepeatCount(0);
-            setClarificationText(null);
-            setShowHint(false);
-
-            const nextQ = interviewQuestions[nextIdx];
-            speakCurrentQuestion(nextQ, nextIdx);
-        } else {
-            handleEndInterviewAndGrade();
-        }
-    };
-
-    // End Interview Call & Generate Final 4-Vector Scorecard
-    const handleEndInterviewAndGrade = async () => {
-        stopListening();
-        speechController.cancel();
-        setIsAiSpeaking(false);
-        setEvaluating(true);
-
-        const candidateAllSpeech = conversationLog
-            .filter(l => l.role === 'candidate')
-            .map(l => l.content)
-            .join('\n');
-
-        const allQuestionsText = interviewQuestions
-            .map((q, idx) => `Q${idx + 1}: ${q.question}`)
-            .join('\n');
-
-        try {
-            const evaluation = await aiFastApiService.evaluateInterviewAnswer({
-                question: allQuestionsText || (currentQuestion ? currentQuestion.question : "Full Mock Interview Session"),
-                candidate_answer: candidateAllSpeech.length > 10 ? candidateAllSpeech : "Candidate participated in hands-free live voice round covering technical fundamentals.",
-                topic: selectedMode,
-                difficulty: selectedDifficulty,
-                target_role: defaultRole
-            });
-
-            setCurrentEvaluation(evaluation);
-            setSessionCompleted(true);
-            showToast(`Interview Completed! Hiring Score: ${evaluation.overall_score}/100`, 'success');
-        } catch (err) {
-            console.error('Final evaluation error:', err);
-            setSessionCompleted(true);
-        } finally {
-            setEvaluating(false);
-        }
-    };
-
     // Download full markdown/text interview report & transcript
     const handleDownloadReport = () => {
-        const score = currentEvaluation?.overall_score || 78;
-        const grade = currentEvaluation?.grade || (score >= 80 ? "Strong Hire" : score >= 60 ? "Hire / Competent" : "Needs Practice");
+        const score = currentEvaluation?.overall_score ?? 0;
+        const grade = currentEvaluation?.grade || (score >= 80 ? "Strong Hire" : score >= 65 ? "Hire / Competent" : score >= 50 ? "Needs Practice" : "Strong No Hire");
         const modeTitle = INTERVIEW_MODES.find(m => m.id === selectedMode)?.title || selectedMode;
+        const answeredCount = currentEvaluation?.answered_count ?? questionAttempts.filter(q => q.status === 'ANSWERED').length;
+        const skippedCount = currentEvaluation?.skipped_count ?? questionAttempts.filter(q => q.status === 'SKIPPED').length;
+        const totalQ = currentEvaluation?.total_questions ?? interviewQuestions.length;
         
         let md = `# 🎙️ CareerOS — AI Technical Interview Hiring Assessment\n\n`;
         md += `**Role:** ${defaultRole} | **Track:** ${modeTitle} | **Difficulty:** ${selectedDifficulty}\n`;
         md += `**Date:** ${new Date().toLocaleDateString('en-IN', { dateStyle: 'full' })} at ${new Date().toLocaleTimeString()}\n\n`;
         md += `─────────────────────────────────────────────────────────────\n\n`;
         md += `## 🏆 Overall Hiring Score: ${score}/100\n`;
-        md += `**Hiring Verdict:** ${grade}\n\n`;
-        md += `> **Executive Summary:**\n> ${currentEvaluation?.summary_verdict || "Candidate completed live hands-free technical voice interview round."}\n\n`;
+        md += `**Hiring Verdict:** ${grade}\n`;
+        md += `**Questions Attempted:** ${answeredCount} / ${totalQ} (${skippedCount} Skipped — 0 marks each)\n\n`;
+        md += `> **Executive Summary:**\n> ${currentEvaluation?.summary_verdict || (score === 0 ? "Candidate skipped all interview questions. No technical competencies demonstrated (0/100)." : "Candidate completed the live AI voice interview round.")}\n\n`;
         
         md += `## 📊 4-Dimension Competency Matrix\n\n`;
         currentEvaluation?.dimension_scores?.forEach(dim => {
             md += `### • ${dim.name} — ${dim.score}/100\n`;
             md += `  ${dim.feedback}\n\n`;
+        });
+
+        md += `## 📋 Question-by-Question Breakdown\n\n`;
+        const qResults = currentEvaluation?.per_question_results || questionAttemptsRef.current;
+        qResults.forEach((q, idx) => {
+            const isSkip = q.status === 'SKIPPED';
+            md += `### Question ${idx + 1}: ${q.question}\n`;
+            md += `*Topic: ${q.topic || modeTitle} | Status: ${isSkip ? 'SKIPPED (0 pts)' : 'ANSWERED'} | Score: ${q.score ?? (isSkip ? 0 : score)}/100*\n\n`;
+            if (isSkip) {
+                md += `> **Spoken Answer:** *(Candidate skipped this question without answering — 0 marks awarded)*\n\n`;
+            } else {
+                md += `> **Candidate's Spoken Answer:**\n> "${q.candidate_answer || '(No transcribed answer recorded)'}"\n\n`;
+            }
+            if (q.feedback) {
+                md += `**Evaluator Feedback:** ${q.feedback}\n\n`;
+            }
         });
 
         if (currentEvaluation?.strengths && currentEvaluation.strengths.length > 0) {
@@ -711,19 +951,6 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             md += `## 🔭 Recommended Follow-Up & Study Guide\n\n`;
             md += `> ${currentEvaluation.interviewer_follow_up}\n\n`;
         }
-
-        md += `─────────────────────────────────────────────────────────────\n\n`;
-        md += `## 📝 Full Question & Answer Voice Transcript\n\n`;
-
-        const candidateTurns = conversationLog.filter(l => l.role === 'candidate');
-        
-        interviewQuestions.forEach((q, idx) => {
-            md += `### Question ${idx + 1}: ${q.question}\n`;
-            md += `*Topic: ${q.topic || modeTitle} | Difficulty: ${q.difficulty || selectedDifficulty}*\n\n`;
-            
-            const candidateAnswer = candidateTurns[idx] ? candidateTurns[idx].content : "(No transcribed answer recorded for this question)";
-            md += `**Candidate's Spoken Answer:**\n> "${candidateAnswer}"\n\n`;
-        });
 
         const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
         const url = URL.createObjectURL(blob);
@@ -1064,7 +1291,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                     width: '180px',
                                     height: '180px',
                                     borderRadius: '50%',
-                                    backgroundColor: (currentEvaluation?.overall_score || 78) >= 80 ? 'rgba(16, 185, 129, 0.12)' : (currentEvaluation?.overall_score || 78) >= 60 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                                    backgroundColor: (currentEvaluation?.overall_score ?? 0) >= 80 ? 'rgba(16, 185, 129, 0.12)' : (currentEvaluation?.overall_score ?? 0) >= 65 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)',
                                     filter: 'blur(40px)',
                                     pointerEvents: 'none'
                                 }}/>
@@ -1076,16 +1303,16 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                         height: 84,
                                         borderRadius: '50%',
                                         backgroundColor: 'var(--bg-secondary)',
-                                        border: `4px solid ${(currentEvaluation?.overall_score || 78) >= 80 ? 'var(--success)' : (currentEvaluation?.overall_score || 78) >= 60 ? 'var(--warning)' : 'var(--danger)'}`,
+                                        border: `4px solid ${(currentEvaluation?.overall_score ?? 0) >= 80 ? 'var(--success)' : (currentEvaluation?.overall_score ?? 0) >= 65 ? 'var(--warning)' : 'var(--danger)'}`,
                                         display: 'flex',
                                         flexDirection: 'column',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        boxShadow: `0 0 20px ${(currentEvaluation?.overall_score || 78) >= 80 ? 'rgba(16, 185, 129, 0.3)' : (currentEvaluation?.overall_score || 78) >= 60 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                                        boxShadow: `0 0 20px ${(currentEvaluation?.overall_score ?? 0) >= 80 ? 'rgba(16, 185, 129, 0.3)' : (currentEvaluation?.overall_score ?? 0) >= 65 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
                                         flexShrink: 0
                                     }}>
                                         <span style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1 }}>
-                                            {currentEvaluation?.overall_score || 78}
+                                            {currentEvaluation?.overall_score ?? 0}
                                         </span>
                                         <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                             out of 100
@@ -1097,13 +1324,23 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                             <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
                                                 Hiring Assessment Scorecard
                                             </h3>
-                                            <span className={`badge ${(currentEvaluation?.overall_score || 78) >= 80 ? 'badge-success' : (currentEvaluation?.overall_score || 78) >= 60 ? 'badge-warning' : 'badge-danger'}`} style={{ fontSize: '0.75rem', fontWeight: 800 }}>
-                                                {currentEvaluation?.grade || ((currentEvaluation?.overall_score || 78) >= 80 ? "Strong Hire" : (currentEvaluation?.overall_score || 78) >= 60 ? "Hire / Competent" : "Needs Practice")}
+                                            <span className={`badge ${(currentEvaluation?.overall_score ?? 0) >= 80 ? 'badge-success' : (currentEvaluation?.overall_score ?? 0) >= 65 ? 'badge-warning' : 'badge-danger'}`} style={{ fontSize: '0.75rem', fontWeight: 800 }}>
+                                                {currentEvaluation?.grade || ((currentEvaluation?.overall_score ?? 0) >= 80 ? "Strong Hire" : (currentEvaluation?.overall_score ?? 0) >= 65 ? "Hire / Competent" : (currentEvaluation?.overall_score ?? 0) >= 50 ? "Needs Practice" : "Strong No Hire")}
                                             </span>
                                         </div>
                                         <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: 0, maxWidth: '560px', lineHeight: 1.4 }}>
-                                            {currentEvaluation?.summary_verdict || "Candidate completed the live AI voice interview round covering technical fundamentals, trade-offs, and communication."}
+                                            {currentEvaluation?.summary_verdict || ((currentEvaluation?.overall_score ?? 0) === 0 ? "Candidate skipped all interview questions. No technical competencies demonstrated (0/100)." : "Candidate completed the live AI voice interview round.")}
                                         </p>
+                                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
+                                            <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                                📝 Attempted: <strong style={{ color: 'var(--text-primary)' }}>{currentEvaluation?.answered_count ?? questionAttempts.filter(q => q.status === 'ANSWERED').length}</strong> / {currentEvaluation?.total_questions ?? interviewQuestions.length}
+                                            </span>
+                                            {(currentEvaluation?.skipped_count ?? questionAttempts.filter(q => q.status === 'SKIPPED').length) > 0 && (
+                                                <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--danger)', fontWeight: 800 }}>
+                                                    ⚠️ Skipped: {currentEvaluation?.skipped_count ?? questionAttempts.filter(q => q.status === 'SKIPPED').length} (0 marks awarded)
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1147,6 +1384,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                             >
                                 {[
                                     { id: 'overview', label: 'Competency Matrix (4 Vectors)', icon: <Activity size={14}/> },
+                                    { id: 'questions', label: `Question Breakdown (${currentEvaluation?.answered_count ?? questionAttempts.filter(q => q.status === 'ANSWERED').length}/${currentEvaluation?.total_questions ?? interviewQuestions.length})`, icon: <ListChecks size={14}/> },
                                     { id: 'tips', label: 'Actionable Tips & Gaps', icon: <Target size={14}/> }
                                 ].map(tab => {
                                     const isActive = scorecardTab === tab.id;
@@ -1191,7 +1429,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 {scorecardTab === 'overview' && (
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '0.85rem' }}>
                                         {currentEvaluation?.dimension_scores?.map((dim, dIdx) => {
-                                            const scoreColor = dim.score >= 80 ? 'var(--success)' : dim.score >= 60 ? 'var(--warning)' : 'var(--danger)';
+                                            const scoreColor = dim.score >= 80 ? 'var(--success)' : dim.score >= 65 ? 'var(--warning)' : 'var(--danger)';
                                             return (
                                                 <div 
                                                     key={dIdx}
@@ -1239,6 +1477,90 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                                             {dim.feedback}
                                                         </p>
                                                     </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Tab 2: Question-by-Question Breakdown (Strict marks & skipped tracking) */}
+                                {scorecardTab === 'questions' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                        {(currentEvaluation?.per_question_results || questionAttemptsRef.current).map((q, qIdx) => {
+                                            const isSkip = q.status === 'SKIPPED';
+                                            const qScore = isSkip ? 0 : (q.score ?? 0);
+                                            const scoreBadgeColor = isSkip ? 'badge-danger' : qScore >= 80 ? 'badge-success' : qScore >= 65 ? 'badge-warning' : 'badge-danger';
+                                            const scoreTextColor = isSkip ? 'var(--danger)' : qScore >= 80 ? 'var(--success)' : qScore >= 65 ? 'var(--warning)' : 'var(--danger)';
+                                            
+                                            return (
+                                                <div 
+                                                    key={qIdx}
+                                                    style={{
+                                                        padding: '1.1rem 1.25rem',
+                                                        backgroundColor: 'var(--bg-tertiary)',
+                                                        borderRadius: 'var(--radius-lg)',
+                                                        border: `1px solid ${isSkip ? 'rgba(239, 68, 68, 0.35)' : 'var(--border-color)'}`,
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '0.65rem',
+                                                        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                                                Question #{qIdx + 1}
+                                                            </span>
+                                                            <span className={`badge ${scoreBadgeColor}`} style={{ fontSize: '0.7rem', fontWeight: 700 }}>
+                                                                {isSkip ? 'SKIPPED (0 pts)' : 'ANSWERED'}
+                                                            </span>
+                                                            <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
+                                                                {q.topic || selectedMode}
+                                                            </span>
+                                                        </div>
+                                                        <div style={{ fontSize: '1.05rem', fontWeight: 900, color: scoreTextColor }}>
+                                                            {qScore} / 100
+                                                        </div>
+                                                    </div>
+
+                                                    <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>
+                                                        {q.question}
+                                                    </p>
+
+                                                    {isSkip ? (
+                                                        <div style={{
+                                                            fontSize: '0.785rem',
+                                                            color: 'var(--danger)',
+                                                            backgroundColor: 'rgba(239, 68, 68, 0.06)',
+                                                            padding: '0.6rem 0.85rem',
+                                                            borderRadius: 'var(--radius-sm)',
+                                                            border: '1px dashed rgba(239, 68, 68, 0.35)',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.5rem'
+                                                        }}>
+                                                            <span>⚠️</span>
+                                                            <span>Candidate skipped this question without answering. Strictly 0 marks awarded.</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{
+                                                            fontSize: '0.785rem',
+                                                            color: 'var(--text-secondary)',
+                                                            backgroundColor: 'var(--bg-secondary)',
+                                                            padding: '0.6rem 0.85rem',
+                                                            borderRadius: 'var(--radius-sm)',
+                                                            border: '1px solid var(--border-color)',
+                                                            lineHeight: 1.4
+                                                        }}>
+                                                            <strong style={{ color: 'var(--text-primary)' }}>Candidate's Answer:</strong> "{q.candidate_answer || '(No verbal answer transcribed)'}"
+                                                        </div>
+                                                    )}
+
+                                                    {q.feedback && (
+                                                        <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                                                            <strong style={{ color: 'var(--text-primary)' }}>Interviewer Feedback:</strong> {q.feedback}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -1565,7 +1887,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 flexWrap: 'wrap',
                                 gap: '0.75rem'
                             }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                     <Button 
                                         variant="secondary" 
                                         size="sm" 
@@ -1589,10 +1911,22 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                     <Button 
                                         variant="outline" 
                                         size="sm" 
+                                        onClick={handleSkipCurrentQuestion}
+                                        disabled={isAiThinking}
+                                        leftIcon={<SkipForward size={14}/>}
+                                        style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: 'var(--danger)' }}
+                                        title="Skip current question (Awards strictly 0 marks)"
+                                    >
+                                        Skip Question (0 pts)
+                                    </Button>
+
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
                                         onClick={handleAdvanceNextQuestion}
                                         disabled={isAiThinking}
                                         rightIcon={<ArrowRight size={14}/>}
-                                        title="Skip or advance to next question"
+                                        title="Advance to next question"
                                     >
                                         Next Question
                                     </Button>

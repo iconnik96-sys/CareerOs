@@ -292,7 +292,7 @@ export const SimulationWorkspacePage = () => {
                                 </span>
                             </div>
                             <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                                Sprint 1 • Core Payments Squad • 3 Production Tickets
+                                Sprint 1 • Core Payments Squad • {track?.tickets?.length || 4} Production Tickets
                             </div>
                         </div>
                     </div>
@@ -304,14 +304,14 @@ export const SimulationWorkspacePage = () => {
                                 SPRINT COMPLETION
                             </div>
                             <div style={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                                {completedTickets.length} of {track?.tickets?.length || 3} Tickets Merged
+                                {completedTickets.length} of {track?.tickets?.length || 4} Tickets Merged
                             </div>
                         </div>
                         <div style={{
                             width: '48px',
                             height: '48px',
                             borderRadius: '50%',
-                            background: 'conic-gradient(var(--success) ' + ((completedTickets.length / (track?.tickets?.length || 3)) * 360) + 'deg, rgba(255,255,255,0.08) 0deg)',
+                            background: 'conic-gradient(var(--success) ' + ((completedTickets.length / (track?.tickets?.length || 4)) * 360) + 'deg, rgba(255,255,255,0.08) 0deg)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
@@ -327,7 +327,7 @@ export const SimulationWorkspacePage = () => {
                                 fontSize: '0.75rem',
                                 fontWeight: 800
                             }}>
-                                {Math.round((completedTickets.length / (track?.tickets?.length || 3)) * 100)}%
+                                {Math.round((completedTickets.length / (track?.tickets?.length || 4)) * 100)}%
                             </div>
                         </div>
                     </div>
@@ -357,7 +357,7 @@ export const SimulationWorkspacePage = () => {
                     }}
                 >
                     <Code2 size={16} />
-                    <span>Sprint Tickets ({track?.tickets?.length || 3})</span>
+                    <span>Sprint Tickets ({track?.tickets?.length || 4})</span>
                 </button>
 
                 <button
@@ -464,9 +464,20 @@ export const SimulationWorkspacePage = () => {
                                             }}
                                         >
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                                                <span style={{ fontWeight: 700, fontSize: '0.75rem', color: isCurrent ? 'var(--primary)' : 'var(--text-muted)' }}>
-                                                    {ticket.ticket_code}
-                                                </span>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                                                    <span style={{ fontWeight: 700, fontSize: '0.75rem', color: isCurrent ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                                        {ticket.ticket_code}
+                                                    </span>
+                                                    {ticket.ticket_type === 'FEATURE_DEV' ? (
+                                                        <span style={{ fontSize: '0.625rem', padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.2)', color: '#c084fc', fontWeight: 700 }}>
+                                                            ✨ FEATURE
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ fontSize: '0.625rem', padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.15)', color: 'var(--primary)', fontWeight: 600 }}>
+                                                            BUG FIX
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 {isDone ? (
                                                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', color: 'var(--success)', fontWeight: 700 }}>
                                                         <CheckCircle2 size={12} /> Merged
@@ -555,9 +566,20 @@ export const SimulationWorkspacePage = () => {
                                 {/* Ticket Header */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                                     <div>
-                                        <span className="badge badge-blue" style={{ fontSize: '0.75rem', fontWeight: 800 }}>
-                                            {currentTicket.ticket_code}
-                                        </span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span className="badge badge-blue" style={{ fontSize: '0.75rem', fontWeight: 800 }}>
+                                                {currentTicket.ticket_code}
+                                            </span>
+                                            {currentTicket.ticket_type === 'FEATURE_DEV' ? (
+                                                <span className="badge badge-purple" style={{ fontSize: '0.75rem', fontWeight: 800 }}>
+                                                    ✨ Build Feature From Scratch
+                                                </span>
+                                            ) : (
+                                                <span className="badge badge-gray" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                                                    🔧 Production Bug Fix
+                                                </span>
+                                            )}
+                                        </div>
                                         <h2 style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0.375rem 0 0', color: 'var(--text-primary)' }}>
                                             {currentTicket.title}
                                         </h2>
@@ -568,6 +590,24 @@ export const SimulationWorkspacePage = () => {
                                         </span>
                                     )}
                                 </div>
+
+                                {currentTicket.ticket_type === 'FEATURE_DEV' && (
+                                    <div style={{
+                                        background: 'rgba(168, 85, 247, 0.08)',
+                                        border: '1px solid rgba(168, 85, 247, 0.25)',
+                                        borderRadius: 'var(--radius-md)',
+                                        padding: '0.875rem 1rem',
+                                        marginBottom: '1.25rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.75rem'
+                                    }}>
+                                        <Sparkles size={20} color="#c084fc" style={{ flexShrink: 0 }} />
+                                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                                            <strong>Feature Development Challenge:</strong> In this ticket, you are architecting a new API endpoint from scratch. Define the request schema, database lookup against the provided mock fixture, and business rule validations.
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Business Context */}
                                 <div style={{ marginBottom: '1.25rem' }}>

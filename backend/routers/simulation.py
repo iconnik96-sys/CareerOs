@@ -358,6 +358,137 @@ module.exports = errorSanitizerMiddleware;""",
                 "Generate a unique request_id (UUID) so developers can cross-reference server logs without exposing internal state.",
                 "Use regex or key masking to scrub sensitive card / CVV data."
             ]
+        },
+        {
+            "id": "ticket-fin-104",
+            "ticket_code": "FIN-104",
+            "title": "Build Merchant Refund API Endpoint from Scratch",
+            "order_index": 4,
+            "business_context": "Merchants urgently need an automated self-service refund endpoint to process full and partial refunds for previous purchases. Unlike bug fixes, your task is to design and build the POST /v1/payments/refund endpoint from scratch. You will define the request schema, validate business rules (non-negative amount and 90-day dispute window), look up the transaction in our mock database (TRANSACTION_DB), and record the refund status.",
+            "acceptance_criteria": [
+                "Define request payload with fields: payment_id (str), amount (float), reason (str), merchant_id (str)",
+                "Implement POST /v1/payments/refund returning HTTP 200/201 with generated refund_id (prefixed with 'ref_') and status 'PROCESSED'",
+                "Verify transaction exists in mock TRANSACTION_DB for the given merchant_id; reject with HTTP 404 if missing or merchant mismatch",
+                "Enforce amount validation: reject amount <= 0 or amount exceeding remaining refundable balance with HTTP 400",
+                "Enforce 90-day dispute policy: calculate transaction age and reject refunds for payments settled over 90 days ago with HTTP 422"
+            ],
+            "starter_code_python": """from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel, Field
+from typing import Optional
+from datetime import datetime, timedelta
+import uuid
+
+app = FastAPI(title="FinPulse Refund Service")
+
+# Mock Database of settled transactions
+# payment_id -> { merchant_id, amount, refunded_amount, created_at, status }
+TRANSACTION_DB = {
+    "pay_9921a": {
+        "merchant_id": "merch_stripe_01",
+        "amount": 250.00,
+        "refunded_amount": 0.00,
+        "created_at": datetime.utcnow() - timedelta(days=12), # Within 90-day window
+        "status": "SETTLED"
+    },
+    "pay_old_441": {
+        "merchant_id": "merch_stripe_01",
+        "amount": 100.00,
+        "refunded_amount": 0.00,
+        "created_at": datetime.utcnow() - timedelta(days=120), # Expired (>90 days)
+        "status": "SETTLED"
+    }
+}
+
+# TODO (FIN-104): Build the Merchant Refund Endpoint from scratch!
+# 1. Define RefundRequest Pydantic model (payment_id, amount, reason, merchant_id)
+# 2. Implement POST /v1/payments/refund
+# 3. Lookup payment in TRANSACTION_DB; raise 404 if missing or merchant mismatch
+# 4. Check expiration: if payment is older than 90 days, raise 422 Unprocessable Entity
+# 5. Check amount: reject amount <= 0 or amount > (amount - refunded_amount) with 400
+# 6. Deduct refundable balance and return { "refund_id": f"ref_{uuid.uuid4().hex[:8]}", "status": "PROCESSED", ... }
+
+# Write your schema and endpoint below:
+""",
+            "starter_code_java": """package com.finpulse.payments.controller;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+@RestController
+@RequestMapping("/v1/payments")
+public class MerchantRefundController {
+
+    // Mock In-Memory Transaction Database
+    public static class TransactionRecord {
+        public String merchantId;
+        public double amount;
+        public double refundedAmount;
+        public Instant createdAt;
+        public TransactionRecord(String mId, double amt, double refAmt, Instant date) {
+            this.merchantId = mId; this.amount = amt; this.refundedAmount = refAmt; this.createdAt = date;
+        }
+    }
+
+    private static final Map<String, TransactionRecord> TRANSACTION_DB = new ConcurrentHashMap<>();
+    static {
+        TRANSACTION_DB.put("pay_9921a", new TransactionRecord("merch_stripe_01", 250.00, 0.0, Instant.now().minus(12, ChronoUnit.DAYS)));
+        TRANSACTION_DB.put("pay_old_441", new TransactionRecord("merch_stripe_01", 100.00, 0.0, Instant.now().minus(120, ChronoUnit.DAYS)));
+    }
+
+    // TODO (FIN-104): Build the Merchant Refund Endpoint from scratch!
+    // 1. Define RefundRequest DTO (paymentId, amount, reason, merchantId)
+    // 2. Implement @PostMapping("/refund")
+    // 3. Lookup in TRANSACTION_DB; return 404 NOT_FOUND if missing
+    // 4. Validate 90-day window; return 422 UNPROCESSABLE_ENTITY if expired
+    // 5. Validate amount > 0 and amount <= (amount - refundedAmount); return 400 BAD_REQUEST
+    // 6. Return 200 OK with "ref_" prefixed ID and "PROCESSED" status
+
+    // Write your DTO and endpoint below:
+}""",
+            "starter_code_node": """const express = require("express");
+const crypto = require("crypto");
+const router = express.Router();
+
+// Mock In-Memory Database representing settled transactions
+const TRANSACTION_DB = new Map([
+    ["pay_9921a", {
+        merchantId: "merch_stripe_01",
+        amount: 250.00,
+        refundedAmount: 0.00,
+        createdAt: new Date(Date.now() - 12 * 86400000), // 12 days ago
+        status: "SETTLED"
+    }],
+    ["pay_old_441", {
+        merchantId: "merch_stripe_01",
+        amount: 100.00,
+        refundedAmount: 0.00,
+        createdAt: new Date(Date.now() - 120 * 86400000), // 120 days ago (>90 days)
+        status: "SETTLED"
+    }]
+]);
+
+// TODO (FIN-104): Build the Merchant Refund Endpoint from scratch!
+// 1. Handle POST /v1/payments/refund
+// 2. Extract { paymentId, amount, reason, merchantId } from req.body
+// 3. Check TRANSACTION_DB.has(paymentId); return 404 if not found
+// 4. Check if transaction is older than 90 days (90 * 86400000 ms); return 422 if expired
+// 5. Check if amount <= 0 or amount > (original.amount - original.refundedAmount); return 400
+// 6. Generate refundId: `ref_${crypto.randomUUID().slice(0, 8)}` and return 200 with status "PROCESSED"
+
+// Write your endpoint implementation below:
+
+module.exports = router;""",
+            "hints": [
+                "Remember to check if payment exists before accessing its fields to avoid NullPointer / KeyError.",
+                "Compare (amount + refunded_amount) > original_amount for partial refund checks.",
+                "In Python, use (datetime.utcnow() - tx['created_at']).days > 90 to check dispute expiration.",
+                "Ensure returned refund_id is prefixed with 'ref_'."
+            ]
         }
     ]
 }
@@ -426,6 +557,12 @@ def detect_unmodified_starter(ticket_code: str, language: str, code: str) -> boo
         has_todo = "todo (fin-103)" in code_lower or "todo: implement" in code_lower
         has_middleware = any(k in code for k in ["request_id", "requestId", "UUID", "500", "error_code", "Internal Error"])
         return has_todo or not has_middleware
+
+    if ticket_code == "FIN-104":
+        has_todo = "todo (fin-104)" in code_lower or "todo: build" in code_lower
+        has_refund_logic = any(k in code for k in ["TRANSACTION_DB", "refund", "404", "422", "400", "PROCESSED", "ref_"])
+        has_route = any(k in code for k in ["/refund", "post", "POST", "@app.post", "@PostMapping", "router.post"])
+        return has_todo or not (has_refund_logic and has_route)
 
     return False
 

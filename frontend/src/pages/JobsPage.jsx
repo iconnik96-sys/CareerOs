@@ -4,9 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { jobService } from '../services/jobService';
 import { profileService } from '../services/profileService';
 import { resumeService } from '../services/resumeService';
+import { applicationService } from '../services/applicationService';
 import { extractSkillsFromText } from '../utils/skillExtractor';
 import { getRoleDisplayName, isSkillMatch } from '../utils/careerRoles';
-import { Briefcase, Search, MapPin, Bookmark, BookmarkCheck, ArrowRight, DollarSign, Sparkles } from 'lucide-react';
+import { Briefcase, Search, MapPin, Bookmark, BookmarkCheck, ArrowRight, DollarSign, Sparkles, ExternalLink, Check } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -22,6 +23,8 @@ export const JobsPage = () => {
     const [remoteOnly, setRemoteOnly] = useState(false);
     const [savedIds, setSavedIds] = useState([]);
     const [userSkills, setUserSkills] = useState([]);
+    const [appliedJobIds, setAppliedJobIds] = useState(new Set());
+    const [applyingJobId, setApplyingJobId] = useState(null);
     const [loading, setLoading] = useState(true);
 
     // Load active user's skills from profile and uploaded resume for true skill comparison
@@ -74,6 +77,28 @@ export const JobsPage = () => {
         fetchJobs();
     }, [search, remoteOnly]);
 
+    // Fetch existing tracked applications to mark jobs already applied
+    useEffect(() => {
+        if (!user?.id) {
+            setAppliedJobIds(new Set());
+            return;
+        }
+        let isMounted = true;
+        applicationService.getApplications(user.id).then(apps => {
+            if (isMounted && apps && Array.isArray(apps)) {
+                const ids = new Set();
+                apps.forEach(a => {
+                    if (a.job_id) ids.add(String(a.job_id));
+                    if (a.company && a.role) {
+                        ids.add(`${String(a.company).toLowerCase().trim()}_${String(a.role).toLowerCase().trim()}`);
+                    }
+                });
+                setAppliedJobIds(ids);
+            }
+        }).catch(err => console.error('Error fetching applications for jobs page:', err));
+        return () => { isMounted = false; };
+    }, [user?.id]);
+
     const handleToggleSave = (jobId, title) => {
         const isSaved = jobService.toggleSaveJob(jobId);
         setSavedIds(jobService.getSavedJobIds());
@@ -82,6 +107,52 @@ export const JobsPage = () => {
         }
         else {
             showToast(`Removed "${title}" from bookmarks`, 'info');
+        }
+    };
+
+    // Single-Click Apply Sync: Automatically creates an entry in Application Tracker in "Applied" column
+    const handleApplyJob = async (job, e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        if (!user?.id) {
+            showToast('Please sign in to track and apply to opportunities', 'warning');
+            return;
+        }
+
+        const jobKey = `${String(job.company).toLowerCase().trim()}_${String(job.title).toLowerCase().trim()}`;
+        if (appliedJobIds.has(String(job.id)) || appliedJobIds.has(jobKey)) {
+            showToast(`You have already tracked an application for ${job.company}!`, 'info');
+            return;
+        }
+
+        setApplyingJobId(job.id);
+        try {
+            await applicationService.addApplication(user.id, {
+                job_id: job.id,
+                company: job.company,
+                role: job.title,
+                location: job.location,
+                status: 'APPLIED',
+                salary: job.salary_range || 'Competitive',
+                applied_at: new Date().toISOString(),
+                notes: `Single-Click Apply from Job Discovery. Match score: ${job.matchScore || 0}%. Required skills: ${(job.skills || []).join(', ')}.`
+            });
+
+            setAppliedJobIds(prev => new Set([...prev, String(job.id), jobKey]));
+
+            const applyUrl = job.source_url || job.apply_url || job.url;
+            if (applyUrl && applyUrl !== '#') {
+                window.open(applyUrl, '_blank', 'noopener,noreferrer');
+            }
+
+            showToast(`🚀 Applied! Automatically added ${job.title} at ${job.company} to Application Tracker in "Applied" column.`, 'success');
+        } catch (err) {
+            console.error('Error applying to job:', err);
+            showToast('Failed to sync application to tracker. Please try again.', 'error');
+        } finally {
+            setApplyingJobId(null);
         }
     };
 
@@ -260,7 +331,7 @@ export const JobsPage = () => {
                                 </div>
 
                                 {/* Card Actions */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap', gap: '0.5rem' }}>
                                     <button
                                         onClick={() => handleToggleSave(job.id, job.title)}
                                         className="btn-ghost"
@@ -269,11 +340,36 @@ export const JobsPage = () => {
                                         {isSaved ? 'Saved' : 'Save Job'}
                                     </button>
 
-                                    <Link to={`/jobs/${job.id}`}>
-                                        <Button variant="primary" size="sm" rightIcon={<ArrowRight size={14} />}>
-                                            View Details
-                                        </Button>
-                                    </Link>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <Link to={`/jobs/${job.id}`}>
+                                            <Button variant="outline" size="sm">
+                                                View Details
+                                            </Button>
+                                        </Link>
+
+                                        {(appliedJobIds.has(String(job.id)) || appliedJobIds.has(`${String(job.company).toLowerCase().trim()}_${String(job.title).toLowerCase().trim()}`)) ? (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                disabled
+                                                leftIcon={<Check size={14} style={{ color: 'var(--success)' }} />}
+                                                style={{ borderColor: 'rgba(34, 197, 94, 0.4)', color: 'var(--success)', cursor: 'default', backgroundColor: 'rgba(34, 197, 94, 0.08)' }}
+                                            >
+                                                Applied
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                variant="primary"
+                                                size="sm"
+                                                onClick={(e) => handleApplyJob(job, e)}
+                                                disabled={applyingJobId === job.id}
+                                                leftIcon={applyingJobId === job.id ? <LoadingSpinner size="xs" /> : <ExternalLink size={13} />}
+                                                title={`Apply to ${job.company} & sync to Application Tracker`}
+                                            >
+                                                {applyingJobId === job.id ? 'Applying...' : 'Apply'}
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         );

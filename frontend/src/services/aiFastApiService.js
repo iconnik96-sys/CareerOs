@@ -55,6 +55,21 @@ export const aiFastApiService = {
             throw formatApiError(err);
         }
     },
+    async parseAndExtractResume(file) {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await client.post('/api/ai/parse-and-extract-profile', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            return res.data;
+        }
+        catch (err) {
+            throw formatApiError(err);
+        }
+    },
     async deepResumeAnalysis(req) {
         try {
             const res = await client.post('/api/ai/deep-resume-analysis', req);

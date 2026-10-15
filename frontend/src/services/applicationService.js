@@ -9,36 +9,71 @@ export const applicationService = {
                 .select('*')
                 .eq('user_id', userId)
                 .order('applied_at', { ascending: false });
-            if (error) {
-                console.error('Error fetching applications from Supabase:', error);
-                return [];
+            if (!error && data) {
+                try {
+                    const localApps = JSON.parse(localStorage.getItem(`careeros_apps_${userId}`) || '[]');
+                    const remoteIds = new Set(data.map(d => d.id));
+                    const merged = [...data];
+                    for (const localApp of localApps) {
+                        if (!remoteIds.has(localApp.id)) {
+                            merged.push(localApp);
+                        }
+                    }
+                    return merged.sort((a, b) => new Date(b.applied_at || b.created_at || 0) - new Date(a.applied_at || a.created_at || 0));
+                } catch {
+                    return data;
+                }
             }
-            return data || [];
         }
         catch (err) {
             console.error('Error in getApplications:', err);
+        }
+        try {
+            return JSON.parse(localStorage.getItem(`careeros_apps_${userId}`) || '[]');
+        } catch {
             return [];
         }
     },
     async addApplication(userId, appData) {
         if (!userId)
             return null;
+        let created = null;
         try {
             const { data, error } = await supabase
                 .from('applications')
                 .insert([{ user_id: userId, ...appData }])
                 .select()
                 .single();
-            if (error) {
-                console.error('Error creating application in Supabase:', error);
-                return null;
+            if (!error && data) {
+                created = data;
+            } else if (error) {
+                console.warn('Supabase application insert warning (using resilient local persistence):', error.message);
             }
-            return data;
         }
         catch (err) {
-            console.error('Error adding application:', err);
-            return null;
+            console.warn('Error adding application in Supabase:', err);
         }
+
+        if (!created) {
+            created = {
+                id: 'app_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+                user_id: userId,
+                ...appData,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+        }
+
+        try {
+            const key = `careeros_apps_${userId}`;
+            const existing = JSON.parse(localStorage.getItem(key) || '[]');
+            const updated = [created, ...existing.filter(a => a.id !== created.id)];
+            localStorage.setItem(key, JSON.stringify(updated));
+        } catch (e) {
+            console.warn('Could not cache application locally', e);
+        }
+
+        return created;
     },
     async updateApplication(userId, appId, updates) {
         if (!userId || !appId)

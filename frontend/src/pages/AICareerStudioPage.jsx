@@ -1,27 +1,162 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { aiFastApiService } from '../services/aiFastApiService';
 import { downloadCoverLetterPdf } from '../utils/pdfGenerator';
+import { downloadResumePdf } from '../utils/pdfExport';
+import { runLiveAtsCheck } from '../utils/atsResumeChecker';
 import {
     Sparkles, Wand2, Copy, Check, Download,
     AlertCircle, Activity, Database, Zap, BookmarkCheck,
-    MessageSquare, FileText
+    MessageSquare, FileText, Target
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { profileService } from '../services/profileService';
+import { projectService } from '../services/projectService';
+import { ResumeBuilder } from '../components/resume/ResumeBuilder';
+import { ResumePreview } from '../components/resume/ResumePreview';
+import { LiveAtsChecker } from '../components/resume/LiveAtsChecker';
 
 const POPULAR_COMPANIES = [
     'Razorpay', 'Swiggy', 'Postman', 'CRED', 'Zomato',
     'PhonePe', 'Groww', 'Zepto', 'Stripe', 'Google', 'Amazon'
 ];
 
+export const categorizeSkillsList = (skillNames = []) => {
+    const cats = {
+        'Languages': [],
+        'Frameworks & Libs': [],
+        'Databases & Cache': [],
+        'DevOps & Tools': []
+    };
+
+    const langSet = new Set(['java', 'python', 'c', 'c++', 'cpp', 'javascript', 'typescript', 'go', 'golang', 'rust', 'ruby', 'php', 'swift', 'kotlin', 'dart', 'c#', 'csharp', 'sql', 'html', 'css', 'bash', 'shell']);
+    const dbSet = new Set(['postgresql', 'postgres', 'mysql', 'mongodb', 'mongo', 'redis', 'cassandra', 'sqlite', 'dynamodb', 'oracle', 'firebase', 'supabase', 'elasticsearch', 'prisma', 'hibernate']);
+    const devopsSet = new Set(['docker', 'kubernetes', 'k8s', 'aws', 'gcp', 'azure', 'git', 'github', 'gitlab', 'linux', 'ci/cd', 'kafka', 'rabbitmq', 'jenkins', 'nginx', 'terraform', 'postman', 'vite']);
+
+    for (const raw of skillNames) {
+        const s = String(raw).trim();
+        if (!s) continue;
+        const low = s.toLowerCase();
+        if (langSet.has(low)) {
+            cats['Languages'].push(s);
+        } else if (dbSet.has(low)) {
+            cats['Databases & Cache'].push(s);
+        } else if (devopsSet.has(low)) {
+            cats['DevOps & Tools'].push(s);
+        } else {
+            cats['Frameworks & Libs'].push(s);
+        }
+    }
+
+    const categories = [];
+    if (cats['Languages'].length) categories.push({ name: 'Languages', items: cats['Languages'].join(', ') });
+    if (cats['Frameworks & Libs'].length) categories.push({ name: 'Frameworks & Libs', items: cats['Frameworks & Libs'].join(', ') });
+    if (cats['Databases & Cache'].length) categories.push({ name: 'Databases & Cache', items: cats['Databases & Cache'].join(', ') });
+    if (cats['DevOps & Tools'].length) categories.push({ name: 'DevOps & Tools', items: cats['DevOps & Tools'].join(', ') });
+
+    if (categories.length === 0) {
+        categories.push({ name: 'Technical Skills', items: skillNames.join(', ') || 'Java, Spring Boot, PostgreSQL, Docker' });
+    }
+    return categories;
+};
+
+const getInitialResumeData = (profile) => {
+    try {
+        const saved = localStorage.getItem('careeros_resume_data');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed && parsed.personal && parsed.education) {
+                return parsed;
+            }
+        }
+    } catch (e) {
+        console.error('Failed to parse saved resume from localStorage', e);
+    }
+
+    return {
+        personal: {
+            fullName: profile?.full_name || 'Aarav Sharma',
+            targetRole: profile?.target_role || 'Backend Software Engineer',
+            email: profile?.email || 'aarav.sharma@example.com',
+            phone: profile?.phone || '+91 98765 43210',
+            location: profile?.location || 'Bengaluru, India',
+            linkedin: profile?.linkedin_url || 'linkedin.com/in/aarav-sharma',
+            github: profile?.github_url || 'github.com/aaravsharma',
+            portfolio: profile?.portfolio_url || 'https://aarav.dev',
+            summary: profile?.bio || 'Results-driven Backend Engineer specializing in high-throughput distributed systems, microservice architectures, and relational database tuning.'
+        },
+        education: [
+            {
+                institution: profile?.college || 'Indian Institute of Technology / NIT',
+                degree: profile?.degree || 'B.Tech in Computer Science & Engineering',
+                field: 'Computer Science',
+                dates: profile?.graduation_year ? `${Number(profile.graduation_year) - 4} - ${profile.graduation_year}` : '2021 - 2025',
+                gpa: '8.9 / 10',
+                details: 'Coursework: Data Structures & Algorithms, Distributed Systems, Database Management, Computer Networks'
+            }
+        ],
+        skills: {
+            categories: [
+                { name: 'Languages', items: 'Java 17, Go, Python, TypeScript, SQL' },
+                { name: 'Frameworks & Libs', items: 'Spring Boot, Node.js, Express, React, JUnit' },
+                { name: 'Databases & Cache', items: 'PostgreSQL, Redis, MySQL, MongoDB' },
+                { name: 'DevOps & Cloud', items: 'Docker, AWS (EC2, S3), Git, CI/CD pipelines, Kafka' }
+            ]
+        },
+        projects: [
+            {
+                title: 'High-Throughput Distributed Payment Gateway',
+                techStack: 'Java 17, Spring Boot, Redis, Kafka, PostgreSQL',
+                link: 'https://github.com/aaravsharma/payment-gateway',
+                dates: '2024',
+                bullets: [
+                    'Engineered an idempotent transaction processing pipeline handling 4,500+ TPS with sub-80ms p99 response times.',
+                    'Implemented distributed locking and deduplication using Redis cache, eliminating duplicate debit charges during network retries.',
+                    'Achieved 92% unit and integration test coverage using Testcontainers and Mockito in automated GitHub Actions CI.'
+                ]
+            },
+            {
+                title: 'Real-Time Collaborative Code Review Workspace',
+                techStack: 'React, Node.js, WebSockets, PostgreSQL, Docker',
+                link: 'https://github.com/aaravsharma/collab-review',
+                dates: '2023 - 2024',
+                bullets: [
+                    'Built bi-directional operational transformation sync supporting 50+ concurrent developers with sub-30ms socket latency.',
+                    'Designed multi-tenant RBAC permissions schema reducing query latency by 35% through composite B-Tree indexes.'
+                ]
+            }
+        ],
+        experience: [
+            {
+                company: 'Razorpay',
+                role: 'Software Engineer Intern - Core Banking',
+                dates: 'May 2024 - July 2024',
+                location: 'Bengaluru, India',
+                bullets: [
+                    'Developed reconciliation microservice processing over 250,000 daily settlement transactions with zero record drift.',
+                    'Optimized slow queries on high-volume PostgreSQL tables, reducing reporting batch job runtime from 45 mins to 11 mins.'
+                ]
+            }
+        ],
+        certifications: [
+            { name: 'AWS Certified Cloud Practitioner', issuer: 'Amazon Web Services', date: '2024', link: '' },
+            { name: 'Oracle Certified Professional: Java SE 17 Developer', issuer: 'Oracle', date: '2023', link: '' }
+        ],
+        achievements: [
+            'Global Rank 420 out of 24,000+ competitors in LeetCode Weekly Contest.',
+            'Winner, Smart India Hackathon among 1,500+ engineering teams nationwide.'
+        ]
+    };
+};
+
 export const AICareerStudioPage = () => {
-    const { profile } = useAuth();
+    const { profile, user } = useAuth();
     const { showToast } = useToast();
-    const [activeTab, setActiveTab] = useState('cover_letter'); // 'cover_letter' | 'bullet_enhancer'
+    const [activeTab, setActiveTab] = useState('resume_builder'); // 'resume_builder' | 'cover_letter' | 'bullet_enhancer'
     const [backendOnline, setBackendOnline] = useState(null);
     const [knownCompanies, setKnownCompanies] = useState([]);
 
@@ -48,6 +183,165 @@ export const AICareerStudioPage = () => {
     const [bulletLoading, setBulletLoading] = useState(false);
     const [bulletResult, setBulletResult] = useState(null);
     const [copiedBulletIdx, setCopiedBulletIdx] = useState(null);
+
+    // Overleaf-Style LaTeX Resume Builder State
+    const [resumeData, setResumeData] = useState(() => getInitialResumeData(profile));
+    const [isImportingProfile, setIsImportingProfile] = useState(false);
+
+    // Auto-persist resume modifications to localStorage
+    useEffect(() => {
+        if (resumeData) {
+            try {
+                localStorage.setItem('careeros_resume_data', JSON.stringify(resumeData));
+            } catch (e) {
+                // Ignore storage errors
+            }
+        }
+    }, [resumeData]);
+
+    // One-Click Sync from Career Profile into Resume
+    const handleImportFromCareerProfile = async () => {
+        setIsImportingProfile(true);
+        try {
+            const userId = user?.id || profile?.user_id;
+            let currentProf = profile;
+            let userSkills = [];
+            let userProjects = [];
+
+            if (userId) {
+                const [freshProf, skills, projs] = await Promise.all([
+                    profileService.getProfile(userId),
+                    profileService.getUserSkills(userId),
+                    projectService.getProjects(userId)
+                ]);
+                if (freshProf) currentProf = freshProf;
+                if (skills) userSkills = skills;
+                if (projs) userProjects = projs;
+            }
+
+            const skillNames = (userSkills || []).map(us => us.skill?.name || us.name || '').filter(Boolean);
+            const formattedCategories = skillNames.length > 0
+                ? categorizeSkillsList(skillNames)
+                : (resumeData.skills?.categories || [
+                    { name: 'Technical Skills', items: 'Python, JavaScript, React, Node.js' }
+                ]);
+
+            const formattedProjects = (userProjects && userProjects.length > 0)
+                ? userProjects.map(p => {
+                    const techStr = Array.isArray(p.technologies)
+                        ? p.technologies.join(', ')
+                        : (p.technologies || p.tech_stack || '');
+                    const bullets = p.description
+                        ? p.description.split('\n').map(b => b.trim()).filter(Boolean).map(b => b.replace(/^[•\-\*]\s*/, ''))
+                        : ['Designed, engineered, and deployed scalable end-to-end features.'];
+                    return {
+                        title: p.name || p.title || 'Engineering Project',
+                        techStack: techStr,
+                        link: p.github_url || p.live_url || '',
+                        dates: '2024',
+                        bullets: bullets.length > 0 ? bullets : ['Designed, engineered, and deployed scalable end-to-end features.']
+                    };
+                })
+                : resumeData.projects;
+
+            const updated = {
+                ...resumeData,
+                personal: {
+                    ...resumeData.personal,
+                    fullName: currentProf?.full_name || resumeData.personal?.fullName || 'Candidate Name',
+                    targetRole: currentProf?.target_role || resumeData.personal?.targetRole || 'Software Engineer',
+                    email: currentProf?.email || user?.email || resumeData.personal?.email || '',
+                    phone: currentProf?.phone || resumeData.personal?.phone || '+91 98765 43210',
+                    location: currentProf?.location || resumeData.personal?.location || 'India',
+                    linkedin: currentProf?.linkedin_url || resumeData.personal?.linkedin || '',
+                    github: currentProf?.github_url || resumeData.personal?.github || '',
+                    portfolio: currentProf?.portfolio_url || resumeData.personal?.portfolio || '',
+                    summary: currentProf?.bio || resumeData.personal?.summary || ''
+                },
+                education: [
+                    {
+                        institution: currentProf?.college || resumeData.education?.[0]?.institution || 'University / College',
+                        degree: currentProf?.degree || resumeData.education?.[0]?.degree || 'B.Tech in Computer Science',
+                        field: 'Computer Science',
+                        dates: currentProf?.graduation_year
+                            ? `${Number(currentProf.graduation_year) - 4} - ${currentProf.graduation_year}`
+                            : (resumeData.education?.[0]?.dates || '2021 - 2025'),
+                        gpa: resumeData.education?.[0]?.gpa || '8.8 / 10',
+                        details: resumeData.education?.[0]?.details || 'Core Subjects: Data Structures, Algorithms, Distributed Systems, DBMS'
+                    }
+                ],
+                skills: {
+                    categories: formattedCategories
+                },
+                projects: formattedProjects
+            };
+
+            setResumeData(updated);
+            localStorage.setItem('careeros_resume_data', JSON.stringify(updated));
+            if (showToast) showToast('✨ Successfully imported your Career Profile into the resume!', 'success');
+        } catch (err) {
+            console.error('Failed to sync career profile to resume:', err);
+            if (showToast) showToast('Failed to sync details from Career Profile.', 'error');
+        } finally {
+            setIsImportingProfile(false);
+        }
+    };
+
+    // Resume Formatting & Spacing tuning parameters
+    const [resumeSettings, setResumeSettings] = useState({
+        template: 'classic', // 'classic' (LaTeX serif) | 'modern' | 'minimal'
+        fontSize: 10,
+        lineSpacing: 1.35,
+        sectionSpacing: 14,
+        margins: 24,
+        accentColor: '#1e3a8a'
+    });
+
+    const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+    const handleDownloadPdf = async () => {
+        setIsDownloadingPdf(true);
+        try {
+            const res = await downloadResumePdf(resumeData, 'careeros-resume-preview');
+            if (showToast) {
+                showToast(`Resume downloaded to Downloads as ${res.filename}!`, 'success');
+            }
+        } catch (err) {
+            console.error('Failed to download resume PDF:', err);
+            if (showToast) {
+                showToast('Failed to generate PDF download. Please try again.', 'error');
+            }
+        } finally {
+            setIsDownloadingPdf(false);
+        }
+    };
+
+    // Responsive Live Preview Auto-fit Scaling (WYSIWYG 1:1 with A4 PDF)
+    const previewContainerRef = useRef(null);
+    const [containerWidth, setContainerWidth] = useState(600);
+    const [previewZoom, setPreviewZoom] = useState('fit'); // 'fit' | 0.8 | 1.0
+
+    useEffect(() => {
+        if (!previewContainerRef.current) return;
+        const observer = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                if (entry.contentRect.width > 0) {
+                    setContainerWidth(entry.contentRect.width);
+                }
+            }
+        });
+        observer.observe(previewContainerRef.current);
+        return () => observer.disconnect();
+    }, [activeTab]);
+
+    const currentScale = previewZoom === 'fit'
+        ? Math.min(1, Math.max(0.45, (containerWidth - 32) / 794))
+        : previewZoom;
+
+    // Real-time live deterministic ATS audit for quick status badges
+    const liveAtsAudit = useMemo(() => {
+        return runLiveAtsCheck(resumeData, resumeData.personal?.targetRole || profile?.target_role || 'Java Backend Developer');
+    }, [resumeData, profile?.target_role]);
 
     useEffect(() => {
         aiFastApiService.checkHealth().then(res => setBackendOnline(res.isOnline));
@@ -125,13 +419,33 @@ export const AICareerStudioPage = () => {
                     </div>
                     <h1 className="page-title">AI Career Studio</h1>
                     <p className="page-subtitle">
-                        Generate <strong>Company-Grounded Cover Letters & Recruiter Outreach via RAG</strong> and polish resume bullets with the STAR formula.
+                        Build <strong>Overleaf-Grade LaTeX Resumes with Live Preview</strong>, generate <strong>Company-Grounded Cover Letters & Recruiter Outreach via RAG</strong>, and polish resume bullets with the STAR formula.
                     </p>
                 </div>
             </div>
 
             {/* Main Studio Navigation Tabs */}
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', overflowX: 'auto' }}>
+                <button
+                    onClick={() => setActiveTab('resume_builder')}
+                    style={{
+                        padding: '0.6rem 1.2rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: activeTab === 'resume_builder' ? '1px solid var(--primary)' : '1px solid transparent',
+                        backgroundColor: activeTab === 'resume_builder' ? 'var(--primary-light)' : 'transparent',
+                        color: activeTab === 'resume_builder' ? 'var(--primary)' : 'var(--text-secondary)',
+                        fontWeight: 700,
+                        fontSize: '0.875rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        transition: 'all 0.15s ease'
+                    }}
+                >
+                    <FileText size={16} /> 📄 LaTeX Resume Studio
+                </button>
+
                 <button
                     onClick={() => setActiveTab('cover_letter')}
                     style={{
@@ -140,7 +454,7 @@ export const AICareerStudioPage = () => {
                         border: activeTab === 'cover_letter' ? '1px solid var(--primary)' : '1px solid transparent',
                         backgroundColor: activeTab === 'cover_letter' ? 'var(--primary-light)' : 'transparent',
                         color: activeTab === 'cover_letter' ? 'var(--primary)' : 'var(--text-secondary)',
-                        fontWeight: 700,
+                        fontWeight: activeTab === 'cover_letter' ? 700 : 600,
                         fontSize: '0.875rem',
                         cursor: 'pointer',
                         display: 'flex',
@@ -160,7 +474,7 @@ export const AICareerStudioPage = () => {
                         border: activeTab === 'bullet_enhancer' ? '1px solid var(--primary)' : '1px solid transparent',
                         backgroundColor: activeTab === 'bullet_enhancer' ? 'var(--primary-light)' : 'transparent',
                         color: activeTab === 'bullet_enhancer' ? 'var(--primary)' : 'var(--text-secondary)',
-                        fontWeight: 600,
+                        fontWeight: activeTab === 'bullet_enhancer' ? 700 : 600,
                         fontSize: '0.875rem',
                         cursor: 'pointer',
                         display: 'flex',
@@ -169,9 +483,188 @@ export const AICareerStudioPage = () => {
                         transition: 'all 0.15s ease'
                     }}
                 >
-                    <Wand2 size={16} /> ✨ STAR Resume Bullet Polisher
+                    <Wand2 size={16} /> ✨ STAR Bullet Polisher
                 </button>
             </div>
+
+            {/* ========================================================================= */}
+            {/* TAB 0: OVERLEAF-STYLE LATEX RESUME BUILDER & LIVE PREVIEW */}
+            {/* ========================================================================= */}
+            {activeTab === 'resume_builder' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    {/* Live Real-Time ATS Score Checker & Diagnostic Suite */}
+                    <LiveAtsChecker
+                        resumeData={resumeData}
+                        setResumeData={setResumeData}
+                        targetRole={resumeData.personal?.targetRole || profile?.target_role || 'Java Backend Developer'}
+                        onTargetRoleChange={(newRole) => {
+                            setResumeData(prev => ({
+                                ...prev,
+                                personal: {
+                                    ...prev.personal,
+                                    targetRole: newRole
+                                }
+                            }));
+                        }}
+                        showToast={showToast}
+                    />
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(380px, 1fr) minmax(460px, 1fr)', gap: '1.75rem', alignItems: 'start' }}>
+                        {/* Left Pane: Interactive Structured Form with Add/Remove & Spacing */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <ResumeBuilder
+                                initialProfile={profile}
+                                resumeData={resumeData}
+                                setResumeData={setResumeData}
+                                settings={resumeSettings}
+                                setSettings={setResumeSettings}
+                                onDownloadPdf={handleDownloadPdf}
+                                isDownloadingPdf={isDownloadingPdf}
+                                onImportFromProfile={handleImportFromCareerProfile}
+                                isImportingProfile={isImportingProfile}
+                                showToast={showToast}
+                            />
+                        </div>
+
+                        {/* Right Pane: Live Overleaf-Style LaTeX / PDF Preview */}
+                        <div style={{
+                            position: 'sticky',
+                            top: '1rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.75rem',
+                            maxHeight: 'calc(100vh - 40px)',
+                            overflowY: 'auto',
+                            paddingRight: '4px'
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '0.5rem 0.75rem',
+                                backgroundColor: 'var(--bg-secondary)',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--border-color)',
+                                flexWrap: 'wrap',
+                                gap: '0.5rem'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    <Badge variant="success">LIVE PDF PREVIEW</Badge>
+
+                                    {/* Compact Live ATS Score Indicator */}
+                                    <span
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.25rem',
+                                            fontSize: '0.72rem',
+                                            fontWeight: 700,
+                                            padding: '2px 7px',
+                                            borderRadius: '4px',
+                                            backgroundColor: liveAtsAudit.totalScore >= 80 ? 'rgba(34, 197, 94, 0.15)' : (liveAtsAudit.totalScore >= 60 ? 'rgba(234, 179, 8, 0.15)' : 'rgba(239, 68, 68, 0.15)'),
+                                            color: liveAtsAudit.totalScore >= 80 ? 'var(--success)' : (liveAtsAudit.totalScore >= 60 ? 'var(--warning)' : 'var(--danger)'),
+                                            border: `1px solid ${liveAtsAudit.totalScore >= 80 ? 'rgba(34, 197, 94, 0.3)' : (liveAtsAudit.totalScore >= 60 ? 'rgba(234, 179, 8, 0.3)' : 'rgba(239, 68, 68, 0.3)')}`
+                                        }}
+                                        title={`Live ATS Score: ${liveAtsAudit.totalScore}/100 (${liveAtsAudit.atsRating})`}
+                                    >
+                                        🎯 ATS {liveAtsAudit.totalScore}/100 ({liveAtsAudit.grade})
+                                    </span>
+                                    
+                                    {/* Overleaf-style Zoom controls */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginLeft: '0.25rem' }}>
+                                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>ZOOM:</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPreviewZoom('fit')}
+                                            style={{
+                                                padding: '2px 8px',
+                                                fontSize: '0.72rem',
+                                                borderRadius: '4px',
+                                                border: '1px solid var(--border-color)',
+                                                background: previewZoom === 'fit' ? 'var(--primary)' : 'var(--bg-tertiary)',
+                                                color: previewZoom === 'fit' ? '#ffffff' : 'var(--text-secondary)',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            Fit ({Math.round(currentScale * 100)}%)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPreviewZoom(0.8)}
+                                            style={{
+                                                padding: '2px 8px',
+                                                fontSize: '0.72rem',
+                                                borderRadius: '4px',
+                                                border: '1px solid var(--border-color)',
+                                                background: previewZoom === 0.8 ? 'var(--primary)' : 'var(--bg-tertiary)',
+                                                color: previewZoom === 0.8 ? '#ffffff' : 'var(--text-secondary)',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            80%
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPreviewZoom(1.0)}
+                                            style={{
+                                                padding: '2px 8px',
+                                                fontSize: '0.72rem',
+                                                borderRadius: '4px',
+                                                border: '1px solid var(--border-color)',
+                                                background: previewZoom === 1.0 ? 'var(--primary)' : 'var(--bg-tertiary)',
+                                                color: previewZoom === 1.0 ? '#ffffff' : 'var(--text-secondary)',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            100%
+                                        </button>
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={handleDownloadPdf}
+                                    disabled={isDownloadingPdf}
+                                    leftIcon={isDownloadingPdf ? <LoadingSpinner size="xs" /> : <Download size={13} />}
+                                >
+                                    {isDownloadingPdf ? 'Generating PDF...' : 'Download PDF'}
+                                </Button>
+                            </div>
+
+                            {/* White paper resume card with exact 1:1 A4 preview scaling */}
+                            <div
+                                ref={previewContainerRef}
+                                style={{
+                                    backgroundColor: '#090d16',
+                                    padding: '1.25rem 0.5rem',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1px solid var(--border-subtle)',
+                                    overflowX: 'auto',
+                                    display: 'flex',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                <div style={{
+                                    width: `${794 * currentScale}px`,
+                                    height: `${1123 * currentScale}px`,
+                                    position: 'relative'
+                                }}>
+                                    <div style={{
+                                        transform: `scale(${currentScale})`,
+                                        transformOrigin: 'top left',
+                                        width: '794px'
+                                    }}>
+                                        <ResumePreview
+                                            resumeData={resumeData}
+                                            settings={resumeSettings}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ========================================================================= */}
             {/* TAB 1: UNIFIED COVER LETTER & RECRUITER OUTREACH HUB */}

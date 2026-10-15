@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { profileService } from '../services/profileService';
+import { projectService } from '../services/projectService';
 import { resumeService } from '../services/resumeService';
 import { aiFastApiService } from '../services/aiFastApiService';
-import { Sparkles, ArrowRight, ArrowLeft, CheckCircle2, Upload, FileText, Plus, Briefcase, MapPin, GraduationCap, Wrench, X } from 'lucide-react';
+import { Sparkles, ArrowRight, ArrowLeft, CheckCircle2, Upload, FileText, Plus, Briefcase, MapPin, GraduationCap, Wrench, X, Zap } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { TARGET_ROLES, ROLE_SKILLS_MAP, DEFAULT_FALLBACK_SKILLS, calculateCareerReadiness } from '../utils/careerRoles';
@@ -50,6 +51,11 @@ export const OnboardingPage = () => {
     const [resumeFile, setResumeFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [loadingAiSkills, setLoadingAiSkills] = useState(false);
+
+    // One-Click AI Resume Auto-Fill State
+    const [isAutoFilling, setIsAutoFilling] = useState(false);
+    const [autoFillSuccess, setAutoFillSuccess] = useState(null);
+    const [extractedData, setExtractedData] = useState(null);
 
     // Ensure pristine clean form state when authenticated user changes or for fresh onboarding
     useEffect(() => {
@@ -217,6 +223,120 @@ export const OnboardingPage = () => {
         setStep(step + 1);
     };
 
+    const handleAutoFillFromResume = async (file) => {
+        if (!file) return;
+        if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+            showToast('Please upload a PDF format resume', 'warning');
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            showToast('Resume size must be under 5 MB', 'warning');
+            return;
+        }
+
+        setIsAutoFilling(true);
+        setResumeFile(file);
+        try {
+            const extracted = await aiFastApiService.parseAndExtractResume(file);
+            if (extracted) {
+                setExtractedData(extracted);
+
+                // 1. Populate Step 1 fields
+                if (extracted.full_name) setFullName(extracted.full_name);
+                const firstEdu = extracted.education?.[0];
+                if (firstEdu) {
+                    if (firstEdu.institution) setCollege(firstEdu.institution);
+                    if (firstEdu.degree) setDegree(firstEdu.degree);
+                    if (firstEdu.graduation_year) setGradYear(Number(firstEdu.graduation_year));
+                }
+
+                // 2. Populate Step 2 target role
+                if (extracted.target_role) {
+                    const matchedRole = TARGET_ROLES.find(r => 
+                        r.toLowerCase() === extracted.target_role.toLowerCase() ||
+                        extracted.target_role.toLowerCase().includes(r.toLowerCase()) ||
+                        r.toLowerCase().includes(extracted.target_role.toLowerCase())
+                    );
+                    setTargetRole(matchedRole || extracted.target_role || 'Java Backend Developer');
+                }
+
+                // 3. Populate Step 3 location
+                if (extracted.location) {
+                    setLocation(extracted.location);
+                }
+
+                // 4. Populate Step 4 skills
+                if (extracted.skills && extracted.skills.length > 0) {
+                    setSelectedSkills(prev => Array.from(new Set([...prev, ...extracted.skills])));
+                    setAvailableSkills(prev => Array.from(new Set([...prev, ...extracted.skills])));
+                }
+
+                // 5. Pre-build rich Overleaf LaTeX resume data into localStorage
+                const initialResume = {
+                    personal: {
+                        fullName: extracted.full_name || fullName || 'Candidate Name',
+                        targetRole: extracted.target_role || targetRole || 'Software Engineer',
+                        email: extracted.email || user?.email || '',
+                        phone: extracted.phone || '',
+                        location: extracted.location || location || 'Bengaluru, India',
+                        linkedin: extracted.linkedin_url || '',
+                        github: extracted.github_url || '',
+                        portfolio: extracted.portfolio_url || '',
+                        summary: extracted.summary || ''
+                    },
+                    education: extracted.education?.map(ed => ({
+                        institution: ed.institution || 'University',
+                        degree: ed.degree || 'Degree Program',
+                        field: ed.field_of_study || '',
+                        dates: `2021 - ${ed.graduation_year || 2026}`,
+                        gpa: ed.cgpa || '',
+                        details: ed.details || ''
+                    })) || [],
+                    skills: {
+                        categories: Object.entries(extracted.skills_categorized || {}).map(([name, items]) => ({
+                            name,
+                            items: Array.isArray(items) ? items.join(', ') : items
+                        }))
+                    },
+                    projects: extracted.projects?.map(p => ({
+                        title: p.title || 'Key Engineering Project',
+                        techStack: p.tech_stack || '',
+                        link: p.github_url || p.demo_url || '',
+                        dates: p.dates || '2024',
+                        bullets: p.bullets && p.bullets.length > 0 ? p.bullets : [
+                            'Engineered robust feature architecture with comprehensive unit and integration testing.'
+                        ]
+                    })) || [],
+                    experience: extracted.experience?.map(exp => ({
+                        company: exp.company || 'Tech Company',
+                        role: exp.role || 'Software Engineer Intern',
+                        dates: exp.dates || '2024',
+                        location: exp.location || '',
+                        bullets: exp.bullets || []
+                    })) || [],
+                    certifications: extracted.certifications || [],
+                    achievements: extracted.achievements || []
+                };
+
+                localStorage.setItem('careeros_resume_data', JSON.stringify(initialResume));
+
+                setAutoFillSuccess({
+                    skillsCount: extracted.skills?.length || 0,
+                    projectsCount: extracted.projects?.length || 0,
+                    name: extracted.full_name,
+                    role: extracted.target_role
+                });
+
+                showToast(`✨ One-Click Auto-Fill Complete! Loaded ${extracted.skills?.length || 0} skills & ${extracted.projects?.length || 0} projects.`, 'success');
+            }
+        } catch (err) {
+            console.error('Error auto-filling from resume:', err);
+            showToast('Could not auto-extract all fields from resume, but you can continue manually.', 'warning');
+        } finally {
+            setIsAutoFilling(false);
+        }
+    };
+
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
@@ -230,6 +350,8 @@ export const OnboardingPage = () => {
             }
             setResumeFile(file);
             showToast(`Selected ${file.name}`, 'info');
+            // Auto-trigger full extraction
+            handleAutoFillFromResume(file);
         }
     };
 
@@ -249,7 +371,7 @@ export const OnboardingPage = () => {
                 { hasResume: Boolean(resumeFile) }
             );
 
-            // 1. Update profile
+            // 1. Update profile with extracted contacts & bio
             await profileService.updateProfile(userId, {
                 full_name: fullName,
                 degree,
@@ -258,16 +380,36 @@ export const OnboardingPage = () => {
                 target_role: targetRole,
                 location,
                 remote_preference: remotePref,
+                bio: extractedData?.summary || profile?.bio || '',
+                linkedin_url: extractedData?.linkedin_url || profile?.linkedin_url || '',
+                github_url: extractedData?.github_url || profile?.github_url || '',
+                portfolio_url: extractedData?.portfolio_url || profile?.portfolio_url || '',
                 career_readiness: computedReadiness,
                 onboarding_completed: true
             });
 
-            // 2. Add skills
+            // 2. Add skills to user
             for (const sk of selectedSkills) {
                 await profileService.addSkillToUser(userId, sk);
             }
 
-            // 3. Upload resume if selected
+            // 3. Save extracted projects to Supabase if any
+            if (extractedData?.projects && extractedData.projects.length > 0) {
+                for (const proj of extractedData.projects) {
+                    const techList = proj.tech_stack ? proj.tech_stack.split(',').map(s => s.trim()).filter(Boolean) : [];
+                    await projectService.addProject(userId, {
+                        name: proj.title || 'Engineering Project',
+                        title: proj.title || 'Engineering Project',
+                        description: (proj.bullets && proj.bullets.length > 0) ? proj.bullets.join('\n') : (proj.tech_stack || ''),
+                        technologies: techList,
+                        tech_stack: proj.tech_stack || '',
+                        github_url: proj.github_url || '',
+                        live_url: proj.demo_url || ''
+                    });
+                }
+            }
+
+            // 4. Upload resume if selected
             if (resumeFile) {
                 await resumeService.uploadResume(userId, resumeFile);
             }
@@ -304,6 +446,121 @@ export const OnboardingPage = () => {
       </div>
 
       <div className="card" style={{ maxWidth: '640px', width: '100%', padding: '2.25rem', overflow: 'visible', position: 'relative' }}>
+        {/* One-Click Quick Start Banner */}
+        <div style={{
+            backgroundColor: 'rgba(59, 130, 246, 0.08)',
+            border: '1.5px dashed var(--primary)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1rem 1.25rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            flexWrap: 'wrap'
+        }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--primary-light)',
+                    color: 'var(--primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                }}>
+                    <Zap size={20} />
+                </div>
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                            One-Click Profile Import
+                        </span>
+                        <span className="badge badge-success" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem' }}>
+                            ⚡ 5-SEC AUTO-FILL
+                        </span>
+                    </div>
+                    <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        Upload your PDF resume. AI will pre-populate your degree, skills, and projects!
+                    </p>
+                </div>
+            </div>
+
+            <div>
+                <label
+                    style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.45rem 0.9rem',
+                        backgroundColor: 'var(--primary)',
+                        color: '#ffffff',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        cursor: isAutoFilling ? 'wait' : 'pointer',
+                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.35)',
+                        transition: 'all var(--transition-fast)'
+                    }}
+                >
+                    <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                                handleAutoFillFromResume(e.target.files[0]);
+                            }
+                        }}
+                        disabled={isAutoFilling}
+                        style={{ display: 'none' }}
+                    />
+                    {isAutoFilling ? (
+                        <>
+                            <div className="loading-spinner" style={{ width: 13, height: 13 }} />
+                            <span>Extracting Profile...</span>
+                        </>
+                    ) : (
+                        <>
+                            <Upload size={14} />
+                            <span>Upload Resume PDF</span>
+                        </>
+                    )}
+                </label>
+            </div>
+        </div>
+
+        {/* Success notification banner */}
+        {autoFillSuccess && (
+            <div style={{
+                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid var(--success)',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.65rem 0.85rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '0.8rem',
+                color: 'var(--success)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <CheckCircle2 size={16} />
+                    <span>
+                        <strong>Auto-filled!</strong> Loaded {autoFillSuccess.skillsCount} skills & {autoFillSuccess.projectsCount} projects for <strong>{autoFillSuccess.name || 'you'}</strong>.
+                    </span>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setAutoFillSuccess(null)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                >
+                    <X size={14} />
+                </button>
+            </div>
+        )}
+
         {/* Step Indicator */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
           {[1, 2, 3, 4, 5].map(s => (<div key={s} style={{ display: 'flex', alignItems: 'center', flex: s < 5 ? 1 : 'none' }}>

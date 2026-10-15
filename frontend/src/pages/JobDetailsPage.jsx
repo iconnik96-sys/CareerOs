@@ -43,11 +43,55 @@ export const JobDetailsPage = () => {
         fetchDetails();
     }, [id, user?.id]);
 
+    const [hasApplied, setHasApplied] = useState(false);
+    const [isApplying, setIsApplying] = useState(false);
+
+    useEffect(() => {
+        if (!user?.id || !job?.id) return;
+        applicationService.getApplications(user.id).then(apps => {
+            if (apps && Array.isArray(apps)) {
+                const found = apps.some(a =>
+                    String(a.job_id) === String(job.id) ||
+                    (a.company?.toLowerCase() === job.company?.toLowerCase() && a.role?.toLowerCase() === job.title?.toLowerCase())
+                );
+                if (found) setHasApplied(true);
+            }
+        }).catch(err => console.error('Error fetching applications for job details:', err));
+    }, [user?.id, job?.id, job?.company, job?.title]);
+
     const handleToggleSave = () => {
         if (!job) return;
         const ok = jobService.toggleSaveJob(job.id);
         setIsSaved(ok);
         showToast(ok ? 'Saved to bookmarks' : 'Removed from bookmarks', ok ? 'success' : 'info');
+    };
+
+    const handleApplyOfficialSite = async () => {
+        if (!job) return;
+        if (user?.id && !hasApplied) {
+            setIsApplying(true);
+            try {
+                await applicationService.addApplication(user.id, {
+                    job_id: job.id,
+                    company: job.company,
+                    role: job.title,
+                    location: job.location,
+                    status: 'APPLIED',
+                    salary: job.salary_range || 'Competitive',
+                    applied_at: new Date().toISOString(),
+                    notes: `Applied on Official Site. Match score: ${matchingData.score}%. Required skills: ${(job.skills || []).join(', ')}.`
+                });
+                setHasApplied(true);
+                showToast(`🚀 Applied! Automatically added ${job.title} at ${job.company} to Application Tracker in "Applied" column.`, 'success');
+            } catch (err) {
+                console.error('Error tracking application:', err);
+            } finally {
+                setIsApplying(false);
+            }
+        }
+        if (job.source_url && job.source_url !== '#') {
+            window.open(job.source_url, '_blank', 'noopener,noreferrer');
+        }
     };
 
     const handleTrackApplication = async () => {
@@ -149,11 +193,25 @@ export const JobDetailsPage = () => {
             <Button variant="secondary" onClick={handleTrackApplication} leftIcon={<Layers size={16}/>}>
               Track Application
             </Button>
-            <a href={job.source_url || '#'} target="_blank" rel="noreferrer">
-              <Button variant="primary" rightIcon={<ExternalLink size={15}/>}>
-                Apply on Official Site
+            {hasApplied ? (
+              <Button
+                variant="outline"
+                disabled
+                leftIcon={<CheckCircle2 size={16} className="text-success" />}
+                style={{ borderColor: 'rgba(34, 197, 94, 0.4)', color: 'var(--success)', backgroundColor: 'rgba(34, 197, 94, 0.08)', cursor: 'default' }}
+              >
+                Applied ✓
               </Button>
-            </a>
+            ) : (
+              <Button
+                variant="primary"
+                onClick={handleApplyOfficialSite}
+                disabled={isApplying}
+                rightIcon={<ExternalLink size={15}/>}
+              >
+                {isApplying ? 'Applying...' : 'Apply on Official Site'}
+              </Button>
+            )}
           </div>
         </div>
       </Card>

@@ -65,6 +65,7 @@ export const App = () => {
                                 <Route path="/dashboard" element={<DashboardPage />} />
                                 <Route path="/profile" element={<CareerProfilePage />} />
                                 <Route path="/ai-studio" element={<AICareerStudioPage />} />
+                                <Route path="/ai-career-studio" element={<AICareerStudioPage />} />
                                 <Route path="/resume" element={<ResumePage />} />
                                 <Route path="/resume-analysis" element={<ResumeAnalysisPage />} />
                                 <Route path="/job-analyzer" element={<JobAnalyzerPage />} />

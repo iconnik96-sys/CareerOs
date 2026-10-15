@@ -1217,3 +1217,56 @@ input, textarea, select {
 .h-screen { height: 100vh; }
 .justify-center { justify-content: center; }
 .items-center { align-items: center; }
+
+/* Loading Spinner */
+.loading-spinner {
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--primary, #3b82f6);
+  border-radius: 50%;
+  animation: spinner-rotate 0.8s linear infinite;
+  display: inline-block;
+  box-sizing: border-box;
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Print Styles for LaTeX Resume */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+  
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 10pt;
+  }
+
+  /* Hide app navigation, sidebar, forms and buttons during print */
+  aside, nav, header, footer, .app-sidebar, .sidebar,
+  button, input, select, textarea, .badge, .toast-container,
+  .btn, .badge-neutral, .card-header, .form-group, .modal-backdrop {
+    display: none !important;
+  }
+
+  /* Make sure the resume preview is isolated and full width */
+  #careeros-resume-preview {
+    display: block !important;
+    visibility: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+}

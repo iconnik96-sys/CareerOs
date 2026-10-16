@@ -27,7 +27,8 @@ from routers import (
     resume_analyzer,
     job_matcher,
     roadmap_generator,
-    simulation
+    simulation,
+    admin
 )
 from services.llm_engine import llm_engine
 
@@ -113,6 +114,7 @@ app.include_router(resume_analyzer.router)
 app.include_router(job_matcher.router)
 app.include_router(roadmap_generator.router)
 app.include_router(simulation.router)
+app.include_router(admin.router)
 
 
 @app.get("/api/health")

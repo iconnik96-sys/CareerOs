@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, User, FileText, ScanSearch, Briefcase, Layers,
   Milestone, HelpCircle, Settings, LogOut, Sparkles, Terminal,
-  ChevronDown, ChevronRight, Mic, Keyboard
+  ChevronDown, ChevronRight, Mic, Keyboard, ShieldAlert
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
@@ -164,6 +164,33 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
           </NavLink>
         );
       })}
+
+      {/* Exclusive Founder Access Link */}
+      {(user?.email?.toLowerCase().trim() === 'nikhil@gmail.com' || profile?.email?.toLowerCase().trim() === 'nikhil@gmail.com') && (
+        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(139, 92, 246, 0.25)' }}>
+          <span className="nav-category-title" style={{ color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.6875rem' }}>
+            👑 FOUNDER ONLY
+          </span>
+          <NavLink
+            to="/admin"
+            onClick={onCloseMobile}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            style={{
+              background: 'linear-gradient(90deg, rgba(139, 92, 246, 0.18), rgba(236, 72, 153, 0.12))',
+              border: '1px solid rgba(139, 92, 246, 0.35)',
+              borderRadius: '8px',
+              marginTop: '4px',
+              color: '#f1f5f9'
+            }}
+          >
+            <ShieldAlert size={18} color="#c084fc" />
+            <span style={{ flex: 1, fontWeight: 700 }}>Founder Panel</span>
+            <span className="badge" style={{ background: '#8b5cf6', color: '#fff', fontSize: '0.625rem', padding: '0.1rem 0.4rem' }}>
+              ADMIN
+            </span>
+          </NavLink>
+        </div>
+      )}
     </nav>
 
     {/* Sidebar Footer User Info & Logout */}

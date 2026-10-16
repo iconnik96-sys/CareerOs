@@ -223,5 +223,32 @@ export const aiFastApiService = {
                 quick_tips: []
             };
         }
+    },
+    async getAdminMetrics(founderEmail) {
+        try {
+            const res = await client.get('/api/admin/metrics', {
+                params: { founder_email: founderEmail }
+            });
+            return res.data;
+        } catch (err) {
+            throw formatApiError(err);
+        }
+    },
+    async switchAdminModel(model) {
+        try {
+            const res = await client.post('/api/admin/switch-model', { model });
+            return res.data;
+        } catch (err) {
+            throw formatApiError(err);
+        }
+    },
+    async resetAdminMetrics() {
+        try {
+            const res = await client.post('/api/admin/reset-metrics');
+            return res.data;
+        } catch (err) {
+            throw formatApiError(err);
+        }
     }
 };
+

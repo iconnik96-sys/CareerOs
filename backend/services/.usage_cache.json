@@ -1,0 +1,13 @@
+{
+  "total_requests": 0,
+  "successful_requests": 0,
+  "failed_requests": 0,
+  "total_prompt_tokens": 0,
+  "total_completion_tokens": 0,
+  "total_tokens": 0,
+  "total_cost_inr": 0.0,
+  "feature_breakdown": {},
+  "model_breakdown": {},
+  "recent_logs": [],
+  "active_model_override": "llama-3.1-8b-instant"
+}

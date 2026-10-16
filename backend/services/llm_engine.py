@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import time
 import logging
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
@@ -28,9 +29,9 @@ except ImportError:
 
 # Groq models in order of capability & speed
 FALLBACK_MODELS = [
-    "openai/gpt-oss-120b",
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
+    "openai/gpt-oss-120b",
     "llama3-70b-8192",
     "mixtral-8x7b-32768"
 ]
@@ -50,8 +51,14 @@ class LLMEngine:
 
     @property
     def model(self) -> str:
+        try:
+            from services.usage_tracker import usage_tracker
+            if usage_tracker.active_model_override:
+                return usage_tracker.active_model_override
+        except Exception:
+            pass
         configured = os.getenv("GROQ_MODEL", "").strip()
-        return configured or "openai/gpt-oss-120b"
+        return configured or "llama-3.3-70b-versatile"
 
     def is_available(self) -> bool:
         """Returns True if Groq SDK is installed and a valid non-empty GROQ_API_KEY is configured."""
@@ -94,7 +101,8 @@ class LLMEngine:
         temperature: float = 0.6,
         messages: Optional[List[Dict[str, str]]] = None,
         json_mode: bool = False,
-        model_override: Optional[str] = None
+        model_override: Optional[str] = None,
+        feature: str = "general"
     ) -> Optional[str]:
         """Calls Groq Chat Completions API with strict 30s timeout and model fallback."""
         if not self.is_available():
@@ -120,6 +128,8 @@ class LLMEngine:
 
         target_models = [model_override] if model_override else [self.model] + [m for m in FALLBACK_MODELS if m != self.model]
 
+        from services.usage_tracker import usage_tracker
+        start_t = time.time()
         for current_model in target_models:
             try:
                 kwargs: Dict[str, Any] = {
@@ -135,12 +145,32 @@ class LLMEngine:
                 if response and response.choices and len(response.choices) > 0:
                     content = response.choices[0].message.content
                     if content:
+                        latency_ms = int((time.time() - start_t) * 1000)
+                        usage_obj = getattr(response, "usage", None)
+                        p_toks = getattr(usage_obj, "prompt_tokens", len(str(call_messages)) // 4)
+                        c_toks = getattr(usage_obj, "completion_tokens", len(content) // 4)
+                        usage_tracker.record_usage(
+                            feature=feature,
+                            model=current_model,
+                            prompt_tokens=p_toks,
+                            completion_tokens=c_toks,
+                            success=True,
+                            latency_ms=latency_ms
+                        )
                         return content
             except Exception as e:
                 logger.warning(f"Groq API call error with model {current_model}: {e}")
-                # Try next model in fallback list if model-specific error
                 continue
 
+        latency_ms = int((time.time() - start_t) * 1000)
+        usage_tracker.record_usage(
+            feature=feature,
+            model=target_models[0] if target_models else "unknown",
+            prompt_tokens=len(str(call_messages)) // 4,
+            completion_tokens=0,
+            success=False,
+            latency_ms=latency_ms
+        )
         return None
 
     def generate_json(
@@ -149,7 +179,8 @@ class LLMEngine:
         system_instruction: str = "",
         temperature: float = 0.5,
         messages: Optional[List[Dict[str, str]]] = None,
-        max_retries: int = 2
+        max_retries: int = 2,
+        feature: str = "general"
     ) -> Optional[Dict[str, Any]]:
         """
         Executes a Groq chat completion in JSON mode and parses the response.
@@ -164,7 +195,8 @@ class LLMEngine:
                 system_instruction=system_instruction,
                 temperature=temperature if attempt == 0 else 0.2,
                 messages=messages,
-                json_mode=True
+                json_mode=True,
+                feature=feature
             )
             if raw_text:
                 try:

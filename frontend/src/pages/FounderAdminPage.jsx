@@ -155,7 +155,7 @@ export const FounderAdminPage = () => {
 
   // Simulator Calculations
   const revPro = proUsers * 149;
-  const revUlt = ultUsers * 299;
+  const revUlt = ultUsers * 249;
   const totalRevenue = revPro + revUlt;
 
   // Est AI cost per user: Pro ~ ₹10.50, Ultimate ~ ₹32.00, Free ~ ₹0.30
@@ -549,9 +549,9 @@ export const FounderAdminPage = () => {
                         borderRadius: '12px',
                         fontSize: '0.75rem',
                         fontWeight: 700,
-                        background: u.plan.includes('299') ? 'rgba(245, 158, 11, 0.2)' : u.plan.includes('149') ? 'rgba(139, 92, 246, 0.2)' : 'rgba(148, 163, 184, 0.15)',
-                        color: u.plan.includes('299') ? '#f59e0b' : u.plan.includes('149') ? '#a78bfa' : '#94a3b8',
-                        border: u.plan.includes('299') ? '1px solid rgba(245, 158, 11, 0.3)' : u.plan.includes('149') ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid rgba(148, 163, 184, 0.2)'
+                        background: u.plan.includes('249') ? 'rgba(245, 158, 11, 0.2)' : u.plan.includes('149') ? 'rgba(139, 92, 246, 0.2)' : 'rgba(148, 163, 184, 0.15)',
+                        color: u.plan.includes('249') ? '#f59e0b' : u.plan.includes('149') ? '#a78bfa' : '#94a3b8',
+                        border: u.plan.includes('249') ? '1px solid rgba(245, 158, 11, 0.3)' : u.plan.includes('149') ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid rgba(148, 163, 184, 0.2)'
                       }}>
                         {u.plan}
                       </span>
@@ -697,7 +697,7 @@ export const FounderAdminPage = () => {
             {/* Ultimate Plan Slider */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: '0.4rem' }}>
-                <span style={{ fontWeight: 600, color: '#f59e0b' }}>Ultimate Users (₹299/mo)</span>
+                <span style={{ fontWeight: 600, color: '#f59e0b' }}>Ultimate Users (₹249/mo)</span>
                 <span style={{ color: '#f59e0b', fontWeight: 700 }}>{ultUsers} users (₹{revUlt.toLocaleString()})</span>
               </div>
               <input

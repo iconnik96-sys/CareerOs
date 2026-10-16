@@ -36,7 +36,7 @@ def get_admin_metrics(founder_email: Optional[str] = None):
     total_cost_inr = stats["total_cost_inr"]
     
     # Calculate mock/seed unit economics if freshly started
-    # Assume 1 Pro user (₹149) = 150k tokens, 1 Ultimate user (₹299) = 500k tokens
+    # Assume 1 Pro user (₹149) = 150k tokens, 1 Ultimate user (₹249) = 500k tokens
     pro_est_tokens = 150_000
     ult_est_tokens = 500_000
     
@@ -44,7 +44,7 @@ def get_admin_metrics(founder_email: Optional[str] = None):
     cost_per_ult = round((ult_est_tokens / 1_000_000) * 55 + 7.0, 2)
     
     margin_pro = round(((149 - cost_per_pro) / 149) * 100, 1)
-    margin_ult = round(((299 - cost_per_ult) / 299) * 100, 1)
+    margin_ult = round(((249 - cost_per_ult) / 249) * 100, 1)
 
     return {
         "status": "success",
@@ -70,9 +70,9 @@ def get_admin_metrics(founder_email: Optional[str] = None):
                 "gross_margin_pct": margin_pro
             },
             "ultimate_plan": {
-                "price_inr": 299,
+                "price_inr": 249,
                 "est_cost_inr": cost_per_ult,
-                "profit_inr": round(299 - cost_per_ult, 2),
+                "profit_inr": round(249 - cost_per_ult, 2),
                 "gross_margin_pct": margin_ult
             }
         },

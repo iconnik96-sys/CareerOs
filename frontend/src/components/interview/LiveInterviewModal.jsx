@@ -13,7 +13,9 @@ import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { aiFastApiService } from '../../services/aiFastApiService';
+import { downloadInterviewReportPdf } from '../../utils/interviewPdfExport';
 import { 
     detectRepeatIntent, 
     detectClarificationIntent, 
@@ -60,6 +62,8 @@ const INTERVIEW_DURATION_SECONDS = 15 * 60; // 15 Minutes
 
 export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Developer', initialQuestions = [] }) => {
     const { showToast } = useToast();
+    const { profile, user } = useAuth();
+    const candidateName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Candidate';
 
     // Setup & Configuration State
     const [selectedMode, setSelectedMode] = useState(INTERVIEW_MODES[0].id);
@@ -100,6 +104,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
 
     // Answer Evaluation & End of Session State
     const [evaluating, setEvaluating] = useState(false);
+    const [downloadingPdf, setDownloadingPdf] = useState(false);
     const [currentEvaluation, setCurrentEvaluation] = useState(null);
     const [sessionCompleted, setSessionCompleted] = useState(false);
     const [sessionHistory, setSessionHistory] = useState([]);
@@ -886,6 +891,32 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         }
     };
 
+    // Download official publication-grade PDF interview report
+    const handleDownloadPdfReport = async () => {
+        if (!currentEvaluation) return;
+        setDownloadingPdf(true);
+        const modeTitle = INTERVIEW_MODES.find(m => m.id === selectedMode)?.title || selectedMode;
+        try {
+            showToast('Compiling official PDF Scorecard...', 'info');
+            const res = await downloadInterviewReportPdf({
+                evaluation: currentEvaluation,
+                targetRole: defaultRole,
+                modeTitle,
+                difficulty: selectedDifficulty,
+                candidateName,
+                questions: interviewQuestions,
+                questionAttempts: questionAttemptsRef.current
+            });
+            showToast('Interview PDF Report downloaded successfully!', 'success');
+        } catch (err) {
+            console.error('Failed to generate interview PDF:', err);
+            showToast('PDF generation encountered an issue, falling back to text.', 'warning');
+            handleDownloadReport();
+        } finally {
+            setDownloadingPdf(false);
+        }
+    };
+
     // Download full markdown/text interview report & transcript
     const handleDownloadReport = () => {
         const score = currentEvaluation?.overall_score ?? 0;
@@ -1344,26 +1375,6 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                     </div>
                                 </div>
 
-                                {/* Quick Actions in Hero */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', zIndex: 1, flexShrink: 0 }}>
-                                    <Button 
-                                        variant="primary" 
-                                        size="sm" 
-                                        onClick={handleDownloadReport}
-                                        leftIcon={<Download size={14}/>}
-                                        style={{ fontWeight: 800, padding: '0.55rem 1.15rem' }}
-                                    >
-                                        Download Report (.MD)
-                                    </Button>
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={handleRestart}
-                                        leftIcon={<RefreshCw size={14}/>}
-                                    >
-                                        Start New Round
-                                    </Button>
-                                </div>
                             </div>
 
                             {/* Interactive Tab Navigation */}
@@ -1660,12 +1671,13 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 gap: '0.75rem'
                             }}>
                                 <Button 
-                                    variant="secondary" 
-                                    onClick={handleDownloadReport} 
+                                    variant="primary" 
+                                    onClick={handleDownloadPdfReport} 
+                                    isLoading={downloadingPdf}
                                     leftIcon={<Download size={15}/>}
                                     style={{ fontWeight: 700 }}
                                 >
-                                    Download Full Assessment & Transcript (.MD)
+                                    Download Full Scorecard (PDF)
                                 </Button>
 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

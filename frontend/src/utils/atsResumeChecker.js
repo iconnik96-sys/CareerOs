@@ -60,6 +60,7 @@ export function serializeResumeToText(resumeData = {}) {
             if (p.techStack) headingParts.push(`(${p.techStack})`);
             if (p.dates) headingParts.push(`[${p.dates}]`);
             if (p.link) headingParts.push(`- ${p.link}`);
+            if (p.liveLink) headingParts.push(`- ${p.liveLink}`);
             projLines.push(headingParts.join(' '));
 
             if (Array.isArray(p.bullets)) {
@@ -597,7 +598,7 @@ export function runLiveAtsCheck(resumeData = {}, targetRole = 'Backend Developer
     });
 
     // Project links check
-    const projectsWithLinks = projects.filter(p => (p.link || '').trim().length > 7);
+    const projectsWithLinks = projects.filter(p => ((p.link || '').trim().length > 7 || (p.liveLink || '').trim().length > 7));
     const hasProjectLinks = projects.length > 0 && (projectsWithLinks.length / projects.length) >= 0.5;
     checklist.push({
         id: 'project_repo_links',

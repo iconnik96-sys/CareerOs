@@ -525,8 +525,21 @@ export function isSkillMatch(skillA, skillB) {
     const normB = TECH_ALIAS_MAP[b] || b;
     if (normA === normB) return true;
 
-    if (a.includes(b) || b.includes(a)) return true;
-    if (normA.includes(normB) || normB.includes(normA)) return true;
+    const matchesBoundary = (longer, shorter) => {
+        if (!longer || !shorter) return false;
+        if (longer === shorter) return true;
+        const escaped = shorter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Word boundary match (e.g. 'Git / GitHub' matches 'Git')
+        const regex = new RegExp(`(?:^|[^a-zA-Z0-9_#+])${escaped}(?:$|[^a-zA-Z0-9_#+])`, 'i');
+        if (regex.test(longer)) return true;
+        // Prefix with version or numbering (e.g. 'html5' matches 'html', 'css3' matches 'css')
+        const prefixRegex = new RegExp(`^${escaped}[0-9.x]+$`, 'i');
+        if (prefixRegex.test(longer)) return true;
+        return false;
+    };
+
+    if (matchesBoundary(a, b) || matchesBoundary(b, a)) return true;
+    if (matchesBoundary(normA, normB) || matchesBoundary(normB, normA)) return true;
 
     const aParts = a.split(/[/,&+]/).map(p => p.trim()).filter(Boolean);
     const bParts = b.split(/[/,&+]/).map(p => p.trim()).filter(Boolean);
@@ -535,7 +548,7 @@ export function isSkillMatch(skillA, skillB) {
         const nap = TECH_ALIAS_MAP[ap] || ap;
         for (const bp of bParts) {
             const nbp = TECH_ALIAS_MAP[bp] || bp;
-            if (ap === bp || nap === nbp || (ap.length > 2 && bp.length > 2 && (ap.includes(bp) || bp.includes(ap)))) {
+            if (ap === bp || nap === nbp || matchesBoundary(ap, bp) || matchesBoundary(bp, ap)) {
                 return true;
             }
         }

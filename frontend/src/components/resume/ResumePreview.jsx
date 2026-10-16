@@ -303,11 +303,23 @@ export const ResumePreview = React.forwardRef(({
                                     ) : ''}
                                 </span>
                                 <span style={dateStyle}>
-                                    {proj.link ? (
-                                        <a href={proj.link.startsWith('http') ? proj.link : `https://${proj.link}`} target="_blank" rel="noreferrer" style={{ color: accentColor, textDecoration: 'none' }}>
-                                            [Code / Demo]
-                                        </a>
-                                    ) : (proj.dates || '')}
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                        {proj.link && (
+                                            <a href={proj.link.startsWith('http') ? proj.link : `https://${proj.link}`} target="_blank" rel="noreferrer" style={{ color: accentColor, textDecoration: 'none' }}>
+                                                [Code]
+                                            </a>
+                                        )}
+                                        {proj.liveLink && (
+                                            <a href={proj.liveLink.startsWith('http') ? proj.liveLink : `https://${proj.liveLink}`} target="_blank" rel="noreferrer" style={{ color: accentColor, textDecoration: 'none' }}>
+                                                [Live Demo]
+                                            </a>
+                                        )}
+                                        {proj.dates && (
+                                            <span style={{ color: '#4b5563' }}>
+                                                {(proj.link || proj.liveLink) ? `| ${proj.dates}` : proj.dates}
+                                            </span>
+                                        )}
+                                    </span>
                                 </span>
                             </div>
                             {proj.bullets && proj.bullets.length > 0 && (

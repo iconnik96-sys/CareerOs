@@ -6,11 +6,11 @@ import { jobService } from '../services/jobService';
 import { profileService } from '../services/profileService';
 import { projectService } from '../services/projectService';
 import { calculateCareerReadiness, getSkillGapsForRole, getRecommendedActionsForRole, getRoleDisplayName } from '../utils/careerRoles';
-import { Sparkles, Layers, Users, Award, TrendingUp, ArrowRight, Briefcase, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
-import { Button } from '../components/common/Button';
+import { Layers, Users, Award, TrendingUp, ArrowRight, Briefcase, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
 import { CircularProgress } from '../components/common/CircularProgress';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { Badge } from '../components/common/Badge';
+import { Button } from '../components/common/Button';
 
 export const DashboardPage = () => {
     const { user, profile } = useAuth();
@@ -87,18 +87,6 @@ export const DashboardPage = () => {
           <p className="page-subtitle">
             Here's your career readiness and hiring pipeline for <strong style={{ color: 'var(--text-primary)' }}>{roleDisplayName}</strong>.
           </p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Link to="/job-analyzer">
-            <Button variant="primary" leftIcon={<Sparkles size={16}/>}>
-              Analyze Target Job
-            </Button>
-          </Link>
-          <Link to="/applications">
-            <Button variant="outline">
-              Track Applications
-            </Button>
-          </Link>
         </div>
       </div>
 

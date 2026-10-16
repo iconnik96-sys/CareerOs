@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-    Terminal, 
-    Building2, 
-    CheckCircle2, 
-    Clock, 
-    ArrowRight, 
-    ShieldAlert, 
-    Code2, 
-    GitPullRequest, 
-    MessageSquare, 
-    Sparkles, 
-    AlertCircle 
+import {
+    Terminal,
+    Building2,
+    CheckCircle2,
+    Clock,
+    ArrowRight,
+    ShieldAlert,
+    Code2,
+    GitPullRequest,
+    MessageSquare,
+    Sparkles,
+    AlertCircle
 } from 'lucide-react';
 import { simulationService } from '../services/simulationService';
 
@@ -41,10 +41,10 @@ export const SimulationsPage = () => {
             {/* Header Section */}
             <div style={{ marginBottom: '2rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                    <div style={{ 
-                        width: '38px', 
-                        height: '38px', 
-                        borderRadius: 'var(--radius-md)', 
+                    <div style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: 'var(--radius-md)',
                         background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.2))',
                         display: 'flex',
                         alignItems: 'center',
@@ -182,7 +182,7 @@ export const SimulationsPage = () => {
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
                         {tracks.map((track) => (
-                            <div 
+                            <div
                                 key={track.id}
                                 style={{
                                     background: 'var(--bg-card)',
@@ -230,11 +230,11 @@ export const SimulationsPage = () => {
 
                                     {/* Meta Tags */}
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                                        <div style={{ 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            gap: '0.375rem', 
-                                            fontSize: '0.75rem', 
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.375rem',
+                                            fontSize: '0.75rem',
                                             color: 'var(--text-muted)',
                                             background: 'rgba(255, 255, 255, 0.04)',
                                             padding: '0.25rem 0.625rem',
@@ -244,11 +244,11 @@ export const SimulationsPage = () => {
                                             <span>~{track.duration_hours || 4} hours deliberate practice</span>
                                         </div>
 
-                                        <div style={{ 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            gap: '0.375rem', 
-                                            fontSize: '0.75rem', 
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.375rem',
+                                            fontSize: '0.75rem',
                                             color: 'var(--text-muted)',
                                             background: 'rgba(255, 255, 255, 0.04)',
                                             padding: '0.25rem 0.625rem',

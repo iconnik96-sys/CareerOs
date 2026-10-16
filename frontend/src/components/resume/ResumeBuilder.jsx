@@ -143,6 +143,7 @@ export const ResumeBuilder = ({
                     title: 'New High-Impact Project',
                     techStack: 'React, Node.js, PostgreSQL',
                     link: 'https://github.com/user/project',
+                    liveLink: 'https://project-demo.vercel.app',
                     dates: '2024',
                     bullets: [
                         'Architected and deployed scalable REST endpoints serving 5,000+ daily requests with 99.9% uptime.',
@@ -871,7 +872,7 @@ export const ResumeBuilder = ({
                                         <Trash2 size={15} />
                                     </button>
 
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem', paddingRight: '2rem', marginBottom: '0.75rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem', paddingRight: '2rem', marginBottom: '0.75rem' }}>
                                         <div>
                                             <label className="form-label" style={{ fontSize: '0.72rem' }}>Project Title</label>
                                             <input
@@ -893,13 +894,23 @@ export const ResumeBuilder = ({
                                             />
                                         </div>
                                         <div>
-                                            <label className="form-label" style={{ fontSize: '0.72rem' }}>Repository / Demo Link</label>
+                                            <label className="form-label" style={{ fontSize: '0.72rem' }}>Repository Link (GitHub)</label>
                                             <input
                                                 type="text"
                                                 className="form-input"
                                                 value={proj.link || ''}
                                                 onChange={e => updateProject(pIdx, 'link', e.target.value)}
                                                 placeholder="e.g. https://github.com/..."
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="form-label" style={{ fontSize: '0.72rem' }}>Live Link (Deployment)</label>
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                value={proj.liveLink || ''}
+                                                onChange={e => updateProject(pIdx, 'liveLink', e.target.value)}
+                                                placeholder="e.g. https://my-app.vercel.app"
                                             />
                                         </div>
                                     </div>

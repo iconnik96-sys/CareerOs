@@ -301,7 +301,8 @@ export const OnboardingPage = () => {
                     projects: extracted.projects?.map(p => ({
                         title: p.title || 'Key Engineering Project',
                         techStack: p.tech_stack || '',
-                        link: p.github_url || p.demo_url || '',
+                        link: p.github_url || '',
+                        liveLink: p.demo_url || p.live_url || '',
                         dates: p.dates || '2024',
                         bullets: p.bullets && p.bullets.length > 0 ? p.bullets : [
                             'Engineered robust feature architecture with comprehensive unit and integration testing.'

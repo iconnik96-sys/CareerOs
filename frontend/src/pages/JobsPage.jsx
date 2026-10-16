@@ -27,7 +27,7 @@ export const JobsPage = () => {
     const [applyingJobId, setApplyingJobId] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Load active user's skills from profile and uploaded resume for true skill comparison
+    // Load active user's skills: Career Profile is authoritative source of truth
     useEffect(() => {
         let isMounted = true;
         const loadUserSkills = async () => {
@@ -45,14 +45,16 @@ export const JobsPage = () => {
                     .map(s => (typeof s === 'string' ? s : s?.skill?.name || s?.name || ''))
                     .filter(Boolean);
 
-                let resumeSkillNames = [];
-                if (resumeData?.parsed_text) {
-                    resumeSkillNames = extractSkillsFromText(resumeData.parsed_text);
+                // If user has customized their Career Profile skills, treat them as the single source of truth
+                // so removed skills (e.g. Git) are not resurrected by an old uploaded resume text.
+                // Only fall back to resume-extracted skills if user has not yet set up profile skills.
+                let activeSkills = profileSkillNames;
+                if (activeSkills.length === 0 && resumeData?.parsed_text) {
+                    activeSkills = extractSkillsFromText(resumeData.parsed_text);
                 }
 
-                const combined = Array.from(new Set([...profileSkillNames, ...resumeSkillNames]));
                 if (isMounted) {
-                    setUserSkills(combined);
+                    setUserSkills(activeSkills);
                 }
             } catch (err) {
                 console.error('Error loading user skills for job matching:', err);

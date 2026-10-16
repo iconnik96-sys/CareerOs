@@ -112,6 +112,7 @@ const getInitialResumeData = (profile) => {
                 title: 'High-Throughput Distributed Payment Gateway',
                 techStack: 'Java 17, Spring Boot, Redis, Kafka, PostgreSQL',
                 link: 'https://github.com/aaravsharma/payment-gateway',
+                liveLink: 'https://payment-gateway-live.vercel.app',
                 dates: '2024',
                 bullets: [
                     'Engineered an idempotent transaction processing pipeline handling 4,500+ TPS with sub-80ms p99 response times.',
@@ -123,6 +124,7 @@ const getInitialResumeData = (profile) => {
                 title: 'Real-Time Collaborative Code Review Workspace',
                 techStack: 'React, Node.js, WebSockets, PostgreSQL, Docker',
                 link: 'https://github.com/aaravsharma/collab-review',
+                liveLink: 'https://collab-review-live.vercel.app',
                 dates: '2023 - 2024',
                 bullets: [
                     'Built bi-directional operational transformation sync supporting 50+ concurrent developers with sub-30ms socket latency.',
@@ -174,15 +176,6 @@ export const AICareerStudioPage = () => {
     const [clResult, setClResult] = useState(null);
     const [outputFormat, setOutputFormat] = useState('cover_letter'); // 'cover_letter' | 'inmail' | 'connection_note' | 'talking_points'
     const [copiedCl, setCopiedCl] = useState(false);
-
-    // Bullet Enhancer Form State
-    const [rawBullet, setRawBullet] = useState('I made a backend system in Spring Boot with PostgreSQL for handling user payments and added Docker.');
-    const [bulletRole, setBulletRole] = useState(profile?.target_role || 'Java Backend Developer');
-    const [bulletTechs, setBulletTechs] = useState('Spring Boot, PostgreSQL, Docker, Redis');
-    const [bulletFocus, setBulletFocus] = useState('Impact & Metrics');
-    const [bulletLoading, setBulletLoading] = useState(false);
-    const [bulletResult, setBulletResult] = useState(null);
-    const [copiedBulletIdx, setCopiedBulletIdx] = useState(null);
 
     // Overleaf-Style LaTeX Resume Builder State
     const [resumeData, setResumeData] = useState(() => getInitialResumeData(profile));
@@ -237,7 +230,8 @@ export const AICareerStudioPage = () => {
                     return {
                         title: p.name || p.title || 'Engineering Project',
                         techStack: techStr,
-                        link: p.github_url || p.live_url || '',
+                        link: p.github_url || '',
+                        liveLink: p.live_url || '',
                         dates: '2024',
                         bullets: bullets.length > 0 ? bullets : ['Designed, engineered, and deployed scalable end-to-end features.']
                     };
@@ -376,26 +370,6 @@ export const AICareerStudioPage = () => {
         }
     };
 
-    const handleEnhanceBullet = async (e) => {
-        e.preventDefault();
-        if (!rawBullet.trim()) return;
-        setBulletLoading(true);
-        try {
-            const res = await aiFastApiService.enhanceResumeBullet({
-                raw_bullet: rawBullet,
-                target_role: bulletRole,
-                technologies: bulletTechs.split(',').map(s => s.trim()).filter(Boolean),
-                focus_area: bulletFocus
-            });
-            setBulletResult(res);
-            showToast('STAR bullet variations generated!', 'success');
-        } catch {
-            showToast('Failed to enhance bullet', 'error');
-        } finally {
-            setBulletLoading(false);
-        }
-    };
-
     const copyToClipboard = (text, onSuccess) => {
         navigator.clipboard.writeText(text);
         if (onSuccess) onSuccess();
@@ -419,7 +393,7 @@ export const AICareerStudioPage = () => {
                     </div>
                     <h1 className="page-title">AI Career Studio</h1>
                     <p className="page-subtitle">
-                        Build <strong>Overleaf-Grade LaTeX Resumes with Live Preview</strong>, generate <strong>Company-Grounded Cover Letters & Recruiter Outreach via RAG</strong>, and polish resume bullets with the STAR formula.
+                        Build <strong>Overleaf-Grade LaTeX Resumes with Live Preview</strong> and generate <strong>Company-Grounded Cover Letters & Recruiter Outreach via RAG</strong>.
                     </p>
                 </div>
             </div>
@@ -464,26 +438,6 @@ export const AICareerStudioPage = () => {
                     }}
                 >
                     <Zap size={16} /> ⚡ Cover Letter & Recruiter Outreach Hub
-                </button>
-
-                <button
-                    onClick={() => setActiveTab('bullet_enhancer')}
-                    style={{
-                        padding: '0.6rem 1.2rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: activeTab === 'bullet_enhancer' ? '1px solid var(--primary)' : '1px solid transparent',
-                        backgroundColor: activeTab === 'bullet_enhancer' ? 'var(--primary-light)' : 'transparent',
-                        color: activeTab === 'bullet_enhancer' ? 'var(--primary)' : 'var(--text-secondary)',
-                        fontWeight: activeTab === 'bullet_enhancer' ? 700 : 600,
-                        fontSize: '0.875rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        transition: 'all 0.15s ease'
-                    }}
-                >
-                    <Wand2 size={16} /> ✨ STAR Bullet Polisher
                 </button>
             </div>
 
@@ -1001,121 +955,6 @@ export const AICareerStudioPage = () => {
                                 </h3>
                                 <p style={{ color: 'var(--text-secondary)', maxWidth: 460, margin: '0 auto 1.5rem', fontSize: '0.875rem' }}>
                                     Select your target company and outreach goal on the left. Our <strong>RAG Vector Pipeline</strong> retrieves actual engineering architecture and synthesizes a full Cover Letter, InMail pitch, Connection Note, and Talking Points in 1 click.
-                                </p>
-                            </Card>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* ========================================================================= */}
-            {/* TAB 2: STAR RESUME BULLET POLISHER */}
-            {/* ========================================================================= */}
-            {activeTab === 'bullet_enhancer' && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 420px) 1fr', gap: '1.5rem', alignItems: 'start' }}>
-                    <Card title="Raw Bullet & Project Input" subtitle="Convert weak drafts into Google XYZ quantified achievements.">
-                        <form onSubmit={handleEnhanceBullet} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <div>
-                                <label className="form-label">Draft Bullet Point / Raw Experience</label>
-                                <textarea className="form-input" rows={4} value={rawBullet} onChange={e => setRawBullet(e.target.value)} placeholder="e.g. Worked on the backend APIs using Spring Boot and Postgres and added Docker container." required />
-                            </div>
-
-                            <div>
-                                <label className="form-label">Target Engineering Role</label>
-                                <input type="text" className="form-input" value={bulletRole} onChange={e => setBulletRole(e.target.value)} />
-                            </div>
-
-                            <div>
-                                <label className="form-label">Relevant Technologies (Comma separated)</label>
-                                <input type="text" className="form-input" value={bulletTechs} onChange={e => setBulletTechs(e.target.value)} />
-                            </div>
-
-                            <div>
-                                <label className="form-label">Optimization Focus</label>
-                                <select className="form-input" value={bulletFocus} onChange={e => setBulletFocus(e.target.value)}>
-                                    <option value="Impact & Metrics">Impact & Metrics (Quantified Latency / Scale)</option>
-                                    <option value="Technical Depth & Architecture">Technical Depth & Concurrency / Security</option>
-                                    <option value="Concise & Recruiter Scannable">Concise & 1-Line Scannable</option>
-                                </select>
-                            </div>
-
-                            <Button type="submit" variant="primary" isLoading={bulletLoading} leftIcon={<Wand2 size={16} />} style={{ width: '100%', marginTop: '0.5rem' }}>
-                                Transform with STAR Formula
-                            </Button>
-                        </form>
-                    </Card>
-
-                    {/* Bullet Results */}
-                    <div>
-                        {bulletLoading ? (
-                            <Card>
-                                <LoadingSpinner message="Applying STAR framework and calculating ATS metric multipliers..." />
-                            </Card>
-                        ) : bulletResult ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                                <Card style={{ backgroundColor: 'rgba(245, 158, 11, 0.05)', borderColor: 'rgba(245, 158, 11, 0.25)' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--warning)', fontWeight: 700, fontSize: '0.8125rem', marginBottom: '0.35rem' }}>
-                                        <AlertCircle size={15} /> RESUME SPECIALIST CRITIQUE
-                                    </div>
-                                    <p style={{ fontSize: '0.845rem', color: 'var(--text-primary)', margin: 0, lineHeight: 1.5 }}>
-                                        {bulletResult.key_critique}
-                                    </p>
-                                    <div style={{ marginTop: '0.5rem', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-                                        💡 <strong>Interview Pro Tip:</strong> {bulletResult.pro_tip}
-                                    </div>
-                                </Card>
-
-                                {bulletResult.variations.map((v, idx) => (
-                                    <Card key={idx} style={{ position: 'relative' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                <Badge variant={idx === 0 ? 'success' : idx === 1 ? 'purple' : 'neutral'}>
-                                                    {v.version_title}
-                                                </Badge>
-                                                <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
-                                                    {v.score_improvement}
-                                                </span>
-                                            </div>
-
-                                            <Button variant="secondary" size="sm" onClick={() => copyToClipboard(v.enhanced_bullet, () => {
-                                                setCopiedBulletIdx(idx);
-                                                setTimeout(() => setCopiedBulletIdx(null), 2000);
-                                            })} leftIcon={copiedBulletIdx === idx ? <Check size={14} className="text-success" /> : <Copy size={14} />}>
-                                                {copiedBulletIdx === idx ? 'Copied' : 'Use Bullet'}
-                                            </Button>
-                                        </div>
-
-                                        <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.6, marginBottom: '0.75rem' }}>
-                                            • {v.enhanced_bullet}
-                                        </p>
-
-                                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.775rem' }}>
-                                            <div>
-                                                <span style={{ color: 'var(--text-muted)' }}>Action Verb: </span>
-                                                <strong style={{ color: 'var(--primary)' }}>{v.action_verb}</strong>
-                                            </div>
-                                            <div>
-                                                <span style={{ color: 'var(--text-muted)' }}>Quantified Impact: </span>
-                                                <strong style={{ color: 'var(--success)' }}>{v.quantifiable_metric}</strong>
-                                            </div>
-                                            <div>
-                                                <span style={{ color: 'var(--text-muted)' }}>Keywords: </span>
-                                                <span>{v.ats_keywords_included.join(', ')}</span>
-                                            </div>
-                                        </div>
-                                    </Card>
-                                ))}
-                            </div>
-                        ) : (
-                            <Card style={{ textAlign: 'center', padding: '3rem 2rem' }}>
-                                <div style={{ width: 56, height: 56, borderRadius: '50%', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                                    <Wand2 size={28} />
-                                </div>
-                                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-                                    Upgrade Draft Bullets to FAANG-Grade STAR Bullets
-                                </h3>
-                                <p style={{ color: 'var(--text-secondary)', maxWidth: 460, margin: '0 auto', fontSize: '0.875rem' }}>
-                                    Paste any rough bullet point on the left and our Python FastAPI AI engine will rewrite it with active verbs, quantified results, and ATS keyword relevance.
                                 </p>
                             </Card>
                         )}

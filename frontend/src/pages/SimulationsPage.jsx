@@ -14,11 +14,13 @@ import {
     AlertCircle
 } from 'lucide-react';
 import { simulationService } from '../services/simulationService';
+import { InconvenienceNotice } from '../components/common/InconvenienceNotice';
 
 export const SimulationsPage = () => {
     const navigate = useNavigate();
     const [tracks, setTracks] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         loadTracks();
@@ -26,11 +28,16 @@ export const SimulationsPage = () => {
 
     const loadTracks = async () => {
         setLoading(true);
+        setError(null);
         try {
             const data = await simulationService.getTracks();
-            setTracks(data);
+            setTracks(data || []);
+            if (!data || data.length === 0) {
+                setError('No simulation tracks are currently deployed on the backend.');
+            }
         } catch (err) {
             console.error('Failed to load tracks', err);
+            setError(err.message || 'Workplace simulation service is currently unavailable.');
         } finally {
             setLoading(false);
         }
@@ -179,6 +186,14 @@ export const SimulationsPage = () => {
                     <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
                         <div className="loading-spinner" style={{ width: 36, height: 36 }} />
                     </div>
+                ) : error || tracks.length === 0 ? (
+                    <InconvenienceNotice
+                        title="Workplace Simulation Unavailable"
+                        message="We are sorry for the inconvenience. Workplace simulation tracks cannot be loaded right now because the backend service is offline. To prevent unverified practice, mock tracks are not displayed."
+                        details={error}
+                        onRetry={loadTracks}
+                        retryText="Retry Loading Tracks"
+                    />
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
                         {tracks.map((track) => (

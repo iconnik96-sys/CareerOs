@@ -18,6 +18,7 @@ import { Badge } from '../components/common/Badge';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { LiveInterviewModal, INTERVIEW_MODES } from '../components/interview/LiveInterviewModal';
 import { downloadInterviewReportPdf } from '../utils/interviewPdfExport';
+import { InconvenienceNotice } from '../components/common/InconvenienceNotice';
 
 const DIFFICULTIES = ['All', 'Easy', 'Medium', 'Hard'];
 const QUESTION_COUNTS = [5, 10, 15, 20];
@@ -55,6 +56,7 @@ export const InterviewPrepPage = () => {
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [testSubmitted, setTestSubmitted] = useState(false);
   const [testEvaluation, setTestEvaluation] = useState(null);
+  const [testEvaluationError, setTestEvaluationError] = useState(null);
   const [submittingTest, setSubmittingTest] = useState(false);
   const [showConceptHook, setShowConceptHook] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -237,6 +239,7 @@ export const InterviewPrepPage = () => {
     }
 
     setSubmittingTest(true);
+    setTestEvaluationError(null);
     const questionsPayload = questions.map((q, idx) => {
       const rawAns = userAnswers[q.id]?.trim() || '';
       return {
@@ -261,45 +264,11 @@ export const InterviewPrepPage = () => {
       setTestSubmitted(true);
       showToast(`Assessment submitted! Score: ${evalResult.overall_score}/100 (${evalResult.grade})`, 'success');
     } catch (err) {
-      console.error('Final evaluation error, constructing comprehensive fallback review:', err);
-      const scoreBase = Math.round((answeredItems.length / Math.max(1, questions.length)) * 82);
-      const fallback = {
-        overall_score: scoreBase,
-        grade: scoreBase >= 80 ? 'Strong Hire' : scoreBase >= 65 ? 'Hire / Competent' : scoreBase >= 50 ? 'Needs Practice' : 'Strong No Hire',
-        summary_verdict: `Senior Developer Review: The candidate attempted ${answeredItems.length} of ${questions.length} questions. Conceptual clarity and architectural understanding are evident in attempted topics, with room for depth on scale and edge cases.`,
-        total_questions: questions.length,
-        answered_count: answeredItems.length,
-        skipped_count: questions.length - answeredItems.length,
-        dimension_scores: [
-          { name: 'Technical Accuracy & Mechanisms', score: scoreBase, feedback: 'Strong foundational accuracy on core concepts.' },
-          { name: 'System Architecture & Design', score: Math.min(100, scoreBase + 2), feedback: 'Organized modular thinking with standard patterns.' },
-          { name: 'STAR Structure & Problem Solving', score: Math.min(100, scoreBase + 5), feedback: 'Methodical explanation of cause, effect, and resolution.' },
-          { name: 'Production Readiness & Edge Cases', score: Math.max(35, scoreBase - 8), feedback: 'Recommend deeper attention to concurrency, race conditions, and error recovery.' }
-        ],
-        strengths: [
-          'Structured approach to problem decomposition and solution outlining.',
-          'Direct communication with accurate domain terminology.'
-        ],
-        missing_points: [
-          'Quantify trade-offs and runtime computational complexities.',
-          'Detail observability, logging, and error handling for production failures.'
-        ],
-        per_question_results: questions.map((q, idx) => {
-          const ans = userAnswers[q.id]?.trim();
-          return {
-            question_id: String(q.id),
-            question_text: q.question,
-            candidate_answer: ans || '(Skipped - No response provided)',
-            score: ans ? Math.min(95, Math.max(50, scoreBase + (idx % 2 === 0 ? 4 : -4))) : 0,
-            grade: ans ? (scoreBase >= 70 ? 'Strong' : 'Adequate') : 'Skipped',
-            feedback: ans ? `Candidate showed solid grasp of ${q.topic}. To achieve Senior/Staff level, articulate distributed bottlenecks and trade-offs.` : 'Question was skipped without response; 0 marks awarded.',
-            ideal_answer_concept: q.answer_key || q.sample_answer
-          };
-        })
-      };
-      setTestEvaluation(fallback);
-      setTestSubmitted(true);
-      showToast(`Assessment submitted! Score: ${fallback.overall_score}/100`, 'success');
+      console.error('Final evaluation error:', err);
+      setTestEvaluation(null);
+      setTestSubmitted(false);
+      setTestEvaluationError(err.message || 'AI assessment evaluation service is currently unavailable. No simulated score was generated.');
+      showToast('AI assessment evaluation failed. Unverified fallback scores have been disabled.', 'error');
     } finally {
       setSubmittingTest(false);
     }
@@ -906,6 +875,17 @@ export const InterviewPrepPage = () => {
           )}
         </Card>
 
+        {/* Assessment Evaluation Error Notice */}
+        {testEvaluationError && (
+          <InconvenienceNotice
+            title="AI Assessment Evaluation Unavailable"
+            message="We are sorry for the inconvenience. Our AI evaluation service could not grade your assessment. To protect scoring integrity and prevent misleading feedback, mock and simulated scores have been disabled."
+            details={testEvaluationError}
+            onRetry={handleSubmitTest}
+            retryText="Retry Submitting Assessment"
+          />
+        )}
+
         {/* Questions Test Assessment or Review */}
         {testSubmitted && testEvaluation ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', animation: 'fadeIn 0.25s ease' }}>
@@ -1163,18 +1143,28 @@ export const InterviewPrepPage = () => {
             {loading ? (
               <LoadingSpinner message={`Loading curated ${roleDisplayName} interview questions...`} />
             ) : questions.length === 0 ? (
-              <Card style={{ padding: '3rem', textAlign: 'center' }}>
-                <HelpCircle size={36} className="text-muted" style={{ margin: '0 auto 1rem auto' }} />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  No Questions Found
-                </h3>
-                <p className="text-body text-xs" style={{ margin: '0.5rem auto 1.5rem auto', maxWidth: '380px' }}>
-                  No questions found for the selected topic filter. Try selecting "All" topics.
-                </p>
-                <Button variant="primary" onClick={handleResetFilters}>
-                  Reset Filters
-                </Button>
-              </Card>
+              error ? (
+                <InconvenienceNotice
+                  title="Interview Questions Unavailable"
+                  message="We are sorry for the inconvenience. Questions could not be retrieved from the database or generated by the AI service. We have disabled unverified fallback questions so your practice remains genuine."
+                  details={error}
+                  onRetry={fetchQuestions}
+                  retryText="Retry Loading Questions"
+                />
+              ) : (
+                <Card style={{ padding: '3rem', textAlign: 'center' }}>
+                  <HelpCircle size={36} className="text-muted" style={{ margin: '0 auto 1rem auto' }} />
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    No Questions Found
+                  </h3>
+                  <p className="text-body text-xs" style={{ margin: '0.5rem auto 1.5rem auto', maxWidth: '380px' }}>
+                    No questions found for the selected topic filter. Try selecting "All" topics.
+                  </p>
+                  <Button variant="primary" onClick={handleResetFilters}>
+                    Reset Filters
+                  </Button>
+                </Card>
+              )
             ) : (() => {
               const safeIdx = Math.min(Math.max(0, currentQIndex), Math.max(0, questions.length - 1));
               const currentQ = questions[safeIdx] || questions[0];

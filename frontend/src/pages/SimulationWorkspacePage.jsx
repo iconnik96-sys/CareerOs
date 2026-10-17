@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { simulationService } from '../services/simulationService';
 import { useToast } from '../contexts/ToastContext';
+import { InconvenienceNotice } from '../components/common/InconvenienceNotice';
 
 export const SimulationWorkspacePage = () => {
     const { trackKey } = useParams();
@@ -32,6 +33,7 @@ export const SimulationWorkspacePage = () => {
 
     const [track, setTrack] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [trackError, setTrackError] = useState(null);
 
     // Active State
     const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('tickets'); // 'tickets' | 'standup' | 'architecture'
@@ -44,6 +46,7 @@ export const SimulationWorkspacePage = () => {
     const [githubPrUrl, setGithubPrUrl] = useState('');
     const [reviewing, setReviewing] = useState(false);
     const [reviewResult, setReviewResult] = useState(null);
+    const [reviewError, setReviewError] = useState(null);
     const [attempts, setAttempts] = useState(1);
     const [copiedBullet, setCopiedBullet] = useState(false);
 
@@ -73,6 +76,7 @@ export const SimulationWorkspacePage = () => {
 
     const loadTrackData = async () => {
         setLoading(true);
+        setTrackError(null);
         try {
             const data = await simulationService.getTrack(trackKey || 'finpulse-payments');
             setTrack(data);
@@ -88,7 +92,9 @@ export const SimulationWorkspacePage = () => {
             }
         } catch (err) {
             console.error('Failed to load track data', err);
-            toast?.error?.('Could not load simulation track. Using offline sandbox.');
+            setTrack(null);
+            setTrackError(err.message || 'Simulation track could not be loaded from backend.');
+            toast?.error?.('Simulation track service is currently unavailable.');
         } finally {
             setLoading(false);
         }
@@ -147,6 +153,7 @@ export const SimulationWorkspacePage = () => {
         }
 
         setReviewing(true);
+        setReviewError(null);
         try {
             const res = await simulationService.submitReview({
                 ticket_code: currentTicket.ticket_code,
@@ -177,7 +184,9 @@ export const SimulationWorkspacePage = () => {
             }
         } catch (err) {
             console.error('Review failed', err);
-            toast?.error?.(err.message || 'Review failed. Please verify AI backend connection.');
+            setReviewResult(null);
+            setReviewError(err.message || 'AI code review service is currently unavailable.');
+            toast?.error?.('Review failed. The AI backend is unavailable.');
         } finally {
             setReviewing(false);
         }
@@ -236,6 +245,22 @@ export const SimulationWorkspacePage = () => {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
                 <div className="loading-spinner" style={{ width: 40, height: 40 }} />
+            </div>
+        );
+    }
+
+    if (!track) {
+        return (
+            <div style={{ maxWidth: 'var(--container-max)', margin: '2rem auto', padding: '1rem' }}>
+                <InconvenienceNotice
+                    title="Simulation Track Unavailable"
+                    message="We are sorry for the inconvenience. The workplace simulation track could not be loaded from the backend. We have disabled unverified mock data to prevent incorrect feedback."
+                    details={trackError}
+                    onRetry={loadTrackData}
+                    retryText="Retry Loading Workspace"
+                    secondaryActionText="Back to Catalog"
+                    onSecondaryAction={() => navigate('/simulations')}
+                />
             </div>
         );
     }
@@ -849,6 +874,17 @@ export const SimulationWorkspacePage = () => {
                                     </button>
                                 </div>
                             </div>
+                        )}
+
+                        {/* AI REVIEW ERROR NOTICE */}
+                        {reviewError && (
+                            <InconvenienceNotice
+                                title="AI Code Review Unavailable"
+                                message="We are sorry for the inconvenience. Our automated Senior Developer code review service could not be reached to evaluate your pull request. To guarantee accurate grading, mock evaluations and fake scores have been disabled."
+                                details={reviewError}
+                                onRetry={handleSubmitReview}
+                                retryText="Retry Code Review"
+                            />
                         )}
 
                         {/* REVIEW FEEDBACK RESULTS PANEL */}

@@ -727,30 +727,9 @@ Evaluate each of the {num_criteria} criteria strictly. Calculate the exact sum o
     )
 
     if not result:
-        # High-standard deterministic fallback if LLM offline
-        fallback_breakdown = [
-            CriterionResult(
-                criterion=c,
-                status="FAIL" if idx < len(criteria_list) - 1 else "PASS",
-                points_awarded=0 if idx < len(criteria_list) - 1 else pts_per_criterion,
-                points_possible=pts_per_criterion,
-                feedback="Requirement incomplete or missing defensive checks." if idx < len(criteria_list) - 1 else "Signature valid."
-            )
-            for idx, c in enumerate(criteria_list)
-        ]
-        fallback_score = sum(b.points_awarded for b in fallback_breakdown)
-        return SimulationReviewResponse(
-            status="CHANGES_REQUESTED",
-            score=fallback_score,
-            summary="Marcus (Staff Engineer): Review completed. Core boundary conditions require attention before this PR can be approved.",
-            criteria_breakdown=fallback_breakdown,
-            strengths=["Clean modular syntax."],
-            improvements=["Review failing acceptance criteria and add explicit edge-case tests."],
-            line_comments=[
-                LineComment(line=20, severity="blocker", comment="Add defensive check for edge cases.")
-            ],
-            star_bullet=f"Engineered payment boundary handlers in {req.language.capitalize()} for {req.ticket_code}.",
-            interview_talking_point=f"Implemented boundary checks for {req.ticket_code}."
+        raise HTTPException(
+            status_code=503,
+            detail="AI Senior Developer review engine is currently offline or unreachable. To protect grading integrity, simulated reviews and fake scores are disabled."
         )
 
     # Calculate exact mathematical score from criteria breakdown
@@ -809,10 +788,9 @@ Evaluate each of the {num_criteria} criteria strictly. Calculate the exact sum o
 def conduct_daily_standup(req: StandupRequest):
     """Simulates a daily standup check-in with Engineering Manager Sarah."""
     if not llm_engine.is_available():
-        return StandupResponse(
-            manager_feedback="Sarah (EM): Great progress! Keep pushing on the concurrency constraints. Remember to reach out to Marcus if you hit any road blocks on distributed locks.",
-            communication_score=85,
-            suggestions=["Keep bullet points concise in standups", "Mention specific ticket numbers"]
+        raise HTTPException(
+            status_code=503,
+            detail="AI Daily Standup service is currently offline. To ensure genuine manager feedback, mock responses have been disabled."
         )
 
     system_prompt = """You are Sarah, an Engineering Manager at FinPulse Global running a daily asynchronous standup.
@@ -842,10 +820,9 @@ Respond strictly with valid JSON:
     )
 
     if not result:
-        return StandupResponse(
-            manager_feedback="Sarah (EM): Good update! Stay focused on your active ticket and don't hesitate to ask in #tech-help if you need assistance.",
-            communication_score=80,
-            suggestions=["Break today's plan into small testable milestones"]
+        raise HTTPException(
+            status_code=503,
+            detail="Daily standup service could not generate feedback. Simulated fallback feedback has been disabled."
         )
 
     return StandupResponse(
@@ -859,10 +836,9 @@ Respond strictly with valid JSON:
 def get_socratic_mentor_hint(req: MentorHintRequest):
     """Provides a Socratic hint from Senior Dev Marcus without spoiling the answer."""
     if not llm_engine.is_available():
-        return MentorHintResponse(
-            hint="Marcus: Look closely at your locking mechanism. If an exception occurs between lock acquisition and release, what happens to other concurrent requests?",
-            key_concept="Distributed locks with try-finally resource cleanup",
-            suggested_documentation=["Redis SETNX documentation", "Concurrency best practices"]
+        raise HTTPException(
+            status_code=503,
+            detail="AI Socratic Mentor service is currently offline. Simulated fallback hints have been disabled."
         )
 
     system_prompt = f"""You are Marcus, Staff Software Engineer at FinPulse.
@@ -892,10 +868,9 @@ Current Code Snippet:
     )
 
     if not result:
-        return MentorHintResponse(
-            hint="Marcus: Review your error handling and check if all edge cases listed in the ticket acceptance criteria are handled.",
-            key_concept="Boundary Condition Validation",
-            suggested_documentation=["Official framework documentation"]
+        raise HTTPException(
+            status_code=503,
+            detail="Socratic Mentor service could not generate a hint. Simulated fallback hints have been disabled."
         )
 
     return MentorHintResponse(

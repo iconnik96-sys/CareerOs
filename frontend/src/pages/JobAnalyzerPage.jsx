@@ -11,6 +11,7 @@ import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { CircularProgress } from '../components/common/CircularProgress';
+import { InconvenienceNotice } from '../components/common/InconvenienceNotice';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 export const JobAnalyzerPage = () => {
     const { user } = useAuth();
@@ -147,7 +148,15 @@ Requirements:
 
         {/* Right Column: AI Analysis Results */}
         <div className="col-span-6">
-          {!result && !analyzing ? (<Card style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+          {errorMsg ? (
+            <InconvenienceNotice
+              title="Job Analysis Unavailable"
+              message="We are sorry for the inconvenience. The AI skill-gap analysis service could not process this job description. To ensure 100% accuracy, simulated match scores and fake skill assessments have been disabled."
+              details={errorMsg}
+              onRetry={handleAnalyze}
+              retryText="Retry Analysis"
+            />
+          ) : !result && !analyzing ? (<Card style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
               <div style={{
                 width: 56,
                 height: 56,

@@ -16,6 +16,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { aiFastApiService } from '../../services/aiFastApiService';
 import { downloadInterviewReportPdf } from '../../utils/interviewPdfExport';
+import { InconvenienceNotice } from '../common/InconvenienceNotice';
 import { 
     detectRepeatIntent, 
     detectClarificationIntent, 
@@ -106,6 +107,8 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
     const [evaluating, setEvaluating] = useState(false);
     const [downloadingPdf, setDownloadingPdf] = useState(false);
     const [currentEvaluation, setCurrentEvaluation] = useState(null);
+    const [evaluationError, setEvaluationError] = useState(null);
+    const [startError, setStartError] = useState(null);
     const [sessionCompleted, setSessionCompleted] = useState(false);
     const [sessionHistory, setSessionHistory] = useState([]);
     const [scorecardTab, setScorecardTab] = useState('overview'); // 'overview' | 'questions' | 'tips'
@@ -458,48 +461,6 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         const skippedCount = questionsPayload.filter(q => q.status === 'SKIPPED').length;
         const answeredCount = totalQ - skippedCount;
 
-        const buildFallbackStrictEval = () => {
-            const perQ = questionsPayload.map((qp, idx) => ({
-                question_idx: idx,
-                question: qp.question,
-                topic: qp.topic,
-                difficulty: qp.difficulty,
-                status: qp.status,
-                score: qp.status === 'SKIPPED' ? 0 : 65,
-                candidate_answer: qp.candidate_answer || '(Skipped — No answer provided)',
-                feedback: qp.status === 'SKIPPED' 
-                    ? 'Question was skipped by candidate. 0 marks awarded under strict grading.' 
-                    : 'Answer evaluated.',
-                dimension_scores: [
-                    { name: 'Technical Accuracy', score: qp.status === 'SKIPPED' ? 0 : 65, feedback: qp.status === 'SKIPPED' ? 'Skipped (0/100)' : 'Passable' },
-                    { name: 'Structural Flow & STAR', score: qp.status === 'SKIPPED' ? 0 : 65, feedback: qp.status === 'SKIPPED' ? 'Skipped (0/100)' : 'Passable' },
-                    { name: 'Depth & Edge Cases', score: qp.status === 'SKIPPED' ? 0 : 65, feedback: qp.status === 'SKIPPED' ? 'Skipped (0/100)' : 'Passable' },
-                    { name: 'Communication Clarity', score: qp.status === 'SKIPPED' ? 0 : 65, feedback: qp.status === 'SKIPPED' ? 'Skipped (0/100)' : 'Passable' }
-                ]
-            }));
-            const overallScore = totalQ > 0 ? Math.round(perQ.reduce((acc, q) => acc + q.score, 0) / totalQ) : 0;
-            const grade = overallScore >= 80 ? "Strong Hire" : overallScore >= 65 ? "Hire / Competent" : overallScore >= 50 ? "Needs Practice" : "Strong No Hire";
-            return {
-                overall_score: overallScore,
-                grade: grade,
-                summary_verdict: skippedCount === totalQ
-                    ? `Candidate skipped all ${totalQ} interview questions without answering. Zero marks awarded (0/100).`
-                    : `Candidate answered ${answeredCount} of ${totalQ} questions and skipped ${skippedCount} questions. Skipped questions received 0 marks. Overall score: ${overallScore}/100 (${grade}).`,
-                total_questions: totalQ,
-                answered_count: answeredCount,
-                skipped_count: skippedCount,
-                dimension_scores: [
-                    { name: 'Technical Accuracy', score: overallScore, feedback: `Average rating across all ${totalQ} questions.` },
-                    { name: 'Structural Flow & STAR', score: overallScore, feedback: `Average rating across all ${totalQ} questions.` },
-                    { name: 'Depth & Edge Cases', score: overallScore, feedback: `Average rating across all ${totalQ} questions.` },
-                    { name: 'Communication Clarity', score: overallScore, feedback: `Average rating across all ${totalQ} questions.` }
-                ],
-                per_question_results: perQ,
-                strengths: answeredCount > 0 ? ["Candidate completed spoken technical turns."] : [],
-                missing_points: skippedCount > 0 ? [`${skippedCount} of ${totalQ} questions were skipped (awarded 0 marks).`] : ["Review technical edge cases."]
-            };
-        };
-
         try {
             const evaluation = await aiFastApiService.evaluateInterviewSession({
                 target_role: defaultRole,
@@ -509,6 +470,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             });
 
             setCurrentEvaluation(evaluation);
+            setEvaluationError(null);
             setSessionCompleted(true);
             sessionCompletedRef.current = true;
             const finalScore = evaluation.overall_score ?? 0;
@@ -518,11 +480,11 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             );
         } catch (err) {
             console.error('Final evaluation error:', err);
-            const fallback = buildFallbackStrictEval();
-            setCurrentEvaluation(fallback);
+            setCurrentEvaluation(null);
+            setEvaluationError(err.message || 'AI evaluation service is temporarily unavailable. No simulated score was generated.');
             setSessionCompleted(true);
             sessionCompletedRef.current = true;
-            showToast(`Interview Completed! Score: ${fallback.overall_score}/100 (${fallback.grade})`, fallback.overall_score >= 60 ? 'success' : 'warning');
+            showToast('AI assessment evaluation failed. Unverified fallback scores have been disabled.', 'error');
         } finally {
             setEvaluating(false);
         }
@@ -1282,6 +1244,16 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 })}
                             </div>
 
+                            {startError && (
+                                <InconvenienceNotice
+                                    title="Could Not Connect to Interview Room"
+                                    message="We are sorry for the inconvenience. Live interview questions could not be loaded because the AI service is currently unavailable. To ensure genuine practice, mock questions have been disabled."
+                                    details={startError}
+                                    onRetry={handleStartInterview}
+                                    retryText="Retry Joining"
+                                />
+                            )}
+
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
                                 <Button 
                                     variant="primary" 
@@ -1296,6 +1268,19 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                             </div>
                         </div>
                     ) : sessionCompleted ? (
+                        evaluationError ? (
+                            <div style={{ padding: '2rem 1rem', maxWidth: '640px', margin: '0 auto', textAlign: 'center' }}>
+                                <InconvenienceNotice
+                                    title="Interview Evaluation Unavailable"
+                                    message="We are sorry for the inconvenience. Our AI evaluation engine could not score your voice interview round. To ensure 100% accuracy and fairness, mock and simulated scores have been disabled."
+                                    details={evaluationError}
+                                    onRetry={handleEndInterviewAndGrade}
+                                    retryText="Retry Evaluation"
+                                    secondaryActionText="Close Room"
+                                    onSecondaryAction={onClose}
+                                />
+                            </div>
+                        ) : (
                         /* STEP 3: STATE-OF-THE-ART HIRING ASSESSMENT DASHBOARD */
                         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '0.85rem' }}>
                             {/* Executive Hero Banner */}
@@ -1690,6 +1675,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 </div>
                             </div>
                         </div>
+                        )
                     ) : (
                         /* STEP 2: GOOGLE MEET / ZOOM FULL-DUPLEX CALL STAGE */
                         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>

@@ -863,6 +863,54 @@ select {
   text-align: center;
 }
 
+/* Standardized Muted-to-Red Trash Action */
+.btn-trash-item {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.btn-trash-item:hover {
+  color: var(--danger) !important;
+  background-color: rgba(239, 68, 68, 0.12);
+}
+
+/* LaTeX Resume Studio Responsive Layout */
+.resume-studio-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 42%) minmax(460px, 58%);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.resume-mobile-toggle {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .resume-studio-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .resume-mobile-toggle {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .resume-preview-sticky {
+    position: static !important;
+    height: auto !important;
+    max-height: 85vh !important;
+  }
+}
+
 /* Stats Counter Widget */
 .stat-card {
   background-color: var(--bg-card);

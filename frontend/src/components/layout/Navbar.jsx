@@ -14,14 +14,6 @@ export const Navbar = ({ onOpenMobileSidebar, onToggleCopilot }) => {
         <button onClick={onOpenMobileSidebar} className="btn-ghost" style={{ display: 'none', padding: '6px' }} id="mobile-menu-toggle">
           <Menu size={20}/>
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            Target:
-          </span>
-          <span className="badge badge-primary" style={{ padding: '0.25rem 0.65rem' }}>
-            {profile?.target_role || 'Java Backend Developer'}
-          </span>
-        </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -41,9 +33,25 @@ export const Navbar = ({ onOpenMobileSidebar, onToggleCopilot }) => {
             <Sparkles size={14}/> AI Copilot
           </button>)}
 
-        {isSupabaseConnected && (<span className="badge badge-success">
-            <ShieldCheck size={13}/> Supabase Live
-          </span>)}
+        {isSupabaseConnected && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              fontSize: '0.72rem',
+              color: 'var(--text-muted)',
+              padding: '0.2rem 0.5rem',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid var(--border-subtle)'
+            }}
+            title="Database Connected (Supabase Live)"
+          >
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)' }} />
+            Connected
+          </span>
+        )}
 
 
         <button onClick={toggleTheme} className="btn-ghost" style={{ padding: '8px', borderRadius: 'var(--radius-md)', color: 'var(--text-secondary)' }} title="Toggle Theme">

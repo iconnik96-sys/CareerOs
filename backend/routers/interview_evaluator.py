@@ -21,13 +21,19 @@ def is_skipped_or_insufficient(answer: Optional[str]) -> bool:
     cleaned = cleaned.rstrip(".?!,")
     if len(cleaned) < 12:
         return True
+
+    # If the candidate provided a substantial spoken response (>= 50 chars), do not flag as skipped
+    # unless it explicitly contains an internal system skip tag like '[skipped'
+    if len(cleaned) >= 50:
+        return cleaned.startswith("[skipped")
+
     skip_phrases = [
         "skip", "skipped", "i skip", "pass", "i pass", "next question",
         "i don't know", "dont know", "no idea", "no answer", "not sure",
         "[skipped", "candidate participated in hands-free",
         "can we skip", "skip this question", "next please", "idk"
     ]
-    if any(cleaned == p or cleaned.startswith(p) for p in skip_phrases):
+    if any(cleaned == p or cleaned.startswith(p + " ") or cleaned.startswith(p + ".") for p in skip_phrases):
         return True
     return False
 
@@ -127,7 +133,7 @@ def generate_interview_questions(req: QuestionGenRequest):
     import random
 
     resolved_role = req.role or req.target_role or "Java Backend Developer"
-    question_count = max(1, min(req.count or 10, 25))
+    question_count = max(1, min(req.count or 5, 8))
 
     focus_angles = [
         "deep language/framework internals and hidden runtime mechanisms",
@@ -161,9 +167,9 @@ CRITICAL DIVERSITY INSTRUCTIONS:
    - "difficulty": "Easy", "Medium", or "Hard"
    - "topic": relevant topic tag (e.g. "Core Fundamentals", "Frameworks", "Databases", "System Design", "Cloud & DevOps", "Concurrency", etc.)
    - "question": clearly articulated technical or scenario question
-   - "answer_key": 1-2 sentence core concept takeaway
-   - "tips": 2-3 specific bullet points on what interviewers look for
-   - "sample_answer": a thorough, structured, exemplary model answer (demonstrating technical depth, complexity, and best practices)
+   - "answer_key": concise 1-sentence technical takeaway
+   - "tips": 2 concise bullet points on key evaluation factors
+   - "sample_answer": concise 2-sentence exemplary response highlighting key mechanics and architectural trade-offs
 
 Return your response as a valid JSON object with a single "questions" key matching this schema:
 {{
@@ -177,10 +183,9 @@ Return your response as a valid JSON object with a single "questions" key matchi
       "answer_key": "B-Trees support range queries in O(log n); Hash indexes only support equality lookups. Excessive indexing slows down writes.",
       "tips": [
         "Mention clustered vs non-clustered index differences",
-        "Explain write amplification on INSERT/UPDATE",
-        "Discuss composite index leftmost prefix rule"
+        "Explain write amplification on INSERT/UPDATE"
       ],
-      "sample_answer": "Database indexing creates auxiliary lookup data structures to accelerate search queries... [detailed answer]"
+      "sample_answer": "B-Tree indexes maintain sorted tree structures ideal for range scans and ordering, whereas Hash indexes provide O(1) equality lookups but cannot support ordering. Over-indexing creates write amplification on insert/update operations and increases cache footprint."
     }}
   ]
 }}

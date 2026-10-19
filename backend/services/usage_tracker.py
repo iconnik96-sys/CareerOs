@@ -16,7 +16,7 @@ RATES_PER_MILLION_INR = {
     "llama-3.3-70b-versatile": {"input": 50.0, "output": 67.0, "name": "Llama 3.3 70B Versatile", "provider": "Groq"},
     "llama3-70b-8192": {"input": 50.0, "output": 67.0, "name": "Llama 3 70B", "provider": "Groq"},
     "mixtral-8x7b-32768": {"input": 20.0, "output": 20.0, "name": "Mixtral 8x7B", "provider": "Groq"},
-    "openai/gpt-oss-120b": {"input": 50.0, "output": 67.0, "name": "GPT-OSS 120B", "provider": "Groq"},
+    "openai/gpt-oss-120b": {"input": 12.75, "output": 51.00, "name": "GPT-OSS 120B", "provider": "Groq"},
 
     # --- Google Gemini Models ---
     "gemini-2.0-flash": {"input": 6.38, "output": 25.50, "name": "Gemini 2.0 Flash", "provider": "Google"},

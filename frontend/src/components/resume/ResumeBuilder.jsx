@@ -1,15 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     Sparkles, Plus, Trash2, Wand2, Download, Printer,
     Sliders, ChevronDown, ChevronUp, Check, RefreshCw,
     User, GraduationCap, Briefcase, Code, Award, FolderGit2,
-    FileText, Layers, Eye, EyeOff
+    FileText, Layers, Eye, EyeOff, GripVertical, MoreVertical
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { aiFastApiService } from '../../services/aiFastApiService';
+
+/**
+ * Auto-growing textarea that expands with long text (e.g. degrees, college names, skill lists)
+ * and wraps text smoothly across multiple lines to prevent truncation.
+ */
+const AutoResizeTextarea = ({
+    value,
+    onChange,
+    placeholder,
+    minRows = 1,
+    className = "form-input",
+    style,
+    ...props
+}) => {
+    const textareaRef = useRef(null);
+
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${Math.max(textareaRef.current.scrollHeight, 36)}px`;
+        }
+    }, [value]);
+
+    return (
+        <textarea
+            ref={textareaRef}
+            rows={minRows}
+            value={value || ''}
+            placeholder={placeholder}
+            onChange={(e) => {
+                onChange(e);
+                if (textareaRef.current) {
+                    textareaRef.current.style.height = 'auto';
+                    textareaRef.current.style.height = `${Math.max(textareaRef.current.scrollHeight, 36)}px`;
+                }
+            }}
+            className={className}
+            style={{
+                resize: 'none',
+                overflow: 'hidden',
+                lineHeight: 1.4,
+                minHeight: '36px',
+                padding: '0.45rem 0.65rem',
+                fontSize: '0.82rem',
+                width: '100%',
+                ...style
+            }}
+            {...props}
+        />
+    );
+};
 
 export const ResumeBuilder = ({
     initialProfile,
@@ -66,6 +117,129 @@ export const ResumeBuilder = ({
         setOpenSections(prev => ({ ...prev, [sectionKey]: true }));
         if (showToast) showToast(`Added ${sectionKey} section to resume`, 'success');
     };
+
+    // Overflow "..." menu state for sections & Drag reorder state for skills
+    const [activeMenuSection, setActiveMenuSection] = useState(null);
+    const [draggedSkillIdx, setDraggedSkillIdx] = useState(null);
+
+    const confirmRemoveSection = (sectionKey, sectionTitle) => {
+        if (window.confirm(`Hide and remove "${sectionTitle}" section from resume? (You can restore it anytime using the 'Sections' chips at the top)`)) {
+            removeSection(sectionKey);
+        }
+        setActiveMenuSection(null);
+    };
+
+    const moveSkillCategory = (fromIdx, toIdx) => {
+        if (fromIdx === null || toIdx === null || fromIdx === toIdx) return;
+        setResumeData(prev => {
+            const cats = [...(prev.skills?.categories || [])];
+            const [moved] = cats.splice(fromIdx, 1);
+            cats.splice(toIdx, 0, moved);
+            return { ...prev, skills: { ...prev.skills, categories: cats } };
+        });
+    };
+
+    // Standardized Section Header with far-right caret, "..." overflow delete, and clean title
+    const renderSectionHeader = (key, title, icon, count, addAction, addLabel) => (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', userSelect: 'none' }}>
+            <div
+                onClick={() => toggleSection(key)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', flex: 1 }}
+            >
+                {icon}
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    {title}
+                    {count !== undefined && (
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                            ({count})
+                        </span>
+                    )}
+                </h3>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', position: 'relative' }}>
+                {addAction && (
+                    <Button variant="secondary" size="sm" onClick={addAction} leftIcon={<Plus size={13} />}>
+                        {addLabel}
+                    </Button>
+                )}
+
+                {/* Section "..." overflow menu */}
+                <div style={{ position: 'relative' }}>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenuSection(prev => prev === key ? null : key);
+                        }}
+                        className="btn-trash-item"
+                        style={{ padding: '5px 7px', color: 'var(--text-muted)' }}
+                        title="Section options"
+                    >
+                        <MoreVertical size={15} />
+                    </button>
+                    {activeMenuSection === key && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '100%',
+                            right: 0,
+                            marginTop: '4px',
+                            backgroundColor: 'var(--bg-secondary)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: 'var(--radius-md)',
+                            boxShadow: 'var(--shadow-lg)',
+                            zIndex: 30,
+                            minWidth: '150px',
+                            padding: '4px'
+                        }}>
+                            <button
+                                type="button"
+                                onClick={() => confirmRemoveSection(key, title)}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    width: '100%',
+                                    padding: '0.45rem 0.65rem',
+                                    fontSize: '0.75rem',
+                                    color: 'var(--danger)',
+                                    background: 'none',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    textAlign: 'left'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.12)'}
+                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                                <Trash2 size={13} />
+                                Delete section
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Collapse caret on the far right */}
+                <button
+                    type="button"
+                    onClick={() => toggleSection(key)}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        padding: '5px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        borderRadius: '4px'
+                    }}
+                    title={openSections[key] ? 'Collapse section' : 'Expand section'}
+                >
+                    {openSections[key] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+            </div>
+        </div>
+    );
 
     // Helper update handlers
     const updatePersonal = (field, val) => {
@@ -404,7 +578,7 @@ export const ResumeBuilder = ({
                         </div>
                     </div>
 
-                    {/* Action buttons: Sync from Profile & Direct PDF Download */}
+                    {/* Action buttons: Sync from Profile only (Download PDF kept exclusively in preview toolbar) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         {onImportFromProfile && (
                             <Button
@@ -415,61 +589,52 @@ export const ResumeBuilder = ({
                                 leftIcon={isImportingProfile ? <LoadingSpinner size="xs" /> : <RefreshCw size={14} />}
                                 title="Import and populate resume with your latest Career Profile, Skills, and Projects"
                             >
-                                {isImportingProfile ? 'Importing Profile...' : 'Sync from Career Profile'}
+                                {isImportingProfile ? 'Importing...' : 'Sync from Profile'}
                             </Button>
                         )}
-                        <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={onDownloadPdf}
-                            disabled={isDownloadingPdf}
-                            leftIcon={isDownloadingPdf ? <LoadingSpinner size="xs" /> : <Download size={14} />}
-                        >
-                            {isDownloadingPdf ? 'Generating PDF...' : 'Download PDF'}
-                        </Button>
                     </div>
                 </div>
 
-                {/* Add Section Quick-Bar */}
-                <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-                        Manage Sections:
+                {/* Interactive Section Toggle Chips */}
+                <div style={{ marginTop: '0.65rem', paddingTop: '0.65rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginRight: '0.2rem' }}>
+                        Sections:
                     </span>
-                    {!visibleSections.personal && (
-                        <button type="button" onClick={() => addSection('personal')} className="badge badge-purple" style={{ cursor: 'pointer', border: 'none' }}>
-                            + Personal Info
-                        </button>
-                    )}
-                    {!visibleSections.education && (
-                        <button type="button" onClick={() => addSection('education')} className="badge badge-purple" style={{ cursor: 'pointer', border: 'none' }}>
-                            + Education
-                        </button>
-                    )}
-                    {!visibleSections.skills && (
-                        <button type="button" onClick={() => addSection('skills')} className="badge badge-purple" style={{ cursor: 'pointer', border: 'none' }}>
-                            + Skills
-                        </button>
-                    )}
-                    {!visibleSections.projects && (
-                        <button type="button" onClick={() => addSection('projects')} className="badge badge-purple" style={{ cursor: 'pointer', border: 'none' }}>
-                            + Projects
-                        </button>
-                    )}
-                    {!visibleSections.experience && (
-                        <button type="button" onClick={() => addSection('experience')} className="badge badge-purple" style={{ cursor: 'pointer', border: 'none' }}>
-                            + Experience
-                        </button>
-                    )}
-                    {!visibleSections.certifications && (
-                        <button type="button" onClick={() => addSection('certifications')} className="badge badge-purple" style={{ cursor: 'pointer', border: 'none' }}>
-                            + Certifications
-                        </button>
-                    )}
-                    {!visibleSections.achievements && (
-                        <button type="button" onClick={() => addSection('achievements')} className="badge badge-purple" style={{ cursor: 'pointer', border: 'none' }}>
-                            + Achievements
-                        </button>
-                    )}
+                    {[
+                        { key: 'personal', label: 'Personal' },
+                        { key: 'education', label: 'Education' },
+                        { key: 'skills', label: 'Skills' },
+                        { key: 'projects', label: 'Projects' },
+                        { key: 'experience', label: 'Experience' },
+                        { key: 'certifications', label: 'Certifications' },
+                        { key: 'achievements', label: 'Achievements' }
+                    ].map(sec => {
+                        const isVis = visibleSections[sec.key];
+                        return (
+                            <button
+                                key={sec.key}
+                                type="button"
+                                onClick={() => isVis ? removeSection(sec.key) : addSection(sec.key)}
+                                style={{
+                                    padding: '0.2rem 0.55rem',
+                                    fontSize: '0.72rem',
+                                    borderRadius: 'var(--radius-full)',
+                                    border: isVis ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid var(--border-subtle)',
+                                    backgroundColor: isVis ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
+                                    color: isVis ? 'var(--primary)' : 'var(--text-muted)',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    transition: 'all 0.15s ease'
+                                }}
+                                title={isVis ? `Hide ${sec.label} from resume` : `Include ${sec.label} in resume`}
+                            >
+                                {isVis ? <Eye size={11} /> : <Plus size={11} />}
+                                {sec.label}
+                            </button>
+                        );
+                    })}
                 </div>
             </Card>
 
@@ -562,24 +727,7 @@ export const ResumeBuilder = ({
             {/* ============================================================== */}
             {visibleSections.personal && (
                 <Card style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div
-                            onClick={() => toggleSection('personal')}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', flex: 1 }}
-                        >
-                            <User size={16} style={{ color: 'var(--primary)' }} />
-                            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Candidate Profile & Contact Details</h3>
-                            {openSections.personal ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </div>
-                        <button
-                            type="button"
-                            title="Remove section from resume"
-                            onClick={() => removeSection('personal')}
-                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                        >
-                            <Trash2 size={14} />
-                        </button>
-                    </div>
+                    {renderSectionHeader('personal', 'Candidate Profile & Contact Details', <User size={16} style={{ color: 'var(--primary)' }} />)}
 
                     {openSections.personal && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
@@ -640,7 +788,7 @@ export const ResumeBuilder = ({
                                     className="form-input"
                                     value={resumeData.personal?.linkedin || ''}
                                     onChange={e => updatePersonal('linkedin', e.target.value)}
-                                    placeholder="e.g. linkedin.com/in/aarav-sharma"
+                                    placeholder="e.g. linkedin.com/in/username"
                                 />
                             </div>
                             <div>
@@ -650,7 +798,7 @@ export const ResumeBuilder = ({
                                     className="form-input"
                                     value={resumeData.personal?.github || ''}
                                     onChange={e => updatePersonal('github', e.target.value)}
-                                    placeholder="e.g. github.com/aaravsharma"
+                                    placeholder="e.g. github.com/username"
                                 />
                             </div>
                             <div>
@@ -660,13 +808,12 @@ export const ResumeBuilder = ({
                                     className="form-input"
                                     value={resumeData.personal?.portfolio || ''}
                                     onChange={e => updatePersonal('portfolio', e.target.value)}
-                                    placeholder="e.g. https://aarav.dev"
+                                    placeholder="e.g. https://username.dev"
                                 />
                             </div>
                             <div style={{ gridColumn: '1 / -1' }}>
                                 <label className="form-label" style={{ fontSize: '0.75rem' }}>Executive Bio / Summary (Optional)</label>
-                                <textarea
-                                    className="form-input"
+                                <AutoResizeTextarea
                                     rows={2}
                                     value={resumeData.personal?.summary || ''}
                                     onChange={e => updatePersonal('summary', e.target.value)}
@@ -683,61 +830,46 @@ export const ResumeBuilder = ({
             {/* ============================================================== */}
             {visibleSections.education && (
                 <Card style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div
-                            onClick={() => toggleSection('education')}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', flex: 1 }}
-                        >
-                            <GraduationCap size={16} style={{ color: 'var(--primary)' }} />
-                            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Education ({resumeData.education?.length || 0})</h3>
-                            {openSections.education ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <Button variant="secondary" size="sm" onClick={addEducation} leftIcon={<Plus size={13} />}>
-                                Add College
-                            </Button>
-                            <button
-                                type="button"
-                                title="Remove section from resume"
-                                onClick={() => removeSection('education')}
-                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                            >
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
-                    </div>
+                    {renderSectionHeader('education', 'Education', <GraduationCap size={16} style={{ color: 'var(--primary)' }} />, resumeData.education?.length || 0, addEducation, 'Add College')}
 
                     {openSections.education && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
                             {resumeData.education?.map((edu, idx) => (
-                                <div key={idx} style={{ padding: '0.75rem', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', position: 'relative' }}>
+                                <div
+                                    key={idx}
+                                    style={{
+                                        padding: '0.875rem',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.025)',
+                                        borderRadius: 'var(--radius-md)',
+                                        position: 'relative'
+                                    }}
+                                >
                                     <button
                                         type="button"
                                         onClick={() => removeEducation(idx)}
-                                        style={{ position: 'absolute', top: '8px', right: '8px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
+                                        className="btn-trash-item"
+                                        style={{ position: 'absolute', top: '8px', right: '8px' }}
                                         title="Delete entry"
                                     >
                                         <Trash2 size={14} />
                                     </button>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.6rem', paddingRight: '1.5rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem', paddingRight: '2rem' }}>
                                         <div>
                                             <label className="form-label" style={{ fontSize: '0.72rem' }}>College / University</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
+                                            <AutoResizeTextarea
                                                 value={edu.institution || ''}
                                                 onChange={e => updateEducation(idx, 'institution', e.target.value)}
-                                                placeholder="e.g. National Institute of Technology"
+                                                placeholder="e.g. Indian Institute of Information Technology"
+                                                minRows={1}
                                             />
                                         </div>
                                         <div>
                                             <label className="form-label" style={{ fontSize: '0.72rem' }}>Degree & Major</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
+                                            <AutoResizeTextarea
                                                 value={edu.degree || ''}
                                                 onChange={e => updateEducation(idx, 'degree', e.target.value)}
-                                                placeholder="e.g. B.Tech Computer Science"
+                                                placeholder="e.g. B.Tech in Computer Science & Engineering"
+                                                minRows={1}
                                             />
                                         </div>
                                         <div>
@@ -773,56 +905,78 @@ export const ResumeBuilder = ({
             {/* ============================================================== */}
             {visibleSections.skills && (
                 <Card style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div
-                            onClick={() => toggleSection('skills')}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', flex: 1 }}
-                        >
-                            <Code size={16} style={{ color: 'var(--primary)' }} />
-                            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Technical Skills</h3>
-                            {openSections.skills ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <Button variant="secondary" size="sm" onClick={addSkillCategory} leftIcon={<Plus size={13} />}>
-                                Add Category
-                            </Button>
-                            <button
-                                type="button"
-                                title="Remove section from resume"
-                                onClick={() => removeSection('skills')}
-                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                            >
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
-                    </div>
+                    {renderSectionHeader('skills', 'Technical Skills', <Code size={16} style={{ color: 'var(--primary)' }} />, resumeData.skills?.categories?.length || 0, addSkillCategory, 'Add Category')}
 
                     {openSections.skills && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
+                            {/* Column Header Row */}
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: '24px 28% 1fr 32px',
+                                gap: '0.5rem',
+                                padding: '0 0.5rem',
+                                alignItems: 'center'
+                            }}>
+                                <div></div>
+                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    Category
+                                </span>
+                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    Skills (comma separated)
+                                </span>
+                                <div></div>
+                            </div>
+
+                            {/* Reorderable rows */}
                             {resumeData.skills?.categories?.map((cat, idx) => (
-                                <div key={idx} style={{ display: 'grid', gridTemplateColumns: '160px 1fr 32px', gap: '0.5rem', alignItems: 'center' }}>
-                                    <input
-                                        type="text"
-                                        className="form-input"
+                                <div
+                                    key={idx}
+                                    draggable
+                                    onDragStart={() => setDraggedSkillIdx(idx)}
+                                    onDragOver={(e) => { e.preventDefault(); }}
+                                    onDrop={() => {
+                                        moveSkillCategory(draggedSkillIdx, idx);
+                                        setDraggedSkillIdx(null);
+                                    }}
+                                    style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: '24px 28% 1fr 32px',
+                                        gap: '0.5rem',
+                                        alignItems: 'flex-start',
+                                        padding: '0.35rem 0.5rem',
+                                        backgroundColor: draggedSkillIdx === idx ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                                        borderRadius: 'var(--radius-md)',
+                                        transition: 'background-color 0.15s ease'
+                                    }}
+                                >
+                                    <div
+                                        style={{ cursor: 'grab', color: 'var(--text-muted)', paddingTop: '9px', display: 'flex', justifyContent: 'center' }}
+                                        title="Drag to reorder"
+                                    >
+                                        <GripVertical size={15} />
+                                    </div>
+                                    <AutoResizeTextarea
                                         value={cat.name || ''}
                                         onChange={e => updateSkillCategory(idx, 'name', e.target.value)}
                                         placeholder="Category name"
+                                        minRows={1}
                                     />
-                                    <input
-                                        type="text"
-                                        className="form-input"
+                                    <AutoResizeTextarea
                                         value={Array.isArray(cat.items) ? cat.items.join(', ') : cat.items || ''}
                                         onChange={e => updateSkillCategory(idx, 'items', e.target.value)}
                                         placeholder="Comma-separated technologies..."
+                                        minRows={1}
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={() => removeSkillCategory(idx)}
-                                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                                        title="Remove category"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
+                                    <div style={{ paddingTop: '5px', display: 'flex', justifyContent: 'center' }}>
+                                        <button
+                                            type="button"
+                                            className="btn-trash-item"
+                                            onClick={() => removeSkillCategory(idx)}
+                                            title="Remove category"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -835,62 +989,47 @@ export const ResumeBuilder = ({
             {/* ============================================================== */}
             {visibleSections.projects && (
                 <Card style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div
-                            onClick={() => toggleSection('projects')}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', flex: 1 }}
-                        >
-                            <FolderGit2 size={16} style={{ color: 'var(--primary)' }} />
-                            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Key Projects ({resumeData.projects?.length || 0})</h3>
-                            {openSections.projects ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <Button variant="secondary" size="sm" onClick={addProject} leftIcon={<Plus size={13} />}>
-                                Add Project
-                            </Button>
-                            <button
-                                type="button"
-                                title="Remove section from resume"
-                                onClick={() => removeSection('projects')}
-                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                            >
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
-                    </div>
+                    {renderSectionHeader('projects', 'Key Projects', <FolderGit2 size={16} style={{ color: 'var(--primary)' }} />, resumeData.projects?.length || 0, addProject, 'Add Project')}
 
                     {openSections.projects && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
                             {resumeData.projects?.map((proj, pIdx) => (
-                                <div key={pIdx} style={{ padding: '0.85rem', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', position: 'relative' }}>
+                                <div
+                                    key={pIdx}
+                                    style={{
+                                        padding: '0.875rem',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.025)',
+                                        borderRadius: 'var(--radius-md)',
+                                        position: 'relative'
+                                    }}
+                                >
                                     <button
                                         type="button"
                                         onClick={() => removeProject(pIdx)}
-                                        style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
+                                        className="btn-trash-item"
+                                        style={{ position: 'absolute', top: '10px', right: '10px' }}
                                         title="Delete project"
                                     >
                                         <Trash2 size={15} />
                                     </button>
 
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem', paddingRight: '2rem', marginBottom: '0.75rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem', paddingRight: '2rem', marginBottom: '0.75rem' }}>
                                         <div>
                                             <label className="form-label" style={{ fontSize: '0.72rem' }}>Project Title</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
+                                            <AutoResizeTextarea
                                                 value={proj.title || ''}
                                                 onChange={e => updateProject(pIdx, 'title', e.target.value)}
                                                 placeholder="e.g. Distributed Payment Gateway"
+                                                minRows={1}
                                             />
                                         </div>
                                         <div>
                                             <label className="form-label" style={{ fontSize: '0.72rem' }}>Tech Stack</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
+                                            <AutoResizeTextarea
                                                 value={proj.techStack || ''}
                                                 onChange={e => updateProject(pIdx, 'techStack', e.target.value)}
                                                 placeholder="e.g. Java, Spring Boot, Kafka, Docker"
+                                                minRows={1}
                                             />
                                         </div>
                                         <div>
@@ -955,7 +1094,7 @@ export const ResumeBuilder = ({
                                                         <button
                                                             type="button"
                                                             onClick={() => removeProjectBullet(pIdx, bIdx)}
-                                                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                                                            className="btn-trash-item"
                                                             title="Delete bullet"
                                                         >
                                                             <Trash2 size={13} />
@@ -977,62 +1116,47 @@ export const ResumeBuilder = ({
             {/* ============================================================== */}
             {visibleSections.experience && (
                 <Card style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div
-                            onClick={() => toggleSection('experience')}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', flex: 1 }}
-                        >
-                            <Briefcase size={16} style={{ color: 'var(--primary)' }} />
-                            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Work Experience ({resumeData.experience?.length || 0})</h3>
-                            {openSections.experience ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <Button variant="secondary" size="sm" onClick={addExperience} leftIcon={<Plus size={13} />}>
-                                Add Experience
-                            </Button>
-                            <button
-                                type="button"
-                                title="Remove section from resume"
-                                onClick={() => removeSection('experience')}
-                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                            >
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
-                    </div>
+                    {renderSectionHeader('experience', 'Work Experience', <Briefcase size={16} style={{ color: 'var(--primary)' }} />, resumeData.experience?.length || 0, addExperience, 'Add Experience')}
 
                     {openSections.experience && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
                             {resumeData.experience?.map((exp, eIdx) => (
-                                <div key={eIdx} style={{ padding: '0.85rem', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', position: 'relative' }}>
+                                <div
+                                    key={eIdx}
+                                    style={{
+                                        padding: '0.875rem',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.025)',
+                                        borderRadius: 'var(--radius-md)',
+                                        position: 'relative'
+                                    }}
+                                >
                                     <button
                                         type="button"
                                         onClick={() => removeExperience(eIdx)}
-                                        style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
+                                        className="btn-trash-item"
+                                        style={{ position: 'absolute', top: '10px', right: '10px' }}
                                         title="Delete experience"
                                     >
                                         <Trash2 size={15} />
                                     </button>
 
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem', paddingRight: '2rem', marginBottom: '0.75rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem', paddingRight: '2rem', marginBottom: '0.75rem' }}>
                                         <div>
                                             <label className="form-label" style={{ fontSize: '0.72rem' }}>Role / Job Title</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
+                                            <AutoResizeTextarea
                                                 value={exp.role || ''}
                                                 onChange={e => updateExperience(eIdx, 'role', e.target.value)}
                                                 placeholder="e.g. Software Engineer Intern"
+                                                minRows={1}
                                             />
                                         </div>
                                         <div>
                                             <label className="form-label" style={{ fontSize: '0.72rem' }}>Company Name</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
+                                            <AutoResizeTextarea
                                                 value={exp.company || ''}
                                                 onChange={e => updateExperience(eIdx, 'company', e.target.value)}
                                                 placeholder="e.g. Razorpay"
+                                                minRows={1}
                                             />
                                         </div>
                                         <div>
@@ -1097,7 +1221,7 @@ export const ResumeBuilder = ({
                                                         <button
                                                             type="button"
                                                             onClick={() => removeExperienceBullet(eIdx, bIdx)}
-                                                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                                                            className="btn-trash-item"
                                                             title="Delete bullet"
                                                         >
                                                             <Trash2 size={13} />
@@ -1119,47 +1243,23 @@ export const ResumeBuilder = ({
             {/* ============================================================== */}
             {visibleSections.certifications && (
                 <Card style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div
-                            onClick={() => toggleSection('certifications')}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', flex: 1 }}
-                        >
-                            <Award size={16} style={{ color: 'var(--primary)' }} />
-                            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Certifications ({resumeData.certifications?.length || 0})</h3>
-                            {openSections.certifications ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <Button variant="secondary" size="sm" onClick={addCertification} leftIcon={<Plus size={13} />}>
-                                Add Certification
-                            </Button>
-                            <button
-                                type="button"
-                                title="Remove section from resume"
-                                onClick={() => removeSection('certifications')}
-                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                            >
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
-                    </div>
+                    {renderSectionHeader('certifications', 'Certifications', <Award size={16} style={{ color: 'var(--primary)' }} />, resumeData.certifications?.length || 0, addCertification, 'Add Certification')}
 
                     {openSections.certifications && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
                             {resumeData.certifications?.map((cert, idx) => (
                                 <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 32px', gap: '0.5rem', alignItems: 'center' }}>
-                                    <input
-                                        type="text"
-                                        className="form-input"
+                                    <AutoResizeTextarea
                                         value={cert.name || ''}
                                         onChange={e => updateCertification(idx, 'name', e.target.value)}
                                         placeholder="Certificate title"
+                                        minRows={1}
                                     />
-                                    <input
-                                        type="text"
-                                        className="form-input"
+                                    <AutoResizeTextarea
                                         value={cert.issuer || ''}
                                         onChange={e => updateCertification(idx, 'issuer', e.target.value)}
                                         placeholder="Issuing Org (AWS, Google)"
+                                        minRows={1}
                                     />
                                     <input
                                         type="text"
@@ -1170,8 +1270,8 @@ export const ResumeBuilder = ({
                                     />
                                     <button
                                         type="button"
+                                        className="btn-trash-item"
                                         onClick={() => removeCertification(idx)}
-                                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                                         title="Remove certificate"
                                     >
                                         <Trash2 size={14} />
@@ -1188,46 +1288,23 @@ export const ResumeBuilder = ({
             {/* ============================================================== */}
             {visibleSections.achievements && (
                 <Card style={{ padding: '0.75rem 1.25rem', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div
-                            onClick={() => toggleSection('achievements')}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', flex: 1 }}
-                        >
-                            <Sparkles size={16} style={{ color: 'var(--primary)' }} />
-                            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Honors & Achievements ({resumeData.achievements?.length || 0})</h3>
-                            {openSections.achievements ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <Button variant="secondary" size="sm" onClick={addAchievement} leftIcon={<Plus size={13} />}>
-                                Add Honor
-                            </Button>
-                            <button
-                                type="button"
-                                title="Remove section from resume"
-                                onClick={() => removeSection('achievements')}
-                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                            >
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
-                    </div>
+                    {renderSectionHeader('achievements', 'Honors & Achievements', <Sparkles size={16} style={{ color: 'var(--primary)' }} />, resumeData.achievements?.length || 0, addAchievement, 'Add Honor')}
 
                     {openSections.achievements && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
                             {resumeData.achievements?.map((ach, idx) => (
                                 <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                    <input
-                                        type="text"
-                                        className="form-input"
+                                    <AutoResizeTextarea
                                         style={{ flex: 1 }}
                                         value={ach}
                                         onChange={e => updateAchievement(idx, e.target.value)}
                                         placeholder="e.g. Secured Global Rank 450 in LeetCode Weekly Contest..."
+                                        minRows={1}
                                     />
                                     <button
                                         type="button"
+                                        className="btn-trash-item"
                                         onClick={() => removeAchievement(idx)}
-                                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                                         title="Remove item"
                                     >
                                         <Trash2 size={14} />

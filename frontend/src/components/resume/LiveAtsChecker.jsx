@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     Sparkles, CheckCircle2, AlertTriangle, XCircle, ChevronDown,
     ChevronUp, RefreshCw, Plus, Zap, Award, Target,
@@ -57,6 +57,23 @@ export const LiveAtsChecker = ({
     const atsAudit = useMemo(() => {
         return runLiveAtsCheck(resumeData, selectedRole);
     }, [resumeData, selectedRole]);
+
+    // Persist real-time live ATS score so Dashboard and Career Readiness are in 100% sync
+    useEffect(() => {
+        if (typeof atsAudit?.totalScore === 'number') {
+            try {
+                localStorage.setItem('careeros_live_ats_score', JSON.stringify({
+                    score: atsAudit.totalScore,
+                    grade: atsAudit.grade,
+                    rating: atsAudit.atsRating,
+                    role: selectedRole,
+                    updatedAt: new Date().toISOString()
+                }));
+            } catch (e) {
+                // Ignore storage errors
+            }
+        }
+    }, [atsAudit?.totalScore, atsAudit?.grade, atsAudit?.atsRating, selectedRole]);
 
     // Handler to create / populate a full buildable ATS resume
     const handleCreateBuildableResume = () => {
@@ -154,15 +171,14 @@ export const LiveAtsChecker = ({
             }}>
                 {/* Score & Gauge Section */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: '260px' }}>
-                    <div style={{ position: 'relative', width: '56px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <CircularProgress
-                            value={buildableStatus.isBuildable ? atsAudit.totalScore : buildableStatus.completionPercentage}
-                            size={56}
-                            strokeWidth={5}
-                            color={buildableStatus.isBuildable ? (atsAudit.totalScore >= 80 ? 'success' : (atsAudit.totalScore >= 60 ? 'warning' : 'danger')) : 'neutral'}
-                        />
+                    <CircularProgress
+                        value={buildableStatus.isBuildable ? atsAudit.totalScore : buildableStatus.completionPercentage}
+                        size={56}
+                        strokeWidth={5}
+                        color={buildableStatus.isBuildable ? (atsAudit.totalScore >= 80 ? 'success' : (atsAudit.totalScore >= 60 ? 'warning' : 'danger')) : 'neutral'}
+                        showLabel={false}
+                    >
                         <div style={{
-                            position: 'absolute',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
@@ -172,11 +188,11 @@ export const LiveAtsChecker = ({
                             <span style={{ fontSize: '0.95rem', fontWeight: 800, color: scoreColor }}>
                                 {buildableStatus.isBuildable ? atsAudit.totalScore : `${buildableStatus.completionPercentage}%`}
                             </span>
-                            <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                            <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '2px', letterSpacing: '0.5px' }}>
                                 {buildableStatus.isBuildable ? 'ATS' : 'BUILD'}
                             </span>
                         </div>
-                    </div>
+                    </CircularProgress>
 
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
@@ -196,7 +212,7 @@ export const LiveAtsChecker = ({
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                             <span>
-                                <strong>{atsAudit.passedCount}</strong>/16 Checks Passed
+                                <strong>{atsAudit.passedCount}</strong>/{atsAudit.totalChecks || 16} Checks Passed
                             </span>
                             <span>•</span>
                             <span>
@@ -243,18 +259,17 @@ export const LiveAtsChecker = ({
                             size="sm"
                             onClick={handleCreateBuildableResume}
                             leftIcon={<Sparkles size={14} />}
-                            style={{ backgroundColor: 'var(--primary)' }}
                         >
                             Build ATS Resume
                         </Button>
                     ) : (
                         <Button
-                            variant="secondary"
+                            variant="primary"
                             size="sm"
                             onClick={handleRunDeepAiAudit}
                             disabled={aiDeepLoading}
-                            leftIcon={aiDeepLoading ? <LoadingSpinner size="xs" /> : <Sparkles size={14} style={{ color: 'var(--primary)' }} />}
-                            title="Run Deep LLM Analysis via FastAPI Groq backend"
+                            leftIcon={aiDeepLoading ? <LoadingSpinner size="xs" /> : <Sparkles size={14} />}
+                            title="Run Deep LLM Analysis via FastAPI backend"
                         >
                             {aiDeepLoading ? 'Analyzing...' : 'Deep AI Audit'}
                         </Button>
@@ -265,8 +280,9 @@ export const LiveAtsChecker = ({
                         size="sm"
                         onClick={() => setIsExpanded(prev => !prev)}
                         rightIcon={isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        style={{ color: 'var(--text-secondary)' }}
                     >
-                        {isExpanded ? 'Hide Details' : 'View Checklist'}
+                        {isExpanded ? 'Hide Checklist' : 'View Checklist'}
                     </Button>
                 </div>
             </div>
@@ -306,7 +322,7 @@ export const LiveAtsChecker = ({
                 </div>
             )}
 
-            {/* Quick Micro-Metrics Bar (Always visible) */}
+            {/* Quick Micro-Metrics Bar (Visual Hierarchy: warnings in amber, good in quiet muted green) */}
             <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
@@ -314,41 +330,90 @@ export const LiveAtsChecker = ({
                 backgroundColor: 'var(--border-subtle)',
                 borderTop: '1px solid var(--border-subtle)'
             }}>
-                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-secondary)', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-                        Role Match
-                    </div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: atsAudit.matchedSkills.length >= 6 ? 'var(--success)' : 'var(--warning)' }}>
-                        {atsAudit.matchedSkills.length} / {atsAudit.totalRoleSkills || 10} Skills
-                    </div>
-                </div>
+                {/* 1. Role Match */}
+                {(() => {
+                    const isGood = (atsAudit.matchedSkills.length / (atsAudit.totalRoleSkills || 1)) >= 0.6;
+                    return (
+                        <div style={{
+                            padding: '0.55rem 0.75rem',
+                            backgroundColor: isGood ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.08)',
+                            textAlign: 'center',
+                            transition: 'background-color 0.2s ease'
+                        }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>
+                                Role Match
+                            </div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: isGood ? 'var(--success)' : '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', marginTop: '0.15rem' }}>
+                                {isGood ? <CheckCircle2 size={12} style={{ color: 'var(--success)' }} /> : <AlertTriangle size={12} style={{ color: '#f59e0b' }} />}
+                                <span>{atsAudit.matchedSkills.length} / {atsAudit.totalRoleSkills || 10} Skills</span>
+                            </div>
+                        </div>
+                    );
+                })()}
 
-                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-secondary)', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-                        STAR Metrics
-                    </div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: atsAudit.metricsStats.percentage >= 50 ? 'var(--success)' : 'var(--warning)' }}>
-                        {atsAudit.metricsStats.percentage}% of Bullets
-                    </div>
-                </div>
+                {/* 2. STAR Metrics */}
+                {(() => {
+                    const isGood = atsAudit.metricsStats.percentage >= 40;
+                    return (
+                        <div style={{
+                            padding: '0.55rem 0.75rem',
+                            backgroundColor: isGood ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.08)',
+                            textAlign: 'center',
+                            transition: 'background-color 0.2s ease'
+                        }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>
+                                STAR Metrics
+                            </div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: isGood ? 'var(--success)' : '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', marginTop: '0.15rem' }}>
+                                {isGood ? <CheckCircle2 size={12} style={{ color: 'var(--success)' }} /> : <AlertTriangle size={12} style={{ color: '#f59e0b' }} />}
+                                <span>{atsAudit.metricsStats.percentage}% of Bullets</span>
+                            </div>
+                        </div>
+                    );
+                })()}
 
-                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-secondary)', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-                        Action Verbs
-                    </div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: atsAudit.actionVerbStats.percentage >= 70 ? 'var(--success)' : 'var(--warning)' }}>
-                        {atsAudit.actionVerbStats.percentage}% of Bullets
-                    </div>
-                </div>
+                {/* 3. Action Verbs */}
+                {(() => {
+                    const isGood = atsAudit.actionVerbStats.percentage >= 70;
+                    return (
+                        <div style={{
+                            padding: '0.55rem 0.75rem',
+                            backgroundColor: isGood ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.08)',
+                            textAlign: 'center',
+                            transition: 'background-color 0.2s ease'
+                        }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>
+                                Action Verbs
+                            </div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: isGood ? 'var(--success)' : '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', marginTop: '0.15rem' }}>
+                                {isGood ? <CheckCircle2 size={12} style={{ color: 'var(--success)' }} /> : <AlertTriangle size={12} style={{ color: '#f59e0b' }} />}
+                                <span>{atsAudit.actionVerbStats.percentage}% of Bullets</span>
+                            </div>
+                        </div>
+                    );
+                })()}
 
-                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'var(--bg-secondary)', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-                        Attention Needed
-                    </div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: (atsAudit.warningCount + atsAudit.failedCount) === 0 ? 'var(--success)' : 'var(--warning)' }}>
-                        {atsAudit.warningCount + atsAudit.failedCount} Item(s)
-                    </div>
-                </div>
+                {/* 4. Attention Needed */}
+                {(() => {
+                    const issuesCount = atsAudit.warningCount + atsAudit.failedCount;
+                    const isGood = issuesCount === 0;
+                    return (
+                        <div style={{
+                            padding: '0.55rem 0.75rem',
+                            backgroundColor: isGood ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.08)',
+                            textAlign: 'center',
+                            transition: 'background-color 0.2s ease'
+                        }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>
+                                Attention Needed
+                            </div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: isGood ? 'var(--success)' : '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', marginTop: '0.15rem' }}>
+                                {isGood ? <CheckCircle2 size={12} style={{ color: 'var(--success)' }} /> : <AlertTriangle size={12} style={{ color: '#f59e0b' }} />}
+                                <span>{issuesCount} Item{issuesCount === 1 ? '' : 's'}</span>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* Expandable Detailed ATS Audit Inspector */}
@@ -370,7 +435,7 @@ export const LiveAtsChecker = ({
                                 cursor: 'pointer'
                             }}
                         >
-                            All 16 Checks ({atsAudit.passedCount}/16)
+                            All Checks ({atsAudit.passedCount}/{atsAudit.totalChecks || 16})
                         </button>
 
                         <button

@@ -666,7 +666,8 @@ export function runLiveAtsCheck(resumeData = {}, targetRole = 'Backend Developer
         badgeColor = 'danger';
     }
 
-    const passedCount = checklist.filter(c => c.status === 'passed').length;
+    const totalChecks = checklist.length;
+    const passedCount = Math.min(checklist.filter(c => c.status === 'passed').length, totalChecks);
     const warningCount = checklist.filter(c => c.status === 'warning').length;
     const failedCount = checklist.filter(c => c.status === 'failed').length;
 
@@ -702,6 +703,7 @@ export function runLiveAtsCheck(resumeData = {}, targetRole = 'Backend Developer
         badgeColor,
         wordCount,
         checklist,
+        totalChecks,
         passedCount,
         warningCount,
         failedCount,
@@ -730,8 +732,12 @@ export function runLiveAtsCheck(resumeData = {}, targetRole = 'Backend Developer
  */
 export function buildStarterAtsResume(role = 'Backend Developer', profile = {}) {
     const roleSlug = getRoleSlug(role);
-    const candidateName = profile?.full_name || 'Aarav Sharma';
-    const email = profile?.email || `${candidateName.toLowerCase().replace(/[^a-z]/g, '') || 'aarav'}.dev@gmail.com`;
+    const candidateName = profile?.full_name?.trim() || 'Nikhil Ingale';
+    const slug = candidateName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'nikhilingale';
+    const email = profile?.email || `${slug}.dev@gmail.com`;
+    const linkedin = profile?.linkedin_url || `linkedin.com/in/${slug}`;
+    const github = profile?.github_url || `github.com/${slug}`;
+    const portfolio = profile?.portfolio_url || `https://${slug}.dev`;
 
     switch (roleSlug) {
         case 'frontend':
@@ -740,12 +746,12 @@ export function buildStarterAtsResume(role = 'Backend Developer', profile = {}) 
                     fullName: candidateName,
                     targetRole: 'Senior Frontend Developer',
                     email: email,
-                    phone: '+91 98765 43210',
-                    location: 'Bengaluru, India',
-                    linkedin: 'linkedin.com/in/aarav-frontend',
-                    github: 'github.com/aaravsharma',
-                    portfolio: 'https://aarav-frontend.dev',
-                    summary: 'Frontend Engineer with expertise in React, Next.js, TypeScript, and modern state architectures. Proven record of optimizing Core Web Vitals to 98+ and building high-performance design systems.'
+                    phone: profile?.phone || '+91 98765 43210',
+                    location: profile?.location || 'Bengaluru, India',
+                    linkedin: linkedin,
+                    github: github,
+                    portfolio: portfolio,
+                    summary: profile?.bio || 'Frontend Engineer with expertise in React, Next.js, TypeScript, and modern state architectures. Proven record of optimizing Core Web Vitals to 98+ and building high-performance design systems.'
                 },
                 education: [
                     {
@@ -816,11 +822,11 @@ export function buildStarterAtsResume(role = 'Backend Developer', profile = {}) 
                     fullName: candidateName,
                     targetRole: 'Full Stack Software Engineer',
                     email: email,
-                    phone: '+91 98765 43210',
-                    location: 'Bengaluru, India',
-                    linkedin: 'linkedin.com/in/aarav-fullstack',
-                    github: 'github.com/aaravsharma',
-                    portfolio: 'https://aarav-fullstack.dev',
+                    phone: profile?.phone || '+91 98765 43210',
+                    location: profile?.location || 'Bengaluru, India',
+                    linkedin: linkedin,
+                    github: github,
+                    portfolio: portfolio,
                     summary: 'Full Stack Engineer with strong proficiency in React, Node.js, TypeScript, PostgreSQL, and AWS. Proven track record of architecting end-to-end cloud microservices handling high concurrency.'
                 },
                 education: [
@@ -845,7 +851,7 @@ export function buildStarterAtsResume(role = 'Backend Developer', profile = {}) 
                     {
                         title: 'Scalable Microservices SaaS Platform',
                         techStack: 'React, Node.js, TypeScript, PostgreSQL, Docker, Redis',
-                        link: 'https://github.com/aaravsharma/saas-platform',
+                        link: `https://${github}/saas-platform`,
                         dates: '2024',
                         bullets: [
                             'Architected multi-tenant SaaS application serving 10,000+ daily active users with 99.9% uptime on AWS.',
@@ -892,11 +898,11 @@ export function buildStarterAtsResume(role = 'Backend Developer', profile = {}) 
                     fullName: candidateName,
                     targetRole: 'Data Analyst & BI Specialist',
                     email: email,
-                    phone: '+91 98765 43210',
-                    location: 'Bengaluru, India',
-                    linkedin: 'linkedin.com/in/aarav-data',
-                    github: 'github.com/aaravsharma',
-                    portfolio: 'https://aarav-analytics.dev',
+                    phone: profile?.phone || '+91 98765 43210',
+                    location: profile?.location || 'Bengaluru, India',
+                    linkedin: linkedin,
+                    github: github,
+                    portfolio: portfolio,
                     summary: 'Analytical and results-oriented Data Analyst skilled in SQL, Python, Power BI, and Tableau. Experienced in transforming raw transactional data into actionable executive dashboards driving business growth.'
                 },
                 education: [
@@ -968,11 +974,11 @@ export function buildStarterAtsResume(role = 'Backend Developer', profile = {}) 
                     fullName: candidateName,
                     targetRole: 'Java Backend Software Engineer',
                     email: email,
-                    phone: '+91 98765 43210',
-                    location: 'Bengaluru, India',
-                    linkedin: 'linkedin.com/in/aarav-backend',
-                    github: 'github.com/aaravsharma',
-                    portfolio: 'https://aarav-backend.dev',
+                    phone: profile?.phone || '+91 98765 43210',
+                    location: profile?.location || 'Bengaluru, India',
+                    linkedin: linkedin,
+                    github: github,
+                    portfolio: portfolio,
                     summary: 'Results-driven Backend Engineer specializing in high-throughput distributed systems, microservices, and relational database tuning. Proficient in Java 17, Spring Boot, PostgreSQL, Redis, and Apache Kafka.'
                 },
                 education: [
@@ -997,7 +1003,7 @@ export function buildStarterAtsResume(role = 'Backend Developer', profile = {}) 
                     {
                         title: 'High-Throughput Distributed Payment Gateway',
                         techStack: 'Java 17, Spring Boot, Redis, Kafka, PostgreSQL, Docker',
-                        link: 'https://github.com/aaravsharma/payment-gateway',
+                        link: `https://${github}/payment-gateway`,
                         dates: '2024',
                         bullets: [
                             'Engineered an idempotent transaction processing pipeline handling 4,500+ TPS with sub-80ms p99 response times.',
@@ -1037,5 +1043,41 @@ export function buildStarterAtsResume(role = 'Backend Developer', profile = {}) 
                     'Winner, Smart India Hackathon among 1,500+ engineering teams nationwide.'
                 ]
             };
+    }
+}
+
+/**
+ * Resolves the real-time deterministic ATS score for a student.
+ * 1. Reads latest saved score from `careeros_live_ats_score` in localStorage
+ * 2. If not found, evaluates `careeros_resume_data` from localStorage
+ * 3. If still empty, evaluates role's starter ATS template so it matches the live score on initial load
+ */
+export function getActiveAtsScore(targetRole = 'Backend Developer', profile = {}) {
+    if (typeof window === 'undefined') return 81;
+    try {
+        const cached = localStorage.getItem('careeros_live_ats_score');
+        if (cached) {
+            const parsed = JSON.parse(cached);
+            if (typeof parsed?.score === 'number' && parsed.score > 0) {
+                return parsed.score;
+            }
+        }
+        const savedResume = localStorage.getItem('careeros_resume_data');
+        if (savedResume) {
+            const parsed = JSON.parse(savedResume);
+            const audit = runLiveAtsCheck(parsed, targetRole);
+            if (typeof audit?.totalScore === 'number') {
+                return audit.totalScore;
+            }
+        }
+        // Baseline initial resume score for target role
+        const starter = buildStarterAtsResume(targetRole, {
+            full_name: profile?.full_name || '',
+            email: profile?.email || ''
+        });
+        const starterAudit = runLiveAtsCheck(starter, targetRole);
+        return starterAudit?.totalScore || 81;
+    } catch (e) {
+        return 81;
     }
 }

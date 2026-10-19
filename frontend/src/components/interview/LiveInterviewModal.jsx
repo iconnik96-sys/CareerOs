@@ -15,6 +15,8 @@ import { LoadingSpinner } from '../common/LoadingSpinner';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { aiFastApiService } from '../../services/aiFastApiService';
+import { profileService } from '../../services/profileService';
+import { calculateCareerReadiness } from '../../utils/careerRoles';
 import { downloadInterviewReportPdf } from '../../utils/interviewPdfExport';
 import { InconvenienceNotice } from '../common/InconvenienceNotice';
 import { 
@@ -59,7 +61,7 @@ export const INTERVIEW_MODES = [
     }
 ];
 
-const INTERVIEW_DURATION_SECONDS = 15 * 60; // 15 Minutes
+const INTERVIEW_DURATION_SECONDS = 15 * 60; // 15 Minutes (comfortably accommodates deep answers)
 
 export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Developer', initialQuestions = [] }) => {
     const { showToast } = useToast();
@@ -115,10 +117,12 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
     const [questionAttempts, setQuestionAttempts] = useState([]);
     const questionAttemptsRef = useRef([]);
 
-    // Speech Recognition & VAD Silence Timers
+    // Speech Recognition & Persistent Audio Buffers
     const recognitionRef = useRef(null);
     const silenceTimerRef = useRef(null);
     const transcriptAccumulatorRef = useRef('');
+    const committedPriorTextRef = useRef('');
+    const transcriptContainerRef = useRef(null);
     const isAiSpeakingRef = useRef(false);
     const isMicMutedRef = useRef(false);
     const isStartedRef = useRef(false);
@@ -127,6 +131,13 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
     const currentIdxRef = useRef(0);
 
     const currentQuestion = interviewQuestions[currentIdx] || null;
+
+    // Auto-scroll candidate speech caption box to bottom as new speech arrives
+    useEffect(() => {
+        if (transcriptContainerRef.current) {
+            transcriptContainerRef.current.scrollTop = transcriptContainerRef.current.scrollHeight;
+        }
+    }, [transcript, interimTranscript]);
 
     // Synchronize refs with state to prevent stale closures and effect churn
     useEffect(() => {
@@ -229,31 +240,36 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 return;
             }
 
-            let finalCombined = '';
-            let interimCombined = '';
+            let sessionFinal = '';
+            let sessionInterim = '';
 
             for (let i = 0; i < event.results.length; ++i) {
                 const item = event.results[i];
                 if (item.isFinal) {
-                    finalCombined += item[0].transcript + ' ';
+                    sessionFinal += item[0].transcript + ' ';
                 } else {
-                    interimCombined += item[0].transcript;
+                    sessionInterim += item[0].transcript;
                 }
             }
 
-            const cleanFinal = finalCombined.trim();
-            const cleanInterim = interimCombined.trim();
-            const fullSpokenText = cleanFinal ? (cleanFinal + (cleanInterim ? ' ' + cleanInterim : '')) : cleanInterim;
+            const cleanFinal = sessionFinal.trim();
+            const cleanInterim = sessionInterim.trim();
 
-            if (cleanFinal) {
-                transcriptAccumulatorRef.current = cleanFinal;
-                setTranscript(cleanFinal);
+            // Seamlessly combine previously accumulated speech from prior recognition segments + current segment
+            const priorText = committedPriorTextRef.current;
+            const fullFinal = priorText ? (priorText + (cleanFinal ? ' ' + cleanFinal : '')) : cleanFinal;
+            const fullSpokenText = fullFinal ? (fullFinal + (cleanInterim ? ' ' + cleanInterim : '')) : cleanInterim;
+
+            if (fullFinal) {
+                transcriptAccumulatorRef.current = fullFinal;
+                setTranscript(fullFinal);
             }
             setInterimTranscript(cleanInterim);
 
             // Check for immediate repeat or clarification voice intent
             if (detectRepeatIntent(fullSpokenText, { currentIdx: currentIdxRef.current })) {
                 handleRepeatQuestion('VOICE_INTENT');
+                committedPriorTextRef.current = '';
                 transcriptAccumulatorRef.current = '';
                 setTranscript('');
                 setInterimTranscript('');
@@ -263,20 +279,13 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             // Check for immediate completion intent ("I'm done", "That's all", "Finished")
             if (detectCompletionIntent(fullSpokenText)) {
                 if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+                committedPriorTextRef.current = '';
                 triggerHandsFreeAiTurn(fullSpokenText);
                 return;
             }
 
-            // Reset Voice Activity Detection (VAD) Silence Timer (10 seconds pause = auto submit)
+            // Continuous listening: 10s auto-submit silence timeout is disabled so candidates can pause freely.
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-            if (fullSpokenText.length >= 6) {
-                silenceTimerRef.current = setTimeout(() => {
-                    const speechToSubmit = (transcriptAccumulatorRef.current || fullSpokenText).trim();
-                    if (speechToSubmit.length >= 6 && !isAiSpeakingRef.current && !isMicMutedRef.current) {
-                        triggerHandsFreeAiTurn(speechToSubmit);
-                    }
-                }, 10000);
-            }
         };
 
         recognition.onerror = (event) => {
@@ -288,8 +297,13 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         };
 
         recognition.onend = () => {
-            console.log('[CareerOS Voice] Recognition session ended naturally.');
-            // Auto-restart recognition with fresh session if turn is active
+            console.log('[CareerOS Voice] Recognition session ended naturally. Persisting accumulated text across pause.');
+            // Persist recognized text into committedPriorTextRef so subsequent speech recognition sessions append smoothly
+            if (transcriptAccumulatorRef.current) {
+                committedPriorTextRef.current = transcriptAccumulatorRef.current;
+            }
+
+            // Auto-restart recognition with fresh session if turn is active (continuous listening without interruption)
             if (!sessionCompletedRef.current && !isMicMutedRef.current && !isAiSpeakingRef.current) {
                 setTimeout(() => {
                     if (!sessionCompletedRef.current && !isMicMutedRef.current && !isAiSpeakingRef.current) {
@@ -333,13 +347,41 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         stopListening();
         speechController.cancel();
         setIsAiSpeaking(false);
-        setSessionCompleted(true);
-        showToast('15-minute time limit reached. Call disconnected.', 'warning');
+        showToast('Time limit reached. Concluding interview and calculating scorecard...', 'warning');
         
-        speechController.speak("Your 15-minute interview round has concluded. Generating your final performance scorecard.", {
+        // If candidate was speaking on the current question when time expired, commit their answer
+        const speechSoFar = (committedPriorTextRef.current || transcriptAccumulatorRef.current || transcript || interimTranscript || '').trim();
+        const thisIdx = currentIdxRef.current;
+        if (speechSoFar.length >= 4 && questionAttemptsRef.current[thisIdx]) {
+            questionAttemptsRef.current[thisIdx] = {
+                ...questionAttemptsRef.current[thisIdx],
+                status: 'ANSWERED',
+                candidate_answer: speechSoFar
+            };
+            setQuestionAttempts([...questionAttemptsRef.current]);
+            setConversationLog(prev => [
+                ...prev,
+                { role: 'candidate', content: speechSoFar, timestamp: new Date().toLocaleTimeString() }
+            ]);
+        }
+
+        speechController.speak("Your interview round has concluded. Generating your final performance scorecard now.", {
             voiceURI: selectedVoiceURI,
-            rate: voiceRate
+            rate: voiceRate,
+            onEnd: () => {
+                handleEndInterviewAndGrade();
+            },
+            onError: () => {
+                handleEndInterviewAndGrade();
+            }
         });
+
+        // Backup safeguard in case speech synthesis callback does not fire
+        setTimeout(() => {
+            if (!sessionCompletedRef.current) {
+                handleEndInterviewAndGrade();
+            }
+        }, 2500);
     };
 
     const formatTime = (secs) => {
@@ -365,6 +407,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
 
         // Clear any leftover echo transcript
         transcriptAccumulatorRef.current = '';
+        committedPriorTextRef.current = '';
         setTranscript('');
         setInterimTranscript('');
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -383,6 +426,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 // 300ms guard buffer to allow room speaker echo to dissipate before starting mic
                 setTimeout(() => {
                     transcriptAccumulatorRef.current = '';
+                    committedPriorTextRef.current = '';
                     setTranscript('');
                     setInterimTranscript('');
 
@@ -400,6 +444,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                     if (!sessionCompletedRef.current && !isMicMutedRef.current) {
                         startRecognitionSession();
                     }
+                    if (onCompleteCallback) onCompleteCallback();
                 }, 300);
             }
         });
@@ -478,6 +523,25 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 `Interview Completed! Score: ${finalScore}/100 (${evaluation.grade || 'Evaluated'})`,
                 finalScore >= 60 ? 'success' : 'warning'
             );
+
+            // Persist interview evaluation locally and update Career Readiness in Supabase
+            try {
+                localStorage.setItem('careeros_latest_interview_eval', JSON.stringify({
+                    overall_score: finalScore,
+                    grade: evaluation.grade,
+                    date: new Date().toISOString()
+                }));
+                const uid = user?.id || profile?.user_id;
+                if (uid) {
+                    const newScore = calculateCareerReadiness([], defaultRole, profile, {
+                        interviewScore: finalScore,
+                        hasResume: Boolean(profile?.resume_url)
+                    });
+                    profileService.updateProfile(uid, { career_readiness: newScore });
+                }
+            } catch (syncErr) {
+                console.warn('Could not auto-sync live interview readiness to Supabase:', syncErr);
+            }
         } catch (err) {
             console.error('Final evaluation error:', err);
             setCurrentEvaluation(null);
@@ -520,6 +584,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         showToast(`Question #${thisIdx + 1} skipped — 0 marks awarded.`, 'warning');
 
         transcriptAccumulatorRef.current = '';
+        committedPriorTextRef.current = '';
         setTranscript('');
         setInterimTranscript('');
 
@@ -616,6 +681,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
 
         // Clear live transcription accumulator
         transcriptAccumulatorRef.current = '';
+        committedPriorTextRef.current = '';
         setTranscript('');
         setInterimTranscript('');
 
@@ -712,6 +778,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         setShowHint(false);
         setTranscript('');
         transcriptAccumulatorRef.current = '';
+        committedPriorTextRef.current = '';
         setSecondsLeft(INTERVIEW_DURATION_SECONDS);
 
         const modeObj = INTERVIEW_MODES.find(m => m.id === selectedMode);
@@ -801,8 +868,9 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
     // Manual instant submission when candidate finishes speaking
     const handleManualSubmitVoiceAnswer = () => {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        const speechToSubmit = (transcriptAccumulatorRef.current || transcript || interimTranscript).trim();
+        const speechToSubmit = (committedPriorTextRef.current || transcriptAccumulatorRef.current || transcript || interimTranscript).trim();
         if (speechToSubmit.length >= 4 && !isAiSpeakingRef.current) {
+            committedPriorTextRef.current = '';
             triggerHandsFreeAiTurn(speechToSubmit);
         } else {
             showToast('Please speak your answer first before submitting.', 'info');
@@ -855,13 +923,38 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
 
     // Download official publication-grade PDF interview report
     const handleDownloadPdfReport = async () => {
-        if (!currentEvaluation) return;
         setDownloadingPdf(true);
         const modeTitle = INTERVIEW_MODES.find(m => m.id === selectedMode)?.title || selectedMode;
+
+        const answeredCount = currentEvaluation?.answered_count ?? questionAttemptsRef.current.filter(q => q.status === 'ANSWERED').length;
+        const skippedCount = currentEvaluation?.skipped_count ?? questionAttemptsRef.current.filter(q => q.status === 'SKIPPED').length;
+        const totalQ = currentEvaluation?.total_questions ?? interviewQuestions.length;
+
+        // Fallback evaluation object if API scorecard was interrupted
+        const evalToUse = currentEvaluation || {
+            overall_score: answeredCount > 0 ? 60 : 0,
+            grade: answeredCount > 0 ? 'Needs Practice' : 'Strong No Hire',
+            summary_verdict: answeredCount > 0 
+                ? `Candidate completed ${answeredCount} of ${totalQ} questions during this technical interview session.`
+                : 'Candidate skipped all interview questions. No technical competencies demonstrated.',
+            dimension_scores: [
+                { name: 'Technical Accuracy', score: answeredCount > 0 ? 60 : 0, feedback: 'Technical response captured from candidate audio.' },
+                { name: 'Structural Flow & STAR', score: answeredCount > 0 ? 60 : 0, feedback: 'Response delivery captured from candidate audio.' },
+                { name: 'Depth & Edge Cases', score: answeredCount > 0 ? 55 : 0, feedback: 'Technical discussion captured from candidate audio.' },
+                { name: 'Communication Clarity', score: answeredCount > 0 ? 65 : 0, feedback: 'Articulation captured from candidate audio.' }
+            ],
+            per_question_results: questionAttemptsRef.current,
+            total_questions: totalQ,
+            answered_count: answeredCount,
+            skipped_count: skippedCount,
+            strengths: ['Demonstrated spoken engineering participation in mock interview'],
+            missing_points: skippedCount > 0 ? [`${skippedCount} question(s) left incomplete during round.`] : []
+        };
+
         try {
             showToast('Compiling official PDF Scorecard...', 'info');
-            const res = await downloadInterviewReportPdf({
-                evaluation: currentEvaluation,
+            await downloadInterviewReportPdf({
+                evaluation: evalToUse,
                 targetRole: defaultRole,
                 modeTitle,
                 difficulty: selectedDifficulty,
@@ -872,7 +965,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             showToast('Interview PDF Report downloaded successfully!', 'success');
         } catch (err) {
             console.error('Failed to generate interview PDF:', err);
-            showToast('PDF generation encountered an issue, falling back to text.', 'warning');
+            showToast('PDF generation issue, downloading transcript report...', 'warning');
             handleDownloadReport();
         } finally {
             setDownloadingPdf(false);
@@ -1267,6 +1360,34 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 </Button>
                             </div>
                         </div>
+                    ) : evaluating ? (
+                        <div style={{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '3rem 2rem',
+                            textAlign: 'center',
+                            gap: '1.25rem'
+                        }}>
+                            <div style={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: '50%',
+                                border: '4px solid var(--border-color)',
+                                borderTopColor: 'var(--primary)',
+                                animation: 'spin 1s linear infinite'
+                            }}/>
+                            <div>
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>
+                                    Evaluating Your Interview Performance...
+                                </h3>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '460px', margin: 0, lineHeight: 1.5 }}>
+                                    Sarah Chen is grading your answers across technical accuracy, STAR delivery, and architecture trade-offs.
+                                </p>
+                            </div>
+                        </div>
                     ) : sessionCompleted ? (
                         evaluationError ? (
                             <div style={{ padding: '2rem 1rem', maxWidth: '640px', margin: '0 auto', textAlign: 'center' }}>
@@ -1424,7 +1545,12 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 {/* Tab 1: 4-Dimension Scores Matrix */}
                                 {scorecardTab === 'overview' && (
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '0.85rem' }}>
-                                        {currentEvaluation?.dimension_scores?.map((dim, dIdx) => {
+                                        {(currentEvaluation?.dimension_scores || [
+                                            { name: 'Technical Accuracy', score: currentEvaluation?.overall_score ?? 0, feedback: 'Technical correctness and concept mastery.' },
+                                            { name: 'Structural Flow & STAR', score: currentEvaluation?.overall_score ?? 0, feedback: 'Logical flow and response structure.' },
+                                            { name: 'Depth & Edge Cases', score: currentEvaluation?.overall_score ?? 0, feedback: 'Proactive exploration of limits and trade-offs.' },
+                                            { name: 'Communication Clarity', score: currentEvaluation?.overall_score ?? 0, feedback: 'Articulation, concise terminology, and delivery.' }
+                                        ]).map((dim, dIdx) => {
                                             const scoreColor = dim.score >= 80 ? 'var(--success)' : dim.score >= 65 ? 'var(--warning)' : 'var(--danger)';
                                             return (
                                                 <div 
@@ -1678,13 +1804,14 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                         )
                     ) : (
                         /* STEP 2: GOOGLE MEET / ZOOM FULL-DUPLEX CALL STAGE */
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, justifyContent: 'space-between' }}>
                             {/* Two Video / Call Tiles */}
                             <div style={{
                                 display: 'grid',
                                 gridTemplateColumns: '1fr 1fr',
                                 gap: '1.25rem',
                                 flex: 1,
+                                minHeight: 0,
                                 marginBottom: '1rem'
                             }}>
                                 {/* Tile 1: AI Senior Interviewer */}
@@ -1698,7 +1825,9 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                     padding: '1.5rem',
                                     position: 'relative',
                                     boxShadow: isAiSpeaking ? '0 0 25px rgba(99, 102, 241, 0.25)' : 'none',
-                                    transition: 'all 0.3s ease'
+                                    transition: 'all 0.3s ease',
+                                    minHeight: 0,
+                                    overflow: 'hidden'
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1722,7 +1851,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                     </div>
 
                                     {/* Center AI Avatar with Audio Pulse */}
-                                    <div style={{ textAlign: 'center', margin: 'auto 0' }}>
+                                    <div style={{ textAlign: 'center', margin: 'auto 0', flexShrink: 0 }}>
                                         <div style={{
                                             width: 90,
                                             height: 90,
@@ -1757,8 +1886,12 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                         color: 'var(--text-primary)',
                                         lineHeight: 1.4,
                                         minHeight: '52px',
+                                        maxHeight: '140px',
+                                        overflowY: 'auto',
+                                        wordBreak: 'break-word',
                                         display: 'flex',
-                                        alignItems: 'center'
+                                        alignItems: 'center',
+                                        flexShrink: 0
                                     }}>
                                         <em>"{latestAiSpeech || currentQuestion?.question}"</em>
                                     </div>
@@ -1775,7 +1908,9 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                     padding: '1.5rem',
                                     position: 'relative',
                                     boxShadow: isListening && !isMicMuted ? '0 0 25px rgba(16, 185, 129, 0.2)' : 'none',
-                                    transition: 'all 0.3s ease'
+                                    transition: 'all 0.3s ease',
+                                    minHeight: 0,
+                                    overflow: 'hidden'
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span className="badge badge-neutral" style={{ fontSize: '0.75rem' }}>
@@ -1818,7 +1953,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                     </div>
 
                                     {/* Candidate Center Avatar */}
-                                    <div style={{ textAlign: 'center', margin: 'auto 0' }}>
+                                    <div style={{ textAlign: 'center', margin: 'auto 0', flexShrink: 0 }}>
                                         <div style={{
                                             width: 90,
                                             height: 90,
@@ -1843,31 +1978,40 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                     </div>
 
                                     {/* Live Candidate Speech Caption */}
-                                    <div style={{
-                                        backgroundColor: 'rgba(15, 23, 42, 0.85)',
-                                        padding: '0.85rem 1rem',
-                                        borderRadius: 'var(--radius-md)',
-                                        border: '1px solid var(--border-subtle)',
-                                        fontSize: '0.825rem',
-                                        color: transcript || interimTranscript ? 'var(--success)' : 'var(--text-muted)',
-                                        lineHeight: 1.4,
-                                        minHeight: '52px',
-                                        display: 'flex',
-                                        alignItems: 'center'
-                                    }}>
+                                    <div 
+                                        ref={transcriptContainerRef}
+                                        style={{
+                                            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                                            padding: '0.85rem 1rem',
+                                            borderRadius: 'var(--radius-md)',
+                                            border: '1px solid var(--border-subtle)',
+                                            fontSize: '0.825rem',
+                                            color: transcript || interimTranscript ? 'var(--success)' : 'var(--text-muted)',
+                                            lineHeight: 1.45,
+                                            minHeight: '52px',
+                                            maxHeight: '140px',
+                                            overflowY: 'auto',
+                                            wordBreak: 'break-word',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            justifyContent: transcript || interimTranscript ? 'flex-start' : 'center',
+                                            flexShrink: 0
+                                        }}>
                                         {isAiSpeaking ? (
                                             <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
                                                 Listening to Sarah Chen... Your mic will automatically activate when she finishes speaking.
                                             </span>
                                         ) : transcript || interimTranscript ? (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                <span>{transcript} {interimTranscript ? `(${interimTranscript}...)` : ''}</span>
-                                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                                    ⏱️ AI will auto-submit after 10s of silence, or click "Done Speaking" below.
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                                <span style={{ whiteSpace: 'pre-wrap' }}>
+                                                    {transcript} {interimTranscript ? `(${interimTranscript}...)` : ''}
+                                                </span>
+                                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.25rem', marginTop: '0.25rem' }}>
+                                                    🎙️ Continuous listening active (take your time). Click "Done Speaking" below when finished.
                                                 </span>
                                             </div>
                                         ) : (
-                                            "Speak your technical explanation... AI will auto-submit after 10s of silence, or click 'Done Speaking'."
+                                            <span>Speak your technical explanation at your own pace... Click <strong>"Done Speaking"</strong> below when finished.</span>
                                         )}
                                     </div>
                                 </div>
@@ -1936,7 +2080,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                         variant="primary" 
                                         size="sm" 
                                         onClick={handleManualSubmitVoiceAnswer}
-                                        disabled={isAiSpeaking || isAiThinking || (!transcript && !transcriptAccumulatorRef.current && !interimTranscript)}
+                                        disabled={isAiSpeaking || isAiThinking || (!transcript && !transcriptAccumulatorRef.current && !committedPriorTextRef.current && !interimTranscript)}
                                         isLoading={isAiThinking}
                                         leftIcon={<Send size={14}/>}
                                         style={{

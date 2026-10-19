@@ -65,11 +65,33 @@ export const categorizeSkillsList = (skillNames = []) => {
 };
 
 const getInitialResumeData = (profile) => {
+    const candidateName = profile?.full_name?.trim() || 'Nikhil Ingale';
+    const slug = candidateName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'nikhilingale';
+    const defaultEmail = profile?.email || `${slug}.dev@gmail.com`;
+    const defaultLinkedin = profile?.linkedin_url || `linkedin.com/in/${slug}`;
+    const defaultGithub = profile?.github_url || `github.com/${slug}`;
+    const defaultPortfolio = profile?.portfolio_url || `https://${slug}.dev`;
+
     try {
         const saved = localStorage.getItem('careeros_resume_data');
         if (saved) {
             const parsed = JSON.parse(saved);
             if (parsed && parsed.personal && parsed.education) {
+                // If profile has real name and links contain legacy placeholder 'aarav', modernize them
+                if (profile?.full_name && parsed.personal.fullName !== profile.full_name) {
+                    parsed.personal.fullName = profile.full_name;
+                }
+                const name = parsed.personal?.fullName || candidateName;
+                const activeSlug = name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'nikhilingale';
+                if (!parsed.personal.linkedin || parsed.personal.linkedin.includes('aarav')) {
+                    parsed.personal.linkedin = profile?.linkedin_url || `linkedin.com/in/${activeSlug}`;
+                }
+                if (!parsed.personal.github || parsed.personal.github.includes('aarav')) {
+                    parsed.personal.github = profile?.github_url || `github.com/${activeSlug}`;
+                }
+                if (!parsed.personal.portfolio || parsed.personal.portfolio.includes('aarav')) {
+                    parsed.personal.portfolio = profile?.portfolio_url || `https://${activeSlug}.dev`;
+                }
                 return parsed;
             }
         }
@@ -79,14 +101,14 @@ const getInitialResumeData = (profile) => {
 
     return {
         personal: {
-            fullName: profile?.full_name || 'Aarav Sharma',
+            fullName: candidateName,
             targetRole: profile?.target_role || 'Backend Software Engineer',
-            email: profile?.email || 'aarav.sharma@example.com',
+            email: defaultEmail,
             phone: profile?.phone || '+91 98765 43210',
             location: profile?.location || 'Bengaluru, India',
-            linkedin: profile?.linkedin_url || 'linkedin.com/in/aarav-sharma',
-            github: profile?.github_url || 'github.com/aaravsharma',
-            portfolio: profile?.portfolio_url || 'https://aarav.dev',
+            linkedin: defaultLinkedin,
+            github: defaultGithub,
+            portfolio: defaultPortfolio,
             summary: profile?.bio || 'Results-driven Backend Engineer specializing in high-throughput distributed systems, microservice architectures, and relational database tuning.'
         },
         education: [
@@ -180,6 +202,7 @@ export const AICareerStudioPage = () => {
     // Overleaf-Style LaTeX Resume Builder State
     const [resumeData, setResumeData] = useState(() => getInitialResumeData(profile));
     const [isImportingProfile, setIsImportingProfile] = useState(false);
+    const [mobileResumeView, setMobileResumeView] = useState('both'); // 'editor' | 'preview' | 'both'
 
     // Auto-persist resume modifications to localStorage
     useEffect(() => {
@@ -337,6 +360,23 @@ export const AICareerStudioPage = () => {
         return runLiveAtsCheck(resumeData, resumeData.personal?.targetRole || profile?.target_role || 'Java Backend Developer');
     }, [resumeData, profile?.target_role]);
 
+    // Persist real-time live ATS score to sync with Dashboard
+    useEffect(() => {
+        if (typeof liveAtsAudit?.totalScore === 'number') {
+            try {
+                localStorage.setItem('careeros_live_ats_score', JSON.stringify({
+                    score: liveAtsAudit.totalScore,
+                    grade: liveAtsAudit.grade,
+                    rating: liveAtsAudit.atsRating,
+                    role: resumeData.personal?.targetRole || profile?.target_role,
+                    updatedAt: new Date().toISOString()
+                }));
+            } catch (e) {
+                // Ignore storage errors
+            }
+        }
+    }, [liveAtsAudit?.totalScore, liveAtsAudit?.grade, liveAtsAudit?.atsRating, resumeData.personal?.targetRole, profile?.target_role]);
+
     useEffect(() => {
         aiFastApiService.checkHealth().then(res => setBackendOnline(res.isOnline));
         aiFastApiService.getCompaniesKnowledge().then(comps => {
@@ -381,19 +421,31 @@ export const AICareerStudioPage = () => {
             {/* Page Header */}
             <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
-                        <span className="badge badge-purple" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                            <Database size={13} /> RAG Domain-Grounded AI Engine
-                        </span>
-                        {backendOnline !== null && (
-                            <span className={`badge ${backendOnline ? 'badge-success' : 'badge-neutral'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem' }}>
-                                <Activity size={11} /> {backendOnline ? 'FastAPI :8000 Live' : 'Offline Mode (Local Fallback)'}
+                    <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                        AI Career Studio
+                        {backendOnline && (
+                            <span
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 600,
+                                    color: 'var(--text-muted)',
+                                    padding: '0.15rem 0.5rem',
+                                    borderRadius: 'var(--radius-full)',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                                    border: '1px solid var(--border-subtle)'
+                                }}
+                                title="FastAPI LLM Engine Connected"
+                            >
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)' }} />
+                                AI Engine Active
                             </span>
                         )}
-                    </div>
-                    <h1 className="page-title">AI Career Studio</h1>
+                    </h1>
                     <p className="page-subtitle">
-                        Build <strong>Overleaf-Grade LaTeX Resumes with Live Preview</strong> and generate <strong>Company-Grounded Cover Letters & Recruiter Outreach via RAG</strong>.
+                        Build <strong>Overleaf-Grade LaTeX Resumes with Live Preview</strong> and generate <strong>Tailored Outreach</strong>.
                     </p>
                 </div>
             </div>
@@ -463,31 +515,99 @@ export const AICareerStudioPage = () => {
                         showToast={showToast}
                     />
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(380px, 1fr) minmax(460px, 1fr)', gap: '1.75rem', alignItems: 'start' }}>
-                        {/* Left Pane: Interactive Structured Form with Add/Remove & Spacing */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <ResumeBuilder
-                                initialProfile={profile}
-                                resumeData={resumeData}
-                                setResumeData={setResumeData}
-                                settings={resumeSettings}
-                                setSettings={setResumeSettings}
-                                onDownloadPdf={handleDownloadPdf}
-                                isDownloadingPdf={isDownloadingPdf}
-                                onImportFromProfile={handleImportFromCareerProfile}
-                                isImportingProfile={isImportingProfile}
-                                showToast={showToast}
-                            />
-                        </div>
-
-                        {/* Right Pane: Live Overleaf-Style LaTeX / PDF Preview */}
+                    {/* Mobile Screen View Switcher */}
+                    <div className="resume-mobile-toggle">
                         <div style={{
-                            position: 'sticky',
-                            top: '1rem',
-                            display: 'flex',
-                            flexDirection: 'column',
+                            display: 'inline-flex',
+                            backgroundColor: 'var(--bg-secondary)',
+                            borderRadius: 'var(--radius-full)',
+                            padding: '3px',
+                            border: '1px solid var(--border-color)',
+                            gap: '2px'
+                        }}>
+                            <button
+                                type="button"
+                                onClick={() => setMobileResumeView('editor')}
+                                style={{
+                                    padding: '5px 14px',
+                                    borderRadius: 'var(--radius-full)',
+                                    border: 'none',
+                                    backgroundColor: mobileResumeView === 'editor' ? 'var(--primary)' : 'transparent',
+                                    color: mobileResumeView === 'editor' ? '#fff' : 'var(--text-muted)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease'
+                                }}
+                            >
+                                Edit Form
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setMobileResumeView('preview')}
+                                style={{
+                                    padding: '5px 14px',
+                                    borderRadius: 'var(--radius-full)',
+                                    border: 'none',
+                                    backgroundColor: mobileResumeView === 'preview' ? 'var(--primary)' : 'transparent',
+                                    color: mobileResumeView === 'preview' ? '#fff' : 'var(--text-muted)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease'
+                                }}
+                            >
+                                Preview PDF
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setMobileResumeView('both')}
+                                style={{
+                                    padding: '5px 14px',
+                                    borderRadius: 'var(--radius-full)',
+                                    border: 'none',
+                                    backgroundColor: mobileResumeView === 'both' ? 'var(--primary)' : 'transparent',
+                                    color: mobileResumeView === 'both' ? '#fff' : 'var(--text-muted)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease'
+                                }}
+                            >
+                                Stacked
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="resume-studio-grid">
+                        {/* Left Pane: Interactive Structured Form with Add/Remove & Spacing */}
+                        {(mobileResumeView === 'editor' || mobileResumeView === 'both') && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <ResumeBuilder
+                                    initialProfile={profile}
+                                    resumeData={resumeData}
+                                    setResumeData={setResumeData}
+                                    settings={resumeSettings}
+                                    setSettings={setResumeSettings}
+                                    onDownloadPdf={handleDownloadPdf}
+                                    isDownloadingPdf={isDownloadingPdf}
+                                    onImportFromProfile={handleImportFromCareerProfile}
+                                    isImportingProfile={isImportingProfile}
+                                    showToast={showToast}
+                                />
+                            </div>
+                        )}
+
+                        {/* Right Pane: Live Overleaf-Style LaTeX / PDF Preview (Sticky Hero Canvas) */}
+                        {(mobileResumeView === 'preview' || mobileResumeView === 'both') && (
+                            <div className="resume-preview-sticky" style={{
+                                position: 'sticky',
+                                top: '1rem',
+                                display: 'flex',
+                                flexDirection: 'column',
                             gap: '0.75rem',
-                            maxHeight: 'calc(100vh - 40px)',
+                            height: 'calc(100vh - 2rem)',
+                            maxHeight: 'calc(100vh - 2rem)',
                             overflowY: 'auto',
                             paddingRight: '4px'
                         }}>
@@ -505,25 +625,6 @@ export const AICareerStudioPage = () => {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                     <Badge variant="success">LIVE PDF PREVIEW</Badge>
 
-                                    {/* Compact Live ATS Score Indicator */}
-                                    <span
-                                        style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '0.25rem',
-                                            fontSize: '0.72rem',
-                                            fontWeight: 700,
-                                            padding: '2px 7px',
-                                            borderRadius: '4px',
-                                            backgroundColor: liveAtsAudit.totalScore >= 80 ? 'rgba(34, 197, 94, 0.15)' : (liveAtsAudit.totalScore >= 60 ? 'rgba(234, 179, 8, 0.15)' : 'rgba(239, 68, 68, 0.15)'),
-                                            color: liveAtsAudit.totalScore >= 80 ? 'var(--success)' : (liveAtsAudit.totalScore >= 60 ? 'var(--warning)' : 'var(--danger)'),
-                                            border: `1px solid ${liveAtsAudit.totalScore >= 80 ? 'rgba(34, 197, 94, 0.3)' : (liveAtsAudit.totalScore >= 60 ? 'rgba(234, 179, 8, 0.3)' : 'rgba(239, 68, 68, 0.3)')}`
-                                        }}
-                                        title={`Live ATS Score: ${liveAtsAudit.totalScore}/100 (${liveAtsAudit.atsRating})`}
-                                    >
-                                        🎯 ATS {liveAtsAudit.totalScore}/100 ({liveAtsAudit.grade})
-                                    </span>
-                                    
                                     {/* Overleaf-style Zoom controls */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginLeft: '0.25rem' }}>
                                         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>ZOOM:</span>
@@ -616,9 +717,10 @@ export const AICareerStudioPage = () => {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
+            </div>
+        )}
 
             {/* ========================================================================= */}
             {/* TAB 1: UNIFIED COVER LETTER & RECRUITER OUTREACH HUB */}

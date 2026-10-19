@@ -23,6 +23,9 @@ import {
     ShieldCheck
 } from 'lucide-react';
 import { simulationService } from '../services/simulationService';
+import { profileService } from '../services/profileService';
+import { calculateCareerReadiness } from '../utils/careerRoles';
+import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { InconvenienceNotice } from '../components/common/InconvenienceNotice';
 
@@ -30,6 +33,7 @@ export const SimulationWorkspacePage = () => {
     const { trackKey } = useParams();
     const navigate = useNavigate();
     const toast = useToast();
+    const { user, profile } = useAuth();
 
     const [track, setTrack] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -178,6 +182,20 @@ export const SimulationWorkspacePage = () => {
                         selectedLanguage,
                         completedTickets: updated
                     });
+
+                    // Sync updated Career Readiness score to Supabase
+                    try {
+                        const uid = user?.id || profile?.user_id;
+                        if (uid) {
+                            const newScore = calculateCareerReadiness([], profile?.target_role || 'Software Engineer', profile, {
+                                simulationProgress: { completedTickets: updated },
+                                hasResume: Boolean(profile?.resume_url)
+                            });
+                            profileService.updateProfile(uid, { career_readiness: newScore });
+                        }
+                    } catch (syncErr) {
+                        console.warn('Could not auto-sync simulation readiness to Supabase:', syncErr);
+                    }
                 }
             } else {
                 toast?.warning?.('Staff Engineer Marcus requested revisions. Review feedback below.');

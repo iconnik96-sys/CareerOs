@@ -4,7 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { interviewService } from '../services/interviewService';
 import { aiFastApiService } from '../services/aiFastApiService';
-import { getRoleSlug, getRoleDisplayName, ROLE_TOPICS_MAP } from '../utils/careerRoles';
+import { profileService } from '../services/profileService';
+import { getRoleSlug, getRoleDisplayName, ROLE_TOPICS_MAP, calculateCareerReadiness } from '../utils/careerRoles';
 import {
   Sparkles, CheckCircle2, Eye, EyeOff, Lightbulb, Check, RefreshCw, Send,
   HelpCircle, Plus, Mic, Play, Radio, Filter, SlidersHorizontal, Keyboard,
@@ -263,6 +264,25 @@ export const InterviewPrepPage = () => {
       setTestEvaluation(evalResult);
       setTestSubmitted(true);
       showToast(`Assessment submitted! Score: ${evalResult.overall_score}/100 (${evalResult.grade})`, 'success');
+
+      // Persist interview evaluation locally and update Career Readiness in Supabase
+      try {
+        localStorage.setItem('careeros_latest_interview_eval', JSON.stringify({
+          overall_score: evalResult.overall_score,
+          grade: evalResult.grade,
+          date: new Date().toISOString()
+        }));
+        const uid = profile?.user_id;
+        if (uid) {
+          const newScore = calculateCareerReadiness([], targetRole, profile, {
+            interviewScore: evalResult.overall_score,
+            hasResume: Boolean(profile?.resume_url)
+          });
+          profileService.updateProfile(uid, { career_readiness: newScore });
+        }
+      } catch (syncErr) {
+        console.warn('Could not auto-sync readiness score to Supabase:', syncErr);
+      }
     } catch (err) {
       console.error('Final evaluation error:', err);
       setTestEvaluation(null);

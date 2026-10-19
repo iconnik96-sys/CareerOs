@@ -558,9 +558,14 @@ export function isSkillMatch(skillA, skillB) {
 }
 
 /**
- * Computes a realistic, objective Career Readiness Index (0-100%)
+ * Computes the modern, 5-Pillar Career Readiness Breakdown
+ * 1. Role Skill Alignment (Max: 25 pts)
+ * 2. ATS Resume Quality & Keywords (Max: 20 pts)
+ * 3. Mock Interview Performance (Max: 20 pts)
+ * 4. Workplace Simulation / Virtual Internship (Max: 20 pts)
+ * 5. Portfolio & Project Proof (Max: 15 pts)
  */
-export function calculateCareerReadiness(userSkills = [], targetRole = '', profile = {}, extraData = {}) {
+export function calculateCareerReadinessBreakdown(userSkills = [], targetRole = '', profile = {}, extraData = {}) {
     const roleSlug = getRoleSlug(targetRole);
     const displayName = getRoleDisplayName(roleSlug);
     const requiredSkills = ROLE_SKILLS_MAP[displayName] || DEFAULT_FALLBACK_SKILLS;
@@ -569,6 +574,7 @@ export function calculateCareerReadiness(userSkills = [], targetRole = '', profi
         ? userSkills.map(s => (typeof s === 'string' ? s : s?.skill?.name || s?.name || '')).filter(Boolean)
         : [];
 
+    // --- PILLAR 1: Role Skill Alignment (Max 25 pts) ---
     let matchedCount = 0;
     for (const req of requiredSkills) {
         if (userSkillNames.some(u => isSkillMatch(u, req))) {
@@ -576,22 +582,162 @@ export function calculateCareerReadiness(userSkills = [], targetRole = '', profi
         }
     }
     const skillRatio = requiredSkills.length > 0 ? (matchedCount / requiredSkills.length) : 0;
-    const skillScore = Math.round(skillRatio * 65);
+    const skillScore = Math.round(skillRatio * 25);
 
-    let profileScore = 0;
-    if (profile?.full_name?.trim()) profileScore += 4;
-    if (profile?.degree?.trim()) profileScore += 4;
-    if (profile?.target_role?.trim()) profileScore += 4;
-    if (profile?.location?.trim()) profileScore += 4;
-    if (profile?.college?.trim() || profile?.bio?.trim()) profileScore += 4;
+    // --- PILLAR 2: ATS Resume Quality (Max 20 pts) ---
+    let atsScoreVal = extraData.atsScore;
+    if (typeof atsScoreVal !== 'number') {
+        try {
+            const cachedAts = typeof window !== 'undefined' ? localStorage.getItem('careeros_live_ats_score') : null;
+            if (cachedAts) {
+                const parsedAts = JSON.parse(cachedAts);
+                if (typeof parsedAts?.score === 'number') {
+                    atsScoreVal = parsedAts.score;
+                }
+            }
+        } catch {}
+    }
+    let atsScore = 0;
+    if (typeof atsScoreVal === 'number' && atsScoreVal > 0) {
+        atsScore = Math.round((Math.min(100, atsScoreVal) / 100) * 20);
+    } else if (extraData.hasResume || profile?.resume_url) {
+        atsScore = 16; // Default verified resume baseline (~80% ATS)
+    } else {
+        atsScore = 5; // Starter drafting baseline
+    }
 
-    let bonusScore = 0;
-    if (extraData.hasResume || profile?.resume_url) bonusScore += 8;
-    if (extraData.projectCount > 0) bonusScore += Math.min(7, extraData.projectCount * 3.5);
-    else if (userSkillNames.length > 3) bonusScore += 5;
+    // --- PILLAR 3: Mock Interview Performance (Max 20 pts) ---
+    let interviewScoreVal = extraData.interviewScore;
+    if (typeof interviewScoreVal !== 'number') {
+        try {
+            const savedEval = typeof window !== 'undefined' ? localStorage.getItem('careeros_latest_interview_eval') : null;
+            if (savedEval) {
+                const parsed = JSON.parse(savedEval);
+                if (typeof parsed?.overall_score === 'number') {
+                    interviewScoreVal = parsed.overall_score;
+                }
+            }
+        } catch {}
+    }
+    let interviewScore = 0;
+    if (typeof interviewScoreVal === 'number' && interviewScoreVal > 0) {
+        interviewScore = Math.round((Math.min(100, interviewScoreVal) / 100) * 20);
+    } else if (extraData.interviewCount > 0) {
+        interviewScore = Math.min(16, 8 + extraData.interviewCount * 4);
+    } else {
+        interviewScore = 6; // Graceful cold-start baseline (encourages 1st practice)
+    }
 
-    const total = Math.min(98, Math.max(5, skillScore + profileScore + bonusScore));
-    return Math.round(total);
+    // --- PILLAR 4: Workplace Simulation / Virtual Internship (Max 20 pts) ---
+    let simProgress = extraData.simulationProgress;
+    if (!simProgress) {
+        try {
+            const rawSim = typeof window !== 'undefined' ? localStorage.getItem('careeros_sim_progress_finpulse-payments') : null;
+            if (rawSim) {
+                simProgress = JSON.parse(rawSim);
+            }
+        } catch {}
+    }
+    let simScore = 5; // Base starter points for having assigned simulation track
+    const completedTickets = Array.isArray(simProgress?.completedTickets) ? simProgress.completedTickets.length : 0;
+    if (completedTickets > 0) {
+        simScore = Math.min(20, 5 + (completedTickets * 3.75));
+        if (completedTickets >= 4) simScore = 20; // 100% on FinPulse completion
+    }
+    simScore = Math.round(simScore);
+
+    // --- PILLAR 5: Portfolio Projects & Profile Integrity (Max 15 pts) ---
+    let profilePts = 0;
+    if (profile?.full_name?.trim()) profilePts += 1.5;
+    if (profile?.degree?.trim()) profilePts += 1.5;
+    if (profile?.target_role?.trim()) profilePts += 1.5;
+    if (profile?.location?.trim()) profilePts += 1.5;
+    if (profile?.college?.trim() || profile?.bio?.trim()) profilePts += 1.0;
+
+    let projectPts = 0;
+    const pCount = extraData.projectCount ?? 0;
+    if (pCount >= 2) projectPts = 8;
+    else if (pCount === 1) projectPts = 4.5;
+    else if (userSkillNames.length > 3) projectPts = 3;
+
+    const portfolioScore = Math.min(15, Math.round(profilePts + projectPts));
+
+    // Composite total (clamped 5 - 98)
+    const rawTotal = skillScore + atsScore + interviewScore + simScore + portfolioScore;
+    const overallScore = Math.min(98, Math.max(5, Math.round(rawTotal)));
+
+    const pillars = [
+        {
+            id: 'skills',
+            name: 'Role Skill Alignment',
+            score: skillScore,
+            maxScore: 25,
+            percentage: Math.round((skillScore / 25) * 100),
+            detail: `${matchedCount}/${requiredSkills.length} skills matched`,
+            color: '#3b82f6',
+            actionText: 'Add Skills',
+            actionLink: '/profile'
+        },
+        {
+            id: 'ats',
+            name: 'ATS Resume Quality',
+            score: atsScore,
+            maxScore: 20,
+            percentage: Math.round((atsScore / 20) * 100),
+            detail: atsScoreVal ? `ATS Score: ${atsScoreVal}/100` : (extraData.hasResume || profile?.resume_url ? 'Resume Verified' : 'Draft Resume'),
+            color: '#8b5cf6',
+            actionText: 'Audit Resume',
+            actionLink: '/ai-studio'
+        },
+        {
+            id: 'interview',
+            name: 'Mock Interview Drill',
+            score: interviewScore,
+            maxScore: 20,
+            percentage: Math.round((interviewScore / 20) * 100),
+            detail: interviewScoreVal ? `Interview Score: ${interviewScoreVal}/100` : 'Practice round recommended',
+            color: '#ec4899',
+            actionText: 'Practice Mock',
+            actionLink: '/interview-prep'
+        },
+        {
+            id: 'simulation',
+            name: 'Virtual Internship (PRs)',
+            score: simScore,
+            maxScore: 20,
+            percentage: Math.round((simScore / 20) * 100),
+            detail: `${completedTickets}/4 FinPulse tickets approved`,
+            color: '#10b981',
+            actionText: 'Code Tickets',
+            actionLink: '/simulations'
+        },
+        {
+            id: 'portfolio',
+            name: 'Portfolio & Profile Proof',
+            score: portfolioScore,
+            maxScore: 15,
+            percentage: Math.round((portfolioScore / 15) * 100),
+            detail: `${pCount} project${pCount === 1 ? '' : 's'} linked`,
+            color: '#f59e0b',
+            actionText: 'Add Projects',
+            actionLink: '/profile'
+        }
+    ];
+
+    return {
+        overallScore,
+        pillars,
+        targetRole: displayName,
+        matchedCount,
+        totalRequired: requiredSkills.length
+    };
+}
+
+/**
+ * Computes a realistic, objective Career Readiness Index (0-100%)
+ */
+export function calculateCareerReadiness(userSkills = [], targetRole = '', profile = {}, extraData = {}) {
+    return calculateCareerReadinessBreakdown(userSkills, targetRole, profile, extraData).overallScore;
 }
 
 /**

@@ -5,8 +5,9 @@ import { applicationService } from '../services/applicationService';
 import { jobService } from '../services/jobService';
 import { profileService } from '../services/profileService';
 import { projectService } from '../services/projectService';
-import { calculateCareerReadiness, getSkillGapsForRole, getRecommendedActionsForRole, getRoleDisplayName } from '../utils/careerRoles';
-import { Layers, Users, Award, TrendingUp, ArrowRight, Briefcase, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
+import { calculateCareerReadiness, calculateCareerReadinessBreakdown, getSkillGapsForRole, getRecommendedActionsForRole, getRoleDisplayName } from '../utils/careerRoles';
+import { getActiveAtsScore } from '../utils/atsResumeChecker';
+import { Layers, Users, Award, TrendingUp, ArrowRight, Briefcase, CheckCircle2, AlertCircle, Calendar, Sparkles, CheckCircle } from 'lucide-react';
 import { CircularProgress } from '../components/common/CircularProgress';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { Badge } from '../components/common/Badge';
@@ -41,12 +42,17 @@ export const DashboardPage = () => {
 
     const stats = applicationService.getStats(applications);
 
-    // Calculate dynamic accurate career readiness
-    const calculatedReadiness = calculateCareerReadiness(userSkills, targetRole, profile, {
+    // Compute live deterministic ATS resume score (81 for starter, or live user score)
+    const activeAtsScore = getActiveAtsScore(roleDisplayName, profile);
+
+    // Calculate dynamic accurate 5-pillar career readiness
+    const readinessBreakdown = calculateCareerReadinessBreakdown(userSkills, targetRole, profile, {
         projectCount: projects.length,
-        hasResume: Boolean(profile?.resume_url)
+        hasResume: Boolean(profile?.resume_url),
+        atsScore: activeAtsScore
     });
 
+    const calculatedReadiness = readinessBreakdown.overallScore;
     const readiness = calculatedReadiness > 0 ? calculatedReadiness : (profile?.career_readiness || 0);
 
     // Persist dynamic readiness to profile table in Supabase so Founder Admin reflects it
@@ -158,6 +164,95 @@ export const DashboardPage = () => {
               <span className="text-xs text-muted">Industry benchmark: 8%</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* 5-Pillar Career Readiness Diagnostic Scorecard */}
+      <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem', border: '1px solid var(--border-color)', background: 'linear-gradient(180deg, var(--bg-card) 0%, rgba(15, 23, 42, 0.4) 100%)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Sparkles size={18} className="text-primary-accent" />
+              <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                5-Pillar Career Readiness Diagnostics
+              </h3>
+              <span className="badge badge-primary" style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}>
+                Verified Cloud Index
+              </span>
+            </div>
+            <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+              Continuously calibrated across verified skills, ATS resume audit, mock interview scoring, and FinPulse virtual internship PRs.
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.4rem 0.85rem', background: 'var(--bg-tertiary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Target Role:</span>
+            <span style={{ fontWeight: 700, fontSize: '0.875rem', color: '#fff' }}>{roleDisplayName}</span>
+            <span style={{ color: 'var(--border-color)' }}>|</span>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Overall:</span>
+            <span style={{ fontWeight: 800, fontSize: '1.1rem', color: readiness >= 80 ? 'var(--success)' : readiness >= 60 ? 'var(--primary)' : 'var(--warning)' }}>
+              {readiness}%
+            </span>
+          </div>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+          gap: '1rem'
+        }}>
+          {(readinessBreakdown?.pillars || []).map((pillar) => (
+            <div
+              key={pillar.id}
+              style={{
+                backgroundColor: 'var(--bg-tertiary)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                transition: 'transform var(--transition-fast), border-color var(--transition-fast)'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    {pillar.name}
+                  </span>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 800, color: pillar.color }}>
+                    {pillar.score}/{pillar.maxScore}
+                  </span>
+                </div>
+                <div style={{ width: '100%', height: '6px', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden', marginBottom: '0.65rem' }}>
+                  <div style={{ width: `${pillar.percentage}%`, height: '100%', backgroundColor: pillar.color, borderRadius: '3px', transition: 'width 0.4s ease' }} />
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, minHeight: '34px', lineHeight: '1.4' }}>
+                  {pillar.detail}
+                </p>
+              </div>
+
+              <Link
+                to={pillar.actionLink}
+                style={{
+                  marginTop: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: pillar.color,
+                  padding: '0.35rem 0.5rem',
+                  borderRadius: '4px',
+                  backgroundColor: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  textDecoration: 'none'
+                }}
+              >
+                <span>{pillar.actionText}</span>
+                <ArrowRight size={12} />
+              </Link>
+            </div>
+          ))}
         </div>
       </div>
 

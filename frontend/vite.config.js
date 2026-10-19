@@ -5,10 +5,8 @@ import path from 'path';
 
 const currentDir = typeof import.meta.dirname !== 'undefined' ? import.meta.dirname : process.cwd();
 
-// If .env exists in current directory (frontend/), use it; otherwise check parent directory (root)
-const envDir = fs.existsSync(path.resolve(currentDir, '.env'))
-  ? currentDir
-  : (fs.existsSync(path.resolve(currentDir, '..', '.env')) ? path.resolve(currentDir, '..') : currentDir);
+// Always load environment variables from the single unified project root (.env)
+const envDir = path.resolve(currentDir, '..');
 
 // https://vite.dev/config/
 export default defineConfig({

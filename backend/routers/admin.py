@@ -40,8 +40,11 @@ def get_admin_metrics(founder_email: Optional[str] = None):
     pro_est_tokens = 150_000
     ult_est_tokens = 500_000
     
-    cost_per_pro = round((pro_est_tokens / 1_000_000) * 55 + 3.5, 2)
-    cost_per_ult = round((ult_est_tokens / 1_000_000) * 55 + 7.0, 2)
+    rate_info = usage_tracker.get_rate_for_model(llm_engine.model)
+    avg_rate = round((rate_info["input"] + rate_info["output"]) / 2, 2)
+    
+    cost_per_pro = round((pro_est_tokens / 1_000_000) * avg_rate + 3.5, 2)
+    cost_per_ult = round((ult_est_tokens / 1_000_000) * avg_rate + 7.0, 2)
     
     margin_pro = round(((149 - cost_per_pro) / 149) * 100, 1)
     margin_ult = round(((249 - cost_per_ult) / 249) * 100, 1)
@@ -49,9 +52,13 @@ def get_admin_metrics(founder_email: Optional[str] = None):
     return {
         "status": "success",
         "founder_email": FOUNDER_EMAIL,
+        "current_provider": llm_engine.provider_display_name,
+        "provider_id": llm_engine.provider,
         "current_model": llm_engine.model,
-        "available_models": FALLBACK_MODELS,
+        "available_models": llm_engine.available_models,
+        "ai_configured": llm_engine.is_available(),
         "groq_configured": llm_engine.is_available(),
+        "rate_info": rate_info,
         "usage": {
             "total_requests": stats["total_requests"],
             "successful_requests": stats["successful_requests"],
@@ -60,7 +67,7 @@ def get_admin_metrics(founder_email: Optional[str] = None):
             "total_completion_tokens": stats["total_completion_tokens"],
             "total_tokens": stats["total_tokens"],
             "total_cost_inr": stats["total_cost_inr"],
-            "cost_per_million_inr": 55.0,
+            "cost_per_million_inr": avg_rate,
         },
         "plan_economics": {
             "pro_plan": {
@@ -83,13 +90,10 @@ def get_admin_metrics(founder_email: Optional[str] = None):
 
 @router.post("/switch-model")
 def switch_active_model(req: ModelSwitchRequest):
-    """Allows founder to toggle primary model between 70b and 8b instant for cost control."""
+    """Allows founder to toggle primary model on the fly for cost control."""
     target = req.model.strip()
-    if target not in FALLBACK_MODELS and target != "default":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid model. Choose from: {FALLBACK_MODELS}"
-        )
+    if not target:
+        raise HTTPException(status_code=400, detail="Model name cannot be empty.")
     
     if target == "default":
         usage_tracker.set_active_model(None)
@@ -99,7 +103,9 @@ def switch_active_model(req: ModelSwitchRequest):
     return {
         "status": "success",
         "message": f"Active model successfully switched to: {llm_engine.model}",
-        "active_model": llm_engine.model
+        "active_model": llm_engine.model,
+        "provider": llm_engine.provider_display_name,
+        "rate_info": usage_tracker.get_rate_for_model(llm_engine.model)
     }
 
 @router.post("/reset-metrics")

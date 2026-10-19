@@ -47,9 +47,14 @@ export const DashboardPage = () => {
         hasResume: Boolean(profile?.resume_url)
     });
 
-    const readiness = (profile?.career_readiness && profile.career_readiness !== 75 && profile.career_readiness > 0)
-        ? profile.career_readiness
-        : calculatedReadiness;
+    const readiness = calculatedReadiness > 0 ? calculatedReadiness : (profile?.career_readiness || 0);
+
+    // Persist dynamic readiness to profile table in Supabase so Founder Admin reflects it
+    useEffect(() => {
+        if (user?.id && calculatedReadiness > 0 && profile && calculatedReadiness !== profile.career_readiness) {
+            profileService.updateProfile(user.id, { career_readiness: calculatedReadiness });
+        }
+    }, [user?.id, calculatedReadiness, profile?.career_readiness]);
 
     // Dynamic cohort classification
     const getCohortInfo = (score) => {

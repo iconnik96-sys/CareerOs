@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { profileService } from '../services/profileService';
 import { projectService } from '../services/projectService';
-import { ROLE_SKILLS_MAP, DEFAULT_FALLBACK_SKILLS } from '../utils/careerRoles';
+import { ROLE_SKILLS_MAP, DEFAULT_FALLBACK_SKILLS, calculateCareerReadiness } from '../utils/careerRoles';
 import { User, GraduationCap, Target, Wrench, FolderGit2, Plus, X, GitBranch, Globe, Trash2, Edit2, Save, Sparkles } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
@@ -133,6 +133,13 @@ export const CareerProfilePage = () => {
         if (!user?.id) return;
         setSaving(true);
         try {
+            const computedReadiness = calculateCareerReadiness(
+                userSkills,
+                targetRole,
+                { full_name: fullName, degree, college, location, target_role: targetRole, bio },
+                { hasResume: Boolean(profile?.resume_url) }
+            );
+
             await profileService.updateProfile(user.id, {
                 full_name: fullName,
                 degree,
@@ -142,7 +149,8 @@ export const CareerProfilePage = () => {
                 location,
                 experience_level: experienceLevel,
                 expected_salary: Number(expectedSalary),
-                bio
+                bio,
+                career_readiness: computedReadiness
             });
             await refreshProfile();
             showToast('Career profile updated successfully!', 'success', 'Saved');

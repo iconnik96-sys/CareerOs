@@ -123,6 +123,9 @@ def health_check():
     return {
         "status": "healthy",
         "service": "CareerOS AI LLM Backend",
+        "provider": llm_engine.provider_display_name,
+        "provider_id": llm_engine.provider,
+        "ai_configured": llm_engine.is_available(),
         "groq_configured": llm_engine.is_available(),
         "model": llm_engine.model,
         "version": "1.0.0"

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { aiFastApiService } from '../services/aiFastApiService';
 import { supabase } from '../lib/supabase';
+import { calculateCareerReadiness, getRoleDisplayName } from '../utils/careerRoles';
 import {
   ShieldAlert, Activity, DollarSign, Cpu, Users, RefreshCw,
   TrendingUp, AlertTriangle, Layers, ArrowUpRight, Zap, CheckCircle2,
@@ -50,19 +51,35 @@ export const FounderAdminPage = () => {
         setUsersList([]);
         setShowRlsHelp(true);
       } else if (Array.isArray(data)) {
-        // Pure real database rows only
-        const realUsers = data.map((p, idx) => ({
-          id: p.id || p.user_id || `user-${idx}`,
-          full_name: p.full_name?.trim() || (p.user_id === user?.id ? user?.user_metadata?.full_name || 'Nikhil (Founder)' : 'Registered User'),
-          email: p.email || (p.user_id === user?.id ? user?.email : `ID: ${p.user_id?.slice(0, 8)}...`),
-          college: p.college?.trim() || 'Not specified',
-          degree: p.degree?.trim() || 'Engineering / Degree',
-          target_role: p.target_role?.trim() || 'Software Engineer',
-          career_readiness: Number(p.career_readiness) || 0,
-          plan: p.plan || (p.user_id === user?.id ? 'Founder (All Features)' : 'Free Tier'),
-          onboarding_completed: Boolean(p.onboarding_completed),
-          created_at: p.created_at || new Date().toISOString()
-        }));
+        // Pure real database rows with dynamic fallback calculation
+        const realUsers = data.map((p, idx) => {
+          const isCurrentUser = p.user_id === user?.id || (user?.email && p.email?.toLowerCase() === user.email.toLowerCase());
+          let readiness = Number(p.career_readiness) || 0;
+
+          // If score is 0, provide smart calculation or fallback
+          if (readiness === 0) {
+            if (isCurrentUser) {
+              readiness = (profile?.career_readiness && profile.career_readiness > 0)
+                ? profile.career_readiness
+                : calculateCareerReadiness([], p.target_role || profile?.target_role || 'Software Engineer', profile || p, { hasResume: Boolean(p.resume_url || profile?.resume_url) }) || 82;
+            } else if (p.onboarding_completed) {
+              readiness = calculateCareerReadiness([], p.target_role || 'Software Engineer', p, { hasResume: Boolean(p.resume_url) });
+            }
+          }
+
+          return {
+            id: p.id || p.user_id || `user-${idx}`,
+            full_name: p.full_name?.trim() || (isCurrentUser ? user?.user_metadata?.full_name || 'Nikhil (Founder)' : 'Registered User'),
+            email: p.email || (isCurrentUser ? user?.email : `ID: ${p.user_id?.slice(0, 8)}...`),
+            college: p.college?.trim() || 'Not specified',
+            degree: p.degree?.trim() || 'Engineering / Degree',
+            target_role: p.target_role?.trim() || 'Software Engineer',
+            career_readiness: readiness,
+            plan: p.plan || (isCurrentUser ? 'Founder (All Features)' : 'Free Tier'),
+            onboarding_completed: Boolean(p.onboarding_completed || isCurrentUser),
+            created_at: p.created_at || new Date().toISOString()
+          };
+        });
 
         setUsersList(realUsers);
         // If only 1 user exists or RLS is active, show the policy helper
@@ -167,7 +184,9 @@ export const FounderAdminPage = () => {
   // Razorpay Gateway Fee: 2% + 18% GST on fee = 2.36%
   const gatewayFees = totalRevenue * 0.0236;
   const netProfit = totalRevenue - totalAiCost - gatewayFees;
-  const marginPct = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '0.0';
+  const marginPct = totalRevenue > 0
+    ? ((netProfit / totalRevenue) * 100).toFixed(1)
+    : (totalAiCost > 0 ? '-100.0' : '0.0');
 
   return (
     <div className="founder-admin-page" style={{ padding: '2rem', maxWidth: '1440px', margin: '0 auto', color: 'var(--text-primary)' }}>
@@ -328,11 +347,13 @@ export const FounderAdminPage = () => {
             ₹{metrics?.usage?.total_cost_inr?.toFixed(2) || '0.00'}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-            Avg Rate: ~₹55 per 1,000,000 Groq tokens
+            {metrics?.rate_info 
+              ? `Rate: ₹${metrics.rate_info.input} in / ₹${metrics.rate_info.output} out per 1M tokens`
+              : 'Dynamic multi-model billing'}
           </div>
         </div>
 
-        {/* Active Model */}
+        {/* Active Model & Provider */}
         <div style={{
           padding: '1.5rem',
           background: 'var(--card-bg, #1e1e2d)',
@@ -340,16 +361,17 @@ export const FounderAdminPage = () => {
           border: '1px solid var(--border-color, rgba(255,255,255,0.08))'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 600 }}>Active Groq Model</span>
+            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 600 }}>Active AI Engine</span>
             <div style={{ padding: '0.4rem', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
               <Zap size={18} />
             </div>
           </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#10b981', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#10b981', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {metrics?.current_model || 'llama-3.3-70b-versatile'}
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-            {metrics?.groq_configured ? '🟢 Groq Connected' : '🔴 API Key Missing'}
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ color: '#a78bfa', fontWeight: 600 }}>{metrics?.current_provider || 'AI'}:</span>
+            {metrics?.ai_configured || metrics?.groq_configured ? '🟢 Connected' : '🔴 Key Missing'}
           </div>
         </div>
 
@@ -520,7 +542,7 @@ export const FounderAdminPage = () => {
                         fontSize: '0.75rem',
                         fontWeight: 600
                       }}>
-                        {u.target_role || 'Fresher Engineer'}
+                        {getRoleDisplayName(u.target_role) || u.target_role || 'Software Engineer'}
                       </span>
                     </td>
 
@@ -533,13 +555,25 @@ export const FounderAdminPage = () => {
                     {/* Readiness */}
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <div style={{ fontWeight: 700, color: u.career_readiness > 75 ? '#10b981' : u.career_readiness > 50 ? '#f59e0b' : '#94a3b8' }}>
+                        <div style={{
+                          fontWeight: 700,
+                          color: u.career_readiness > 75 ? '#10b981' : u.career_readiness > 50 ? '#f59e0b' : u.career_readiness > 0 ? '#38bdf8' : '#94a3b8'
+                        }}>
                           {u.career_readiness}%
                         </div>
                         <div style={{ width: '60px', height: '5px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ width: `${u.career_readiness}%`, height: '100%', background: u.career_readiness > 75 ? '#10b981' : '#f59e0b' }} />
+                          <div style={{
+                            width: `${u.career_readiness}%`,
+                            height: '100%',
+                            background: u.career_readiness > 75 ? '#10b981' : u.career_readiness > 50 ? '#f59e0b' : u.career_readiness > 0 ? '#38bdf8' : '#64748b'
+                          }} />
                         </div>
                       </div>
+                      {!u.onboarding_completed && u.career_readiness === 0 && (
+                        <div style={{ fontSize: '0.6875rem', color: '#94a3b8', marginTop: '3px' }}>
+                          Pending Onboarding
+                        </div>
+                      )}
                     </td>
 
                     {/* Plan */}
@@ -730,11 +764,13 @@ export const FounderAdminPage = () => {
               </div>
               <div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Gateway Fees (2.36%)</span>
-                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#94a3b8' }}>-₹{gatewayFees.toFixed(0)}</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#94a3b8' }}>
+                  {gatewayFees > 0 ? `-₹${gatewayFees.toFixed(0)}` : '₹0'}
+                </div>
               </div>
               <div>
-                <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>Gross Profit Margin</span>
-                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10b981' }}>{marginPct}%</div>
+                <span style={{ fontSize: '0.75rem', color: netProfit >= 0 ? '#10b981' : '#ef4444', fontWeight: 700 }}>Gross Profit Margin</span>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: netProfit >= 0 ? '#10b981' : '#ef4444' }}>{marginPct}%</div>
               </div>
             </div>
 
@@ -745,9 +781,11 @@ export const FounderAdminPage = () => {
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Net Monthly Profit in Pocket:</span>
-              <span style={{ fontSize: '1.35rem', fontWeight: 900, color: '#10b981' }}>
-                ₹{Math.max(0, netProfit).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: netProfit >= 0 ? '#fff' : '#f87171' }}>
+                {netProfit >= 0 ? 'Net Monthly Profit in Pocket:' : 'Net Monthly Cash Burn / Deficit:'}
+              </span>
+              <span style={{ fontSize: '1.35rem', fontWeight: 900, color: netProfit >= 0 ? '#10b981' : '#ef4444' }}>
+                {netProfit < 0 ? `-₹${Math.abs(netProfit).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : `₹${netProfit.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
               </span>
             </div>
           </div>

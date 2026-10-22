@@ -6,7 +6,7 @@ import {
     Cpu, BookOpen, AlertCircle, RefreshCw, Send, Radio, Settings, Sliders,
     Clock, Timer, PhoneOff, Video, VideoOff, User, Bot, Activity,
     Download, FileText, Printer, Target, Check, Flame, TrendingUp, CheckCircle, ExternalLink, ThumbsUp,
-    SkipForward, ListChecks
+    SkipForward, ListChecks, Briefcase
 } from 'lucide-react';
 import { Card } from '../common/Card';
 import { Button } from '../common/Button';
@@ -28,12 +28,28 @@ import {
 
 export const INTERVIEW_MODES = [
     {
+        id: 'RESUME_PROJECTS',
+        title: 'Resume & Project Defense',
+        icon: <FileText size={22} className="text-warning" />,
+        badge: 'Recruiter Favorite',
+        description: 'Direct defense of your resume: deep-dive into your listed projects, claimed tech stack, and production architecture.',
+        topics: ['Project Architecture', 'Tech Stack Trade-offs', 'Scalability & Caching', 'Debugging & Incident Post-Mortems', 'Individual Ownership']
+    },
+    {
         id: 'TECHNICAL',
         title: 'Technical & Core CS',
         icon: <Cpu size={22} className="text-primary" />,
         badge: 'Top Choice',
         description: 'Deep dive into language internals, framework mechanisms, database concurrency, and OS/Networks.',
         topics: ['Core Fundamentals', 'Frameworks & Internals', 'Databases & Indexing', 'Concurrency & Threads', 'Security & OWASP']
+    },
+    {
+        id: 'SYSTEM_DESIGN',
+        title: 'System Design & Architecture',
+        icon: <BookOpen size={22} className="text-purple" />,
+        badge: 'Advanced',
+        description: 'Microservices architecture, caching layers, database sharding, rate limiting, and high availability.',
+        topics: ['URL Shortener', 'Distributed Rate Limiter', 'Notification System', 'Real-Time Chat Engine', 'E-Commerce Cart']
     },
     {
         id: 'DSA_CODING',
@@ -50,14 +66,6 @@ export const INTERVIEW_MODES = [
         badge: 'Essential',
         description: 'Situational judgment, conflict resolution, leadership, failure scenarios, and cultural alignment.',
         topics: ['Conflict Resolution', 'Team Collaboration', 'Overcoming Failure', 'Leadership & Ownership', 'Handling Deadlines']
-    },
-    {
-        id: 'SYSTEM_DESIGN',
-        title: 'System Design & Architecture',
-        icon: <BookOpen size={22} className="text-purple" />,
-        badge: 'Advanced',
-        description: 'Microservices architecture, caching layers, database sharding, rate limiting, and high availability.',
-        topics: ['URL Shortener', 'Distributed Rate Limiter', 'Notification System', 'Real-Time Chat Engine', 'E-Commerce Cart']
     }
 ];
 
@@ -73,8 +81,81 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
     const [selectedDifficulty, setSelectedDifficulty] = useState('Medium');
     const [isStarted, setIsStarted] = useState(false);
     const [loadingQuestions, setLoadingQuestions] = useState(false);
-    const [interviewQuestions, setInterviewQuestions] = useState([]);
     const [currentIdx, setCurrentIdx] = useState(0);
+    const [interviewQuestions, setInterviewQuestions] = useState(initialQuestions || []);
+
+    // Sync initialQuestions prop if provided
+    useEffect(() => {
+        if (initialQuestions && initialQuestions.length > 0) {
+            setInterviewQuestions(initialQuestions);
+        }
+    }, [initialQuestions]);
+
+    // Resume-Grounded Interview State
+    const [groundInResume, setGroundInResume] = useState(true);
+    const [resumeData, setResumeData] = useState(null);
+
+    // Load candidate resume from localStorage on modal open
+    useEffect(() => {
+        if (!isOpen) return;
+        try {
+            const raw = localStorage.getItem('careeros_resume_data');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') {
+                    setResumeData(parsed);
+                }
+            }
+        } catch (e) {
+            console.warn('Could not parse careeros_resume_data:', e);
+        }
+    }, [isOpen]);
+
+    const hasResume = Boolean(
+        resumeData && (
+            (Array.isArray(resumeData.projects) && resumeData.projects.length > 0) ||
+            (Array.isArray(resumeData.skills) && resumeData.skills.length > 0) ||
+            (Array.isArray(resumeData.experience) && resumeData.experience.length > 0)
+        )
+    );
+
+    const resumeProjectsCount = Array.isArray(resumeData?.projects) ? resumeData.projects.length : 0;
+    const resumeSkillsCount = Array.isArray(resumeData?.skills) ? resumeData.skills.length : 0;
+
+    const getSanitizedResumeContext = () => {
+        if (!resumeData) return null;
+
+        const skills = Array.isArray(resumeData.skills)
+            ? resumeData.skills.map(s => typeof s === 'string' ? s : s.name || '').filter(Boolean)
+            : [];
+
+        const projects = Array.isArray(resumeData.projects)
+            ? resumeData.projects.map(p => ({
+                title: p.title || p.name || 'Project',
+                techStack: p.techStack || p.tech_stack || '',
+                bullets: Array.isArray(p.bullets) ? p.bullets.slice(0, 2) : []
+            })).slice(0, 3)
+            : [];
+
+        const experience = Array.isArray(resumeData.experience)
+            ? resumeData.experience.map(e => ({
+                company: e.company || 'Company',
+                role: e.role || 'Software Engineer',
+                bullets: Array.isArray(e.bullets) ? e.bullets.slice(0, 2) : []
+            })).slice(0, 2)
+            : [];
+
+        const education = Array.isArray(resumeData.education) && resumeData.education.length > 0
+            ? { degree: resumeData.education[0].degree || '', institution: resumeData.education[0].institution || '' }
+            : null;
+
+        return {
+            skills: skills.slice(0, 15),
+            projects,
+            experience,
+            education
+        };
+    };
 
     // 15-Minute Countdown Timer State
     const [secondsLeft, setSecondsLeft] = useState(INTERVIEW_DURATION_SECONDS);
@@ -788,13 +869,17 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             ? modeObj.topics[Math.floor(Math.random() * modeObj.topics.length)]
             : 'All';
 
+        const shouldGroundResume = groundInResume || selectedMode === 'RESUME_PROJECTS';
+        const resumeContextPayload = shouldGroundResume ? getSanitizedResumeContext() : null;
+
         try {
             const fetched = await aiFastApiService.generateInterviewQuestions({
                 role: defaultRole,
                 target_role: defaultRole,
-                topic: randomTopic,
+                topic: selectedMode === 'RESUME_PROJECTS' ? 'Resume & Project Architecture Defense' : randomTopic,
                 difficulty: selectedDifficulty,
-                count: 5
+                count: 5,
+                resume_context: resumeContextPayload
             });
 
             if (fetched && fetched.length > 0) {
@@ -1156,6 +1241,11 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 <span className="badge badge-purple" style={{ fontSize: '0.7rem' }}>
                                     Full-Duplex Voice
                                 </span>
+                                {(groundInResume || selectedMode === 'RESUME_PROJECTS') && (
+                                    <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>
+                                        Resume-Grounded
+                                    </span>
+                                )}
                             </div>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
                                 Role: <strong>{defaultRole}</strong> | Mode: <strong>{INTERVIEW_MODES.find(m => m.id === selectedMode)?.title}</strong>
@@ -1335,6 +1425,66 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                         </div>
                                     );
                                 })}
+                            </div>
+
+                            {/* Resume-Grounded Defense Toggle & Detected Portfolio Banner */}
+                            <div style={{
+                                padding: '1rem 1.25rem',
+                                borderRadius: 'var(--radius-lg)',
+                                border: '1px solid ' + (groundInResume || selectedMode === 'RESUME_PROJECTS' ? 'rgba(99, 102, 241, 0.4)' : 'var(--border-color)'),
+                                backgroundColor: groundInResume || selectedMode === 'RESUME_PROJECTS' ? 'rgba(99, 102, 241, 0.06)' : 'var(--bg-tertiary)',
+                                marginBottom: '1.5rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '1rem',
+                                flexWrap: 'wrap'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
+                                    <div style={{
+                                        padding: '0.5rem',
+                                        borderRadius: 'var(--radius-md)',
+                                        backgroundColor: hasResume ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                                        color: hasResume ? 'var(--success)' : 'var(--primary)',
+                                        marginTop: '0.1rem'
+                                    }}>
+                                        <Briefcase size={20} />
+                                    </div>
+                                    <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                            <span style={{ fontSize: '0.925rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                                Tailor Questions to My Resume & Projects
+                                            </span>
+                                            {hasResume ? (
+                                                <span className="badge badge-success" style={{ fontSize: '0.675rem' }}>
+                                                    ✓ {resumeProjectsCount} Projects & {resumeSkillsCount} Skills Found
+                                                </span>
+                                            ) : (
+                                                <span className="badge badge-neutral" style={{ fontSize: '0.675rem' }}>
+                                                    No Saved Resume Detected
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', margin: '0.2rem 0 0 0' }}>
+                                            {hasResume 
+                                                ? "Sarah Chen will directly probe your listed projects, architecture choices, and claimed tech stack."
+                                                : "Create or import your resume in the Resume Builder to enable project defense questions."}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: hasResume ? 'pointer' : 'not-allowed', opacity: hasResume ? 1 : 0.6 }}>
+                                    <input 
+                                        type="checkbox"
+                                        checked={hasResume && (groundInResume || selectedMode === 'RESUME_PROJECTS')}
+                                        disabled={!hasResume || selectedMode === 'RESUME_PROJECTS'}
+                                        onChange={(e) => setGroundInResume(e.target.checked)}
+                                        style={{ width: '16px', height: '16px', accentColor: 'var(--primary)', cursor: hasResume ? 'pointer' : 'not-allowed' }}
+                                    />
+                                    <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                        {selectedMode === 'RESUME_PROJECTS' ? 'Required for Track' : 'Enable Grounding'}
+                                    </span>
+                                </label>
                             </div>
 
                             {startError && (

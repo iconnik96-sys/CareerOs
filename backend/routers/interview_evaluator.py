@@ -106,7 +106,8 @@ class QuestionGenRequest(BaseModel):
     target_role: Optional[str] = Field(default=None, max_length=150, example="Java Backend Developer")
     difficulty: Optional[str] = Field(default="All", max_length=50, example="Medium")
     topic: Optional[str] = Field(default="All", max_length=100, example="Java")
-    count: Optional[int] = Field(default=10, ge=1, le=25, example=10)
+    count: Optional[int] = Field(default=5, ge=1, le=25, example=5)
+    resume_context: Optional[Dict[str, Any]] = None
 
 class InterviewQuestionItem(BaseModel):
     id: str
@@ -151,11 +152,56 @@ def generate_interview_questions(req: QuestionGenRequest):
     topic_str = f"focusing specifically on {req.topic}" if req.topic and req.topic != "All" else "covering diverse topics across core fundamentals, advanced architecture, databases, debugging, and system design"
     diff_str = f"at {req.difficulty} difficulty level" if req.difficulty and req.difficulty != "All" else "distributed across Easy (20%), Medium (50%), and Hard (30%) difficulty levels"
 
+    # Extract structured resume context if provided by candidate
+    resume_section = ""
+    if req.resume_context:
+        ctx = req.resume_context
+        skills_str = ", ".join(ctx.get("skills", [])[:15]) if ctx.get("skills") else ""
+        
+        proj_lines = []
+        for p in ctx.get("projects", [])[:3]:
+            title = p.get("title") or "Project"
+            tech = p.get("techStack") or p.get("tech_stack") or ""
+            bullets = " ".join(p.get("bullets", [])[:2]) if isinstance(p.get("bullets"), list) else ""
+            proj_lines.append(f"- Project: '{title}' | Tech Stack: {tech} | Details: {bullets[:180]}")
+        proj_str = "\n".join(proj_lines)
+
+        exp_lines = []
+        for e in ctx.get("experience", [])[:2]:
+            comp = e.get("company") or "Company"
+            r = e.get("role") or "Software Engineer"
+            bullets = " ".join(e.get("bullets", [])[:2]) if isinstance(e.get("bullets"), list) else ""
+            exp_lines.append(f"- Experience: {r} at {comp} | Details: {bullets[:180]}")
+        exp_str = "\n".join(exp_lines)
+
+        edu_str = ""
+        if ctx.get("education"):
+            edu = ctx.get("education")
+            if isinstance(edu, dict):
+                edu_str = f"{edu.get('degree', '')} from {edu.get('institution', '')}"
+
+        resume_section = f"""
+CANDIDATE'S ACTUAL RESUME & PROJECT PORTFOLIO:
+- Listed Skills: {skills_str or 'Not specified'}
+{f"- Listed Projects:\n{proj_str}" if proj_str else ""}
+{f"- Work Experience:\n{exp_str}" if exp_str else ""}
+{f"- Education: {edu_str}" if edu_str else ""}
+
+CRITICAL RESUME DEFENSE INSTRUCTIONS:
+1. Ground the questions directly in the candidate's actual projects, claimed skills, and architecture decisions.
+2. Address the candidate like a real technical recruiter or hiring manager:
+   - For projects: "Looking at your resume, you built '[Project Name]' using [Tech Stack]. Can you explain how you designed the architecture and handled [data consistency / latency / caching / scale]?"
+   - For skills: "You listed [Skill] as a core competency on your resume. How does [Skill] handle [concurrency / memory / failure], and what are its trade-offs compared to alternatives?"
+   - For experience: "In your role at [Company], you mentioned [achievement]. What technical challenges did you personally solve?"
+3. Test if they genuinely built what they wrote, challenging them on trade-offs, edge cases, and architectural reasoning.
+"""
+
     prompt = f"""
 Generate {question_count} FRESH, DISTINCT, and UNPREDICTABLE technical interview questions for a candidate preparing for the role: "{resolved_role}".
 Topic Area: {topic_str}
 Difficulty Level: {diff_str}
 Special Session Angle: Prioritize {random_angle}. (Unique Session Seed: {session_entropy})
+{resume_section}
 
 CRITICAL DIVERSITY INSTRUCTIONS:
 1. Ensure these questions are unique and distinct from standard repetitive textbook trivia.
@@ -165,7 +211,7 @@ CRITICAL DIVERSITY INSTRUCTIONS:
    - "id": a unique string (e.g. "iq_{uuid.uuid4().hex[:6]}_1")
    - "role": "{resolved_role}"
    - "difficulty": "Easy", "Medium", or "Hard"
-   - "topic": relevant topic tag (e.g. "Core Fundamentals", "Frameworks", "Databases", "System Design", "Cloud & DevOps", "Concurrency", etc.)
+   - "topic": relevant topic tag (e.g. "Project Defense", "Core Fundamentals", "Frameworks", "Databases", "System Design", "Concurrency", etc.)
    - "question": clearly articulated technical or scenario question
    - "answer_key": concise 1-sentence technical takeaway
    - "tips": 2 concise bullet points on key evaluation factors

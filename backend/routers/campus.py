@@ -6,7 +6,12 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, HTTPException, Query, Response, Depends
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
+try:
+    import email_validator  # noqa: F401
+    from pydantic import EmailStr
+except Exception:
+    EmailStr = str
 
 router = APIRouter(prefix="/api/campus", tags=["Campus / Placement Officer Operations"])
 logger = logging.getLogger("CampusRouter")

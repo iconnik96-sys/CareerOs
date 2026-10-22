@@ -180,12 +180,16 @@ def generate_interview_questions(req: QuestionGenRequest):
             if isinstance(edu, dict):
                 edu_str = f"{edu.get('degree', '')} from {edu.get('institution', '')}"
 
+        projects_block = f"- Listed Projects:\n{proj_str}" if proj_str else ""
+        experience_block = f"- Work Experience:\n{exp_str}" if exp_str else ""
+        education_block = f"- Education: {edu_str}" if edu_str else ""
+
         resume_section = f"""
 CANDIDATE'S ACTUAL RESUME & PROJECT PORTFOLIO:
 - Listed Skills: {skills_str or 'Not specified'}
-{f"- Listed Projects:\n{proj_str}" if proj_str else ""}
-{f"- Work Experience:\n{exp_str}" if exp_str else ""}
-{f"- Education: {edu_str}" if edu_str else ""}
+{projects_block}
+{experience_block}
+{education_block}
 
 CRITICAL RESUME DEFENSE INSTRUCTIONS:
 1. Ground the questions directly in the candidate's actual projects, claimed skills, and architecture decisions.

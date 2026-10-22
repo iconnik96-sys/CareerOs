@@ -428,3 +428,67 @@ USING (
     bucket_id = 'resumes' AND
     (storage.foldername(name))[1] = auth.uid()::text
 );
+
+-- ====================================================================
+-- 13. Campus / TPO Multi-Tenant Tables & Invites (Method C)
+-- ====================================================================
+
+CREATE TABLE IF NOT EXISTS public.institutions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    domain TEXT,
+    invite_code TEXT UNIQUE NOT NULL,
+    city TEXT DEFAULT 'Bengaluru',
+    state TEXT DEFAULT 'Karnataka',
+    tier TEXT DEFAULT 'Tier-1',
+    logo_url TEXT,
+    contact_name TEXT,
+    contact_email TEXT,
+    batch_year INTEGER DEFAULT 2026,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_institutions_slug ON public.institutions(slug);
+CREATE INDEX IF NOT EXISTS idx_institutions_invite_code ON public.institutions(invite_code);
+
+CREATE TABLE IF NOT EXISTS public.institution_invites (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    institution_id UUID REFERENCES public.institutions(id) ON DELETE CASCADE NOT NULL,
+    email TEXT NOT NULL,
+    full_name TEXT NOT NULL,
+    role TEXT DEFAULT 'tpo' CHECK (role IN ('tpo', 'college_admin', 'dept_coordinator')),
+    token TEXT UNIQUE NOT NULL,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'revoked', 'expired')),
+    expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days'),
+    accepted_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_institution_invites_token ON public.institution_invites(token);
+CREATE INDEX IF NOT EXISTS idx_institution_invites_email ON public.institution_invites(email);
+
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'student',
+ADD COLUMN IF NOT EXISTS institution_id UUID REFERENCES public.institutions(id) ON DELETE SET NULL,
+ADD COLUMN IF NOT EXISTS branch TEXT DEFAULT 'CSE',
+ADD COLUMN IF NOT EXISTS cgpa NUMERIC(3,2) DEFAULT 8.20,
+ADD COLUMN IF NOT EXISTS roll_number TEXT,
+ADD COLUMN IF NOT EXISTS ats_score INTEGER DEFAULT 75,
+ADD COLUMN IF NOT EXISTS mock_score INTEGER DEFAULT 70,
+ADD COLUMN IF NOT EXISTS tpo_tags TEXT[] DEFAULT '{}',
+ADD COLUMN IF NOT EXISTS placement_status TEXT DEFAULT 'seeking';
+
+ALTER TABLE public.institutions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.institution_invites ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view institutions"
+    ON public.institutions FOR SELECT
+    USING (true);
+
+CREATE POLICY "Public token lookup for valid invites"
+    ON public.institution_invites FOR SELECT
+    USING (true);
+

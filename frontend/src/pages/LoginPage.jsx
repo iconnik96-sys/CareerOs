@@ -21,14 +21,19 @@ export const LoginPage = () => {
             return;
         }
         setLoading(true);
-        const { error } = await login(email, password);
+        const { error, profile: loggedProfile } = await login(email, password);
         setLoading(false);
         if (error) {
             showToast(error, 'error', 'Sign In Failed');
         }
         else {
-            showToast('Welcome back to CareerOS!', 'success', 'Signed In');
-            navigate('/dashboard');
+            if (loggedProfile?.role === 'tpo' || loggedProfile?.role === 'college_admin') {
+                showToast('Welcome to Campus Placement Portal!', 'success', 'Placement Officer Signed In');
+                navigate('/campus');
+            } else {
+                showToast('Welcome back to CareerOS!', 'success', 'Signed In');
+                navigate('/dashboard');
+            }
         }
     };
 
@@ -107,6 +112,13 @@ export const LoginPage = () => {
           Don't have an account?{' '}
           <Link to="/register" style={{ color: 'var(--primary)', fontWeight: 600 }}>
             Create Account
+          </Link>
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          Placement Officer (TPO)?{' '}
+          <Link to="/campus/accept-invite?token=demo-tpo-apex-token-2026" style={{ color: '#818cf8', fontWeight: 600 }}>
+            Activate Campus Invite
           </Link>
         </div>
       </div>

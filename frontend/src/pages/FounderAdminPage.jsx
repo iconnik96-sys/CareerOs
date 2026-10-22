@@ -5,11 +5,13 @@ import { useToast } from '../contexts/ToastContext';
 import { aiFastApiService } from '../services/aiFastApiService';
 import { supabase } from '../lib/supabase';
 import { calculateCareerReadiness, getRoleDisplayName } from '../utils/careerRoles';
+import { campusService } from '../services/campusService';
 import {
   ShieldAlert, Activity, DollarSign, Cpu, Users, RefreshCw,
   TrendingUp, AlertTriangle, Layers, ArrowUpRight, Zap, CheckCircle2,
   Sliders, Database, Server, SlidersHorizontal, Search, UserCheck,
-  GraduationCap, Briefcase, Mail, Calendar, Key
+  GraduationCap, Briefcase, Mail, Calendar, Key, Building2, QrCode,
+  Copy, Check, ExternalLink, UserPlus, Trash2
 } from 'lucide-react';
 
 const FOUNDER_EMAIL = 'nikhil@gmail.com';
@@ -37,6 +39,73 @@ export const FounderAdminPage = () => {
   const [freeUsers, setFreeUsers] = useState(250);
   const [proUsers, setProUsers] = useState(75);
   const [ultUsers, setUltUsers] = useState(25);
+
+  // Campus & TPO Provisioning State (Method C)
+  const [collegesList, setCollegesList] = useState([]);
+  const [activeInvites, setActiveInvites] = useState([]);
+  const [loadingColleges, setLoadingColleges] = useState(false);
+  const [showProvisionModal, setShowProvisionModal] = useState(false);
+  const [collegeName, setCollegeName] = useState('');
+  const [collegeDomain, setCollegeDomain] = useState('');
+  const [tpoName, setTpoName] = useState('');
+  const [tpoEmail, setTpoEmail] = useState('');
+  const [collegeCity, setCollegeCity] = useState('Bengaluru');
+  const [collegeTier, setCollegeTier] = useState('Tier-1');
+  const [batchYear, setBatchYear] = useState(2026);
+  const [provisioning, setProvisioning] = useState(false);
+  const [generatedInvite, setGeneratedInvite] = useState(null);
+  const [copiedToken, setCopiedToken] = useState(false);
+
+  const fetchColleges = async () => {
+    try {
+      setLoadingColleges(true);
+      const res = await campusService.adminListColleges();
+      if (res?.colleges) setCollegesList(res.colleges);
+      if (res?.active_invites) setActiveInvites(res.active_invites);
+    } catch (err) {
+      console.warn('Failed to fetch colleges:', err);
+    } finally {
+      setLoadingColleges(false);
+    }
+  };
+
+  const handleProvisionCollege = async (e) => {
+    e.preventDefault();
+    if (!collegeName.trim() || !tpoEmail.trim()) {
+      addToast('Please enter College Name and TPO Email', 'warning');
+      return;
+    }
+    setProvisioning(true);
+    try {
+      const res = await campusService.adminInviteTpo({
+        college_name: collegeName,
+        domain: collegeDomain || undefined,
+        tpo_name: tpoName || 'Director of Placements',
+        tpo_email: tpoEmail,
+        city: collegeCity,
+        tier: collegeTier,
+        batch_year: parseInt(batchYear) || 2026,
+        admin_requester_email: user?.email
+      });
+      setGeneratedInvite(res);
+      addToast(`College provisioned! Invite token generated.`, 'success');
+      fetchColleges();
+    } catch (err) {
+      addToast(err.message || 'Provisioning failed', 'error');
+    } finally {
+      setProvisioning(false);
+    }
+  };
+
+  const handleRevokeInvite = async (token) => {
+    try {
+      await campusService.adminRevokeInvite(token);
+      addToast('Invite token revoked', 'info');
+      fetchColleges();
+    } catch (err) {
+      addToast(err.message || 'Failed to revoke invite', 'error');
+    }
+  };
 
   const fetchUsersFromDb = async () => {
     try {
@@ -119,6 +188,7 @@ export const FounderAdminPage = () => {
     if (isFounder) {
       fetchMetrics();
       fetchUsersFromDb();
+      fetchColleges();
       const interval = setInterval(() => {
         fetchMetrics(false);
       }, 15000);
@@ -433,6 +503,310 @@ export const FounderAdminPage = () => {
           </div>
         </div>
       )}
+
+      {/* ==================================================================== */}
+      {/* CAMPUS & TPO PROVISIONING (METHOD C: ENTERPRISE B2B SALES)            */}
+      {/* ==================================================================== */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95))',
+        border: '1px solid rgba(99, 102, 241, 0.35)',
+        borderRadius: '16px',
+        padding: '1.75rem',
+        marginBottom: '2rem',
+        boxShadow: '0 4px 25px rgba(0, 0, 0, 0.25)'
+      }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ padding: '6px', background: 'rgba(99, 102, 241, 0.2)', borderRadius: '8px', color: '#818cf8' }}>
+                <Building2 size={20} />
+              </div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc' }}>
+                Campus & TPO Provisioning (Method C: Enterprise B2B)
+              </h3>
+              <span className="badge badge-purple" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}>
+                HIGH LEVERAGE
+              </span>
+            </div>
+            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Provision new institutional partnerships, invite College Placement Officers (TPOs) with secure single-use tokens, and track multi-tenant batches.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <a
+              href="/campus"
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', textDecoration: 'none' }}
+            >
+              <ExternalLink size={15} /> Preview TPO Portal
+            </a>
+            <button
+              onClick={() => setShowProvisionModal(prev => !prev)}
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+            >
+              <UserPlus size={15} />
+              {showProvisionModal ? 'Hide Form' : 'Provision College & Invite TPO'}
+            </button>
+          </div>
+        </div>
+
+        {/* Provision Form */}
+        {showProvisionModal && (
+          <form
+            onSubmit={handleProvisionCollege}
+            style={{
+              background: 'rgba(15, 23, 42, 0.8)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              marginBottom: '1.5rem'
+            }}
+          >
+            <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.95rem', fontWeight: 700, color: '#818cf8' }}>
+              Create Institution & Generate Single-Use TPO Invite Token
+            </h4>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>College / University Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. BITS Pilani Goa"
+                  value={collegeName}
+                  onChange={(e) => setCollegeName(e.target.value)}
+                  required
+                  className="form-input"
+                  style={{ fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Official College Domain</label>
+                <input
+                  type="text"
+                  placeholder="e.g. bits-goa.ac.in"
+                  value={collegeDomain}
+                  onChange={(e) => setCollegeDomain(e.target.value)}
+                  className="form-input"
+                  style={{ fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>TPO Officer Full Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Dr. H. Sharma"
+                  value={tpoName}
+                  onChange={(e) => setTpoName(e.target.value)}
+                  className="form-input"
+                  style={{ fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>TPO Official Email *</label>
+                <input
+                  type="email"
+                  placeholder="tpo@bits-goa.ac.in"
+                  value={tpoEmail}
+                  onChange={(e) => setTpoEmail(e.target.value)}
+                  required
+                  className="form-input"
+                  style={{ fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>City & State</label>
+                <input
+                  type="text"
+                  placeholder="Goa"
+                  value={collegeCity}
+                  onChange={(e) => setCollegeCity(e.target.value)}
+                  className="form-input"
+                  style={{ fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '4px' }}>Graduation Batch Year</label>
+                <input
+                  type="number"
+                  placeholder="2026"
+                  value={batchYear}
+                  onChange={(e) => setBatchYear(e.target.value)}
+                  className="form-input"
+                  style={{ fontSize: '0.85rem' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowProvisionModal(false)}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.85rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={provisioning}
+                className="btn btn-primary"
+                style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                {provisioning ? 'Provisioning...' : 'Provision & Generate Invite Link'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Generated Invite Box */}
+        {generatedInvite && (
+          <div style={{
+            background: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
+            borderRadius: '12px',
+            padding: '1.25rem',
+            marginBottom: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <strong style={{ color: '#4ade80', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <CheckCircle2 size={16} /> College Provisioned: {generatedInvite.institution?.name}
+              </strong>
+              <span className="badge badge-green" style={{ fontSize: '0.75rem' }}>
+                Invite Code: {generatedInvite.institution?.invite_code}
+              </span>
+            </div>
+
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0 0.75rem 0' }}>
+              Send this secure 1-time activation link to <strong>{generatedInvite.institution?.contact_email}</strong>:
+            </p>
+
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                readOnly
+                value={`${window.location.origin}${generatedInvite.invite_link}`}
+                className="input"
+                style={{ fontSize: '0.85rem', color: '#6ee7b7', fontFamily: 'monospace' }}
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}${generatedInvite.invite_link}`);
+                  setCopiedToken(true);
+                  addToast('Copied single-use TPO activation link!', 'success');
+                  setTimeout(() => setCopiedToken(false), 2000);
+                }}
+                className="btn btn-primary"
+                style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                {copiedToken ? <Check size={14} /> : <Copy size={14} />}
+                {copiedToken ? 'Copied Link' : 'Copy Link'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Active Provisioned Colleges & Invites Table */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: 'var(--text-muted)' }}>
+                <th style={{ padding: '0.75rem' }}>Institution Name</th>
+                <th style={{ padding: '0.75rem' }}>Student Invite Code</th>
+                <th style={{ padding: '0.75rem' }}>TPO Officer</th>
+                <th style={{ padding: '0.75rem' }}>Official Email</th>
+                <th style={{ padding: '0.75rem' }}>Status</th>
+                <th style={{ padding: '0.75rem', textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {collegesList.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    No institutions provisioned yet. Click "Provision College & Invite TPO" above to onboard your first campus!
+                  </td>
+                </tr>
+              ) : (
+                collegesList.map((col) => {
+                  const matchingInvite = activeInvites.find(inv => inv.institution_id === col.id) || col.invites?.[0];
+                  const isAccepted = matchingInvite?.status === 'accepted';
+                  const isRevoked = matchingInvite?.status === 'revoked';
+
+                  return (
+                    <tr key={col.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                      <td style={{ padding: '0.75rem', fontWeight: 700, color: '#f8fafc' }}>
+                        {col.name}
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                          {col.city}, {col.state} • Batch {col.batch_year || 2026}
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <span className="badge badge-purple" style={{ fontFamily: 'monospace', fontWeight: 700 }}>
+                          {col.invite_code}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem', color: '#cbd5e1' }}>
+                        {col.contact_name || matchingInvite?.full_name || 'TPO Director'}
+                      </td>
+                      <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>
+                        {col.contact_email || matchingInvite?.email}
+                      </td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <span style={{
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '12px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          background: isAccepted ? 'rgba(34, 197, 94, 0.2)' : isRevoked ? 'rgba(239, 68, 68, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                          color: isAccepted ? '#4ade80' : isRevoked ? '#f87171' : '#facc15'
+                        }}>
+                          {isAccepted ? 'Active & Claimed' : isRevoked ? 'Revoked' : 'Pending Activation'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                          {matchingInvite?.token && !isAccepted && !isRevoked && (
+                            <button
+                              onClick={() => {
+                                const link = `${window.location.origin}/campus/accept-invite?token=${matchingInvite.token}`;
+                                navigator.clipboard.writeText(link);
+                                addToast('Copied TPO Activation Link', 'success');
+                              }}
+                              className="btn btn-secondary"
+                              title="Copy activation link"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                            >
+                              <Copy size={13} /> Link
+                            </button>
+                          )}
+                          <a
+                            href="/campus"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-secondary"
+                            title="Inspect campus dashboard"
+                            style={{ padding: '4px 8px', fontSize: '0.75rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px' }}
+                          >
+                            <ExternalLink size={13} /> View
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* REGISTERED USERS DIRECTORY (NEW SECTION) */}
       <div style={{

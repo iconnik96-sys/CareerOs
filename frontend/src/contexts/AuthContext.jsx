@@ -146,11 +146,12 @@ export const AuthProvider = ({ children }) => {
 
             if (error)
                 return { error: error.message };
+            let loadedProf = null;
             if (data.user) {
                 setUser(data.user);
-                await loadProfile(data.user.id);
+                loadedProf = await loadProfile(data.user.id);
             }
-            return {};
+            return { user: data.user, profile: loadedProf };
         }
         catch (err) {
             return { error: err?.message || 'Login failed' };

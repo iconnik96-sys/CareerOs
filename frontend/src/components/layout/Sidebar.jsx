@@ -1,28 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import React from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, User, FileText, ScanSearch, Briefcase, Layers,
   Milestone, HelpCircle, Settings, LogOut, Sparkles, Terminal,
-  ChevronDown, ChevronRight, Mic, Keyboard, ShieldAlert
+  ShieldAlert, Building2
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
   const { user, profile, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const isInterviewPrepActive = location.pathname.startsWith('/interview-prep');
-  const searchParams = new URLSearchParams(location.search);
-  const activePrepMode = searchParams.get('mode') || 'voice';
-
-  const [interviewDropdownOpen, setInterviewDropdownOpen] = useState(isInterviewPrepActive);
-
-  useEffect(() => {
-    if (isInterviewPrepActive) {
-      setInterviewDropdownOpen(true);
-    }
-  }, [isInterviewPrepActive]);
 
   const handleLogout = async () => {
     await logout();
@@ -42,8 +29,7 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
       to: '/interview-prep',
       label: 'Interview Prep',
       icon: <HelpCircle size={18} />,
-      badge: 'AI Live',
-      hasDropdown: true
+      badge: 'AI Live'
     },
     { to: '/simulations', label: 'Workplace Simulation', icon: <Terminal size={18} />, badge: 'Practice' },
     { to: '/settings', label: 'Settings', icon: <Settings size={18} /> },
@@ -66,111 +52,53 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
     {/* Navigation List */}
     <nav className="sidebar-nav">
       <span className="nav-category-title">Platform</span>
-      {navItems.map(item => {
-        if (item.hasDropdown) {
-          return (
-            <div key={item.to} style={{ display: 'flex', flexDirection: 'column' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  const nextState = !interviewDropdownOpen;
-                  setInterviewDropdownOpen(nextState);
-                  if (!isInterviewPrepActive) {
-                    navigate('/interview-prep?mode=voice');
-                    if (onCloseMobile) onCloseMobile();
-                  }
-                }}
-                className={`nav-item ${isInterviewPrepActive ? 'active' : ''}`}
-                style={{
-                  width: '100%',
-                  background: isInterviewPrepActive ? 'var(--primary-light)' : 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.85rem'
-                }}
-              >
-                {item.icon}
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {item.badge && (
-                  <span className="badge badge-purple" style={{ padding: '0.1rem 0.4rem', fontSize: '0.6875rem', marginRight: '2px' }}>
-                    {item.badge}
-                  </span>
-                )}
-                {interviewDropdownOpen ? (
-                  <ChevronDown size={14} style={{ color: isInterviewPrepActive ? 'var(--primary)' : 'var(--text-muted)' }} />
-                ) : (
-                  <ChevronRight size={14} style={{ color: isInterviewPrepActive ? 'var(--primary)' : 'var(--text-muted)' }} />
-                )}
-              </button>
+      {navItems.map(item => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          onClick={onCloseMobile}
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          {item.icon}
+          <span style={{ flex: 1 }}>{item.label}</span>
+          {item.badge && (
+            <span className="badge badge-purple" style={{ padding: '0.1rem 0.4rem', fontSize: '0.6875rem' }}>
+              {item.badge}
+            </span>
+          )}
+        </NavLink>
+      ))}
 
-              {/* Submenu Dropdown */}
-              {interviewDropdownOpen && (
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '3px',
-                  marginLeft: '1.25rem',
-                  paddingLeft: '0.65rem',
-                  borderLeft: '2px solid rgba(99, 102, 241, 0.25)',
-                  marginTop: '4px',
-                  marginBottom: '6px'
-                }}>
-                  <NavLink
-                    to="/interview-prep?mode=voice"
-                    onClick={onCloseMobile}
-                    className={`nav-subitem ${isInterviewPrepActive && activePrepMode === 'voice' ? 'active' : ''}`}
-                  >
-                    <Mic size={14} className="text-primary-accent" />
-                    <span style={{ flex: 1 }}>Live Voice Interview</span>
-                    <span className="badge badge-purple" style={{ padding: '0.05rem 0.35rem', fontSize: '0.625rem' }}>
-                      Live Audio
-                    </span>
-                  </NavLink>
-
-                  <NavLink
-                    to="/interview-prep?mode=text"
-                    onClick={onCloseMobile}
-                    className={`nav-subitem ${isInterviewPrepActive && activePrepMode === 'text' ? 'active' : ''}`}
-                  >
-                    <Keyboard size={14} className="text-info" />
-                    <span style={{ flex: 1 }}>Typing & Text Interview</span>
-                    <span className="badge badge-neutral" style={{ padding: '0.05rem 0.35rem', fontSize: '0.625rem' }}>
-                      Self-Paced
-                    </span>
-                  </NavLink>
-                </div>
-              )}
-            </div>
-          );
-        }
-
-        return (
+      {/* Exclusive TPO Portal Navigation Link */}
+      {(profile?.role === 'tpo' || profile?.role === 'college_admin' || user?.email?.toLowerCase().trim() === 'nikhil@gmail.com' || profile?.email?.toLowerCase().trim() === 'nikhil@gmail.com') && (
+        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(99, 102, 241, 0.25)' }}>
+          <span className="nav-category-title" style={{ color: '#818cf8', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.6875rem' }}>
+            🏛️ CAMPUS & PLACEMENTS
+          </span>
           <NavLink
-            key={item.to}
-            to={item.to}
+            to="/campus"
             onClick={onCloseMobile}
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            style={{
+              background: 'linear-gradient(90deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.12))',
+              border: '1px solid rgba(99, 102, 241, 0.35)',
+              borderRadius: '8px',
+              marginTop: '4px',
+              color: '#f1f5f9'
+            }}
           >
-            {item.icon}
-            <span style={{ flex: 1 }}>{item.label}</span>
-            {item.badge && (
-              <span className="badge badge-purple" style={{ padding: '0.1rem 0.4rem', fontSize: '0.6875rem' }}>
-                {item.badge}
-              </span>
-            )}
+            <Building2 size={18} color="#818cf8" />
+            <span style={{ flex: 1, fontWeight: 700 }}>Campus / TPO Portal</span>
+            <span className="badge badge-purple" style={{ fontSize: '0.625rem', padding: '0.1rem 0.4rem' }}>
+              TPO
+            </span>
           </NavLink>
-        );
-      })}
+        </div>
+      )}
 
       {/* Exclusive Founder Access Link */}
       {(user?.email?.toLowerCase().trim() === 'nikhil@gmail.com' || profile?.email?.toLowerCase().trim() === 'nikhil@gmail.com') && (
-        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(139, 92, 246, 0.25)' }}>
-          <span className="nav-category-title" style={{ color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.6875rem' }}>
-            👑 FOUNDER ONLY
-          </span>
+        <div style={{ marginTop: '0.5rem' }}>
           <NavLink
             to="/admin"
             onClick={onCloseMobile}
@@ -179,7 +107,6 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
               background: 'linear-gradient(90deg, rgba(139, 92, 246, 0.18), rgba(236, 72, 153, 0.12))',
               border: '1px solid rgba(139, 92, 246, 0.35)',
               borderRadius: '8px',
-              marginTop: '4px',
               color: '#f1f5f9'
             }}
           >

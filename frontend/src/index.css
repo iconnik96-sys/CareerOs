@@ -607,6 +607,19 @@ select {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.campus-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 960px) {
+  .campus-kpi-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+}
+
 .grid-cols-4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -708,7 +721,10 @@ select {
 
 .form-input,
 .form-textarea,
-.form-select {
+.form-select,
+.input,
+select.input,
+input.input {
   width: 100%;
   padding: 0.625rem 0.875rem;
   background-color: var(--bg-input);
@@ -722,14 +738,24 @@ select {
 
 .form-input:focus,
 .form-textarea:focus,
-.form-select:focus {
+.form-select:focus,
+.input:focus {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
 .form-input::placeholder,
-.form-textarea::placeholder {
+.form-textarea::placeholder,
+.input::placeholder {
   color: var(--text-muted);
+}
+
+select.form-select option,
+select.form-input option,
+select.input option {
+  background-color: #0f172a;
+  color: #f8fafc;
+  padding: 8px;
 }
 
 .form-textarea {

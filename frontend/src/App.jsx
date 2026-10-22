@@ -28,6 +28,9 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SimulationsPage } from './pages/SimulationsPage';
 import { SimulationWorkspacePage } from './pages/SimulationWorkspacePage';
 import { FounderAdminPage } from './pages/FounderAdminPage';
+import { CampusDashboard } from './pages/CampusDashboard';
+import { AcceptCampusInvitePage } from './pages/AcceptCampusInvitePage';
+import { StudentJoinBatchPage } from './pages/StudentJoinBatchPage';
 
 // Guard component that requires authenticated session
 const ProtectedRoute = ({ children }) => {
@@ -58,12 +61,18 @@ export const App = () => {
                             <Route path="/login" element={<LoginPage />} />
                             <Route path="/register" element={<RegisterPage />} />
                             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                            <Route path="/campus/accept-invite" element={<AcceptCampusInvitePage />} />
+                            <Route path="/join/:code" element={<StudentJoinBatchPage />} />
+                            <Route path="/join" element={<StudentJoinBatchPage />} />
                             <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
                             <Route path="/cosmic-demo" element={<DemoOne />} />
 
                             {/* Protected App Routes with AppLayout Shell */}
                             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                                 <Route path="/dashboard" element={<DashboardPage />} />
+                                <Route path="/campus" element={<CampusDashboard />} />
+                                <Route path="/campus-dashboard" element={<CampusDashboard />} />
+                                <Route path="/tpo" element={<CampusDashboard />} />
                                 <Route path="/profile" element={<CareerProfilePage />} />
                                 <Route path="/ai-studio" element={<AICareerStudioPage />} />
                                 <Route path="/ai-career-studio" element={<AICareerStudioPage />} />

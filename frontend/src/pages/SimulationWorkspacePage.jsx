@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
     Terminal, 
     ArrowLeft, 
@@ -28,10 +28,12 @@ import { calculateCareerReadiness } from '../utils/careerRoles';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { InconvenienceNotice } from '../components/common/InconvenienceNotice';
+import { DeveloperSimulationLab } from '../components/simulation/DeveloperSimulationLab';
 
 export const SimulationWorkspacePage = () => {
     const { trackKey } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const toast = useToast();
     const { user, profile } = useAuth();
 
@@ -40,9 +42,10 @@ export const SimulationWorkspacePage = () => {
     const [trackError, setTrackError] = useState(null);
 
     // Active State
-    const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('tickets'); // 'tickets' | 'standup' | 'architecture'
+    const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('tickets'); // 'tickets' | 'architecture'
     const [selectedLanguage, setSelectedLanguage] = useState('python'); // 'python' | 'java' | 'node'
     const [activeTicketIndex, setActiveTicketIndex] = useState(0);
+    const [showIdeLab, setShowIdeLab] = useState(searchParams.get('mode') === 'ide');
     
     // Submission Mode State
     const [submissionMode, setSubmissionMode] = useState('IN_BROWSER'); // 'IN_BROWSER' | 'GITHUB_PR'
@@ -56,15 +59,6 @@ export const SimulationWorkspacePage = () => {
 
     // Progressive hints
     const [showHint, setShowHint] = useState(false);
-
-    // Standup State
-    const [standupForm, setStandupForm] = useState({
-        yesterday: 'Finished reviewing the FinPulse architecture documentation and verified local development setup.',
-        today: 'Implementing boundary currency validation and cents decimal constraints for ticket FIN-101.',
-        blockers: 'None so far.'
-    });
-    const [standupLoading, setStandupLoading] = useState(false);
-    const [standupResponse, setStandupResponse] = useState(null);
 
     // Socratic Hint State
     const [mentorQuestion, setMentorQuestion] = useState('');
@@ -210,26 +204,6 @@ export const SimulationWorkspacePage = () => {
         }
     };
 
-    // Daily Standup Submit
-    const handleSendStandup = async (e) => {
-        e.preventDefault();
-        setStandupLoading(true);
-        try {
-            const currentTicket = track?.tickets?.[activeTicketIndex];
-            const res = await simulationService.sendStandup({
-                yesterday_work: standupForm.yesterday,
-                today_plan: standupForm.today,
-                blockers: standupForm.blockers,
-                current_ticket: currentTicket?.ticket_code || 'FIN-101'
-            });
-            setStandupResponse(res);
-            toast?.success?.('Standup update posted to Engineering Manager Sarah!');
-        } catch (err) {
-            toast?.error?.(err.message || 'Standup submission failed.');
-        } finally {
-            setStandupLoading(false);
-        }
-    };
 
     // Ask Mentor Hint Submit
     const handleAskMentor = async (e) => {
@@ -403,23 +377,6 @@ export const SimulationWorkspacePage = () => {
                     <span>Sprint Tickets ({track?.tickets?.length || 4})</span>
                 </button>
 
-                <button
-                    onClick={() => setActiveWorkspaceTab('standup')}
-                    className={`btn-ghost ${activeWorkspaceTab === 'standup' ? 'active' : ''}`}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        fontWeight: 600,
-                        borderBottom: activeWorkspaceTab === 'standup' ? '2px solid var(--primary)' : '2px solid transparent',
-                        borderRadius: 0,
-                        padding: '0.5rem 1rem',
-                        color: activeWorkspaceTab === 'standup' ? 'var(--primary)' : 'var(--text-secondary)'
-                    }}
-                >
-                    <MessageSquare size={16} />
-                    <span>Daily Standup with EM Sarah</span>
-                </button>
 
                 <button
                     onClick={() => setActiveWorkspaceTab('architecture')}
@@ -437,6 +394,33 @@ export const SimulationWorkspacePage = () => {
                 >
                     <FileText size={16} />
                     <span>System Architecture Overview</span>
+                </button>
+
+                {/* Launch Developer Simulation Lab (WASM Workstation) */}
+                <button
+                    onClick={() => setShowIdeLab(true)}
+                    style={{
+                        marginLeft: 'auto',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.45rem 1rem',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                        border: '1px solid rgba(59, 130, 246, 0.4)',
+                        color: '#60a5fa',
+                        fontWeight: 700,
+                        fontSize: '0.8125rem',
+                        cursor: 'pointer',
+                        boxShadow: '0 0 15px rgba(59, 130, 246, 0.2)',
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    <Terminal size={15} />
+                    <span>Launch Developer Simulation Lab (WASM IDE)</span>
+                    <span className="badge badge-purple" style={{ fontSize: '0.625rem', padding: '0.1rem 0.4rem' }}>
+                        NEW
+                    </span>
                 </button>
             </div>
 
@@ -1169,138 +1153,7 @@ export const SimulationWorkspacePage = () => {
                 </div>
             )}
 
-            {/* TAB 2: DAILY STANDUP */}
-            {activeWorkspaceTab === 'standup' && (
-                <div style={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--radius-lg)',
-                    padding: '2rem',
-                    maxWidth: '800px',
-                    margin: '0 auto',
-                    boxShadow: 'var(--shadow-md)'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                        <div style={{ padding: '0.625rem', borderRadius: 'var(--radius-md)', background: 'rgba(59, 130, 246, 0.15)', color: 'var(--primary)' }}>
-                            <MessageSquare size={22} />
-                        </div>
-                        <div>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                                Daily Asynchronous Standup
-                            </h2>
-                            <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                                Checked by Sarah, Engineering Manager at FinPulse Global
-                            </span>
-                        </div>
-                    </div>
-
-                    <form onSubmit={handleSendStandup}>
-                        <div style={{ marginBottom: '1rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, marginBottom: '0.375rem', color: 'var(--text-secondary)' }}>
-                                1. What did you work on yesterday?
-                            </label>
-                            <textarea
-                                value={standupForm.yesterday}
-                                onChange={(e) => setStandupForm({ ...standupForm, yesterday: e.target.value })}
-                                rows={3}
-                                style={{
-                                    width: '100%',
-                                    background: 'var(--bg-input)',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: 'var(--radius-md)',
-                                    padding: '0.75rem',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '0.875rem'
-                                }}
-                            />
-                        </div>
-
-                        <div style={{ marginBottom: '1rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, marginBottom: '0.375rem', color: 'var(--text-secondary)' }}>
-                                2. What are you tackling today?
-                            </label>
-                            <textarea
-                                value={standupForm.today}
-                                onChange={(e) => setStandupForm({ ...standupForm, today: e.target.value })}
-                                rows={3}
-                                style={{
-                                    width: '100%',
-                                    background: 'var(--bg-input)',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: 'var(--radius-md)',
-                                    padding: '0.75rem',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '0.875rem'
-                                }}
-                            />
-                        </div>
-
-                        <div style={{ marginBottom: '1.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, marginBottom: '0.375rem', color: 'var(--text-secondary)' }}>
-                                3. Are there any blockers or obstacles?
-                            </label>
-                            <input
-                                type="text"
-                                value={standupForm.blockers}
-                                onChange={(e) => setStandupForm({ ...standupForm, blockers: e.target.value })}
-                                style={{
-                                    width: '100%',
-                                    background: 'var(--bg-input)',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: 'var(--radius-md)',
-                                    padding: '0.75rem',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '0.875rem'
-                                }}
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={standupLoading}
-                            className="btn-primary"
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}
-                        >
-                            <Send size={16} />
-                            <span>{standupLoading ? 'Posting Standup...' : 'Post Standup Update'}</span>
-                        </button>
-                    </form>
-
-                    {standupResponse && (
-                        <div style={{
-                            marginTop: '2rem',
-                            background: 'rgba(0,0,0,0.2)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: 'var(--radius-md)',
-                            padding: '1.25rem'
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                                <div style={{ fontWeight: 800, fontSize: '0.9375rem', color: '#60a5fa' }}>
-                                    💬 Sarah (Engineering Manager):
-                                </div>
-                                <span className="badge badge-green" style={{ fontSize: '0.75rem' }}>
-                                    Communication: {standupResponse.communication_score}/100
-                                </span>
-                            </div>
-                            <p style={{ margin: '0 0 1rem', fontSize: '0.875rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
-                                {standupResponse.manager_feedback}
-                            </p>
-                            {standupResponse.suggestions?.length > 0 && (
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                    <strong>Communication Tips:</strong>
-                                    <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.25rem' }}>
-                                        {standupResponse.suggestions.map((s, idx) => (
-                                            <li key={idx}>{s}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* TAB 3: SYSTEM ARCHITECTURE OVERVIEW */}
+            {/* TAB 2: SYSTEM ARCHITECTURE OVERVIEW */}
             {activeWorkspaceTab === 'architecture' && (
                 <div style={{
                     background: 'var(--bg-card)',
@@ -1346,6 +1199,18 @@ export const SimulationWorkspacePage = () => {
                         </ul>
                     </div>
                 </div>
+            )}
+
+            {/* FULL-SCREEN DEVELOPER SIMULATION LAB (WASM WORKSTATION) */}
+            {showIdeLab && (
+                <DeveloperSimulationLab
+                    track={track}
+                    activeTicket={track?.tickets?.[activeTicketIndex]}
+                    onClose={() => setShowIdeLab(false)}
+                    onSubmitReview={handleSubmitReview}
+                    reviewing={reviewing}
+                    reviewResult={reviewResult}
+                />
             )}
         </div>
     );

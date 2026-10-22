@@ -19,6 +19,7 @@ import { profileService } from '../../services/profileService';
 import { calculateCareerReadiness } from '../../utils/careerRoles';
 import { downloadInterviewReportPdf } from '../../utils/interviewPdfExport';
 import { InconvenienceNotice } from '../common/InconvenienceNotice';
+import { DeveloperSimulationLab } from '../simulation/DeveloperSimulationLab';
 import { 
     detectRepeatIntent, 
     detectClarificationIntent, 
@@ -83,6 +84,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
     const [loadingQuestions, setLoadingQuestions] = useState(false);
     const [currentIdx, setCurrentIdx] = useState(0);
     const [interviewQuestions, setInterviewQuestions] = useState(initialQuestions || []);
+    const [showIdeModal, setShowIdeModal] = useState(false);
 
     // Sync initialQuestions prop if provided
     useEffect(() => {
@@ -1275,6 +1277,17 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                         <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => setShowIdeModal(true)}
+                            leftIcon={<Code size={14} />}
+                            style={{ borderColor: 'rgba(59, 130, 246, 0.4)', color: '#60a5fa' }}
+                            title="Open full developer IDE simulation workstation with WebAssembly"
+                        >
+                            Open IDE Lab (WASM)
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => setShowVoiceSettings(prev => !prev)}
                             leftIcon={<Settings size={14} />}
                         >
@@ -2290,6 +2303,17 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                     )}
                 </div>
             </div>
+
+            {/* FULL-SCREEN DEVELOPER SIMULATION LAB (WASM WORKSTATION) */}
+            {showIdeModal && (
+                <DeveloperSimulationLab
+                    activeTicket={{
+                        ticket_code: `INT-${currentIdx + 1}`,
+                        title: currentQuestion?.question || 'Live Technical Coding Challenge'
+                    }}
+                    onClose={() => setShowIdeModal(false)}
+                />
+            )}
         </div>
     );
 };

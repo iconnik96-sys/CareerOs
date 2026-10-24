@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { supabase } from '../lib/supabase';
 
 const FASTAPI_BASE_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8000';
 
@@ -8,6 +9,23 @@ const client = axios.create({
   headers: {
     'Content-Type': 'application/json'
   }
+});
+
+// Automatically inject session token and user email if authenticated
+client.interceptors.request.use(async (config) => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers['Authorization'] = `Bearer ${session.access_token}`;
+      if (session.user?.email) {
+        config.headers['X-Founder-Email'] = session.user.email;
+        config.headers['X-TPO-Email'] = session.user.email;
+      }
+    }
+  } catch {
+    // Fallback gracefully if offline
+  }
+  return config;
 });
 
 function extractErrorMessage(err, defaultMsg = 'An unexpected campus service error occurred') {
@@ -85,14 +103,38 @@ export const campusService = {
     }
   },
 
-  // 1-Click CSV Export URL
-  getCsvExportUrl(filters = {}) {
+  // 1-Click Secure CSV Export via authenticated blob
+  async downloadStudentsCsv(filters = {}) {
+    try {
+      const res = await client.get('/api/campus/export-csv', {
+        params: filters,
+        responseType: 'blob'
+      });
+      const blob = new Blob([res.data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `campus_shortlist_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      return true;
+    } catch (err) {
+      console.error('Error downloading students CSV:', err);
+      throw new Error(extractErrorMessage(err, 'Failed to download students CSV'));
+    }
+  },
+
+  // 1-Click CSV Export URL with optional auth token
+  getCsvExportUrl(filters = {}, authToken = null) {
     const params = new URLSearchParams();
     if (filters.branch && filters.branch !== 'all') params.append('branch', filters.branch);
     if (filters.min_cgpa) params.append('min_cgpa', filters.min_cgpa);
     if (filters.min_ats) params.append('min_ats', filters.min_ats);
     if (filters.readiness && filters.readiness !== 'all') params.append('readiness', filters.readiness);
     if (filters.institution_id) params.append('institution_id', filters.institution_id);
+    if (authToken) params.append('auth_token', authToken);
     return `${FASTAPI_BASE_URL}/api/campus/export-csv?${params.toString()}`;
   },
 

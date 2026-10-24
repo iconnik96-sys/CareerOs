@@ -151,8 +151,8 @@ export const FounderAdminPage = () => {
         });
 
         setUsersList(realUsers);
-        // If only 1 user exists or RLS is active, show the policy helper
-        setShowRlsHelp(true);
+        // Only show RLS policy helper if query is restricted or no external users found
+        setShowRlsHelp(realUsers.length <= 1);
       }
     } catch (err) {
       console.error('Error fetching real users from database:', err);
@@ -201,7 +201,7 @@ export const FounderAdminPage = () => {
   const handleModelSwitch = async (modelName) => {
     try {
       setSwitchingModel(true);
-      const res = await aiFastApiService.switchAdminModel(modelName);
+      const res = await aiFastApiService.switchAdminModel(modelName, user?.email);
       setSelectedModel(res.active_model);
       addToast(`Switched active LLM to: ${res.active_model}`, 'success');
       fetchMetrics(false);
@@ -215,7 +215,7 @@ export const FounderAdminPage = () => {
   const handleReset = async () => {
     if (!window.confirm('Are you sure you want to reset all token usage counters?')) return;
     try {
-      await aiFastApiService.resetAdminMetrics();
+      await aiFastApiService.resetAdminMetrics(user?.email);
       addToast('Usage metrics have been reset', 'info');
       fetchMetrics(false);
     } catch (err) {

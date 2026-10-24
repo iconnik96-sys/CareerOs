@@ -3,12 +3,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { campusService } from '../services/campusService';
+import { profileService } from '../services/profileService';
 import { Building2, GraduationCap, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export const StudentJoinBatchPage = () => {
   const { code } = useParams();
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { showToast } = useToast();
 
   const [inviteCode, setInviteCode] = useState(code ? code.toUpperCase() : '');
@@ -34,6 +35,21 @@ export const StudentJoinBatchPage = () => {
         roll_number: rollNumber,
         cgpa: parseFloat(cgpa) || 8.0
       });
+
+      // Persist college in student profile if logged in
+      if (user?.id) {
+        try {
+          await profileService.updateProfile(user.id, {
+            college: res.institution_name,
+            degree: branch
+          });
+          if (refreshProfile) {
+            await refreshProfile();
+          }
+        } catch (profErr) {
+          console.warn('Could not update student profile with college:', profErr);
+        }
+      }
 
       setJoined(true);
       setJoinedInstitution(res);

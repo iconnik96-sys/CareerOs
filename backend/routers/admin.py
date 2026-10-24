@@ -9,8 +9,57 @@ from services.llm_engine import llm_engine, FALLBACK_MODELS
 router = APIRouter(prefix="/api/admin", tags=["Founder Admin Operations"])
 logger = logging.getLogger("AdminRouter")
 
-# Allowed founder email
+# Allowed founder email & admin key
 FOUNDER_EMAIL = os.getenv("FOUNDER_EMAIL", "nikhil@gmail.com").lower().strip()
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "").strip()
+
+def extract_email_from_jwt(token: str) -> Optional[str]:
+    """Safely decodes unverified JWT payload without third-party dependencies."""
+    try:
+        parts = token.split(".")
+        if len(parts) == 3:
+            payload = parts[1]
+            rem = len(payload) % 4
+            if rem > 0:
+                payload += "=" * (4 - rem)
+            import json, base64
+            decoded = json.loads(base64.urlsafe_b64decode(payload.encode("utf-8")).decode("utf-8"))
+            return decoded.get("email")
+    except Exception:
+        pass
+    return None
+
+def verify_admin_access(
+    x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key"),
+    x_founder_email: Optional[str] = Header(None, alias="X-Founder-Email"),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+    founder_email: Optional[str] = None
+):
+    """
+    Enforces that the caller is either authorized via ADMIN_API_KEY,
+    has an active founder session email, or a Bearer token belonging to FOUNDER_EMAIL.
+    """
+    # 1. Direct Secret API Key check (if ADMIN_API_KEY is configured)
+    if ADMIN_API_KEY and x_admin_key and x_admin_key.strip() == ADMIN_API_KEY:
+        return True
+
+    # 2. Check founder email from header or query param
+    candidate_email = (x_founder_email or founder_email or "").strip().lower()
+    if candidate_email and candidate_email == FOUNDER_EMAIL:
+        return True
+
+    # 3. Check JWT token bearer claim
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+        jwt_email = extract_email_from_jwt(token)
+        if jwt_email and jwt_email.strip().lower() == FOUNDER_EMAIL:
+            return True
+
+    logger.warning("Unauthorized attempt to access admin endpoint.")
+    raise HTTPException(
+        status_code=403,
+        detail="Forbidden: Admin or Founder privileges required to access this endpoint."
+    )
 
 class ModelSwitchRequest(BaseModel):
     model: str
@@ -20,7 +69,7 @@ class PricingSimRequest(BaseModel):
     pro_users: int = 50
     ultimate_users: int = 20
 
-@router.get("/metrics")
+@router.get("/metrics", dependencies=[Depends(verify_admin_access)])
 def get_admin_metrics(founder_email: Optional[str] = None):
     """
     Returns full metrics for the Founder Dashboard:
@@ -88,7 +137,7 @@ def get_admin_metrics(founder_email: Optional[str] = None):
         "recent_logs": stats["recent_logs"]
     }
 
-@router.post("/switch-model")
+@router.post("/switch-model", dependencies=[Depends(verify_admin_access)])
 def switch_active_model(req: ModelSwitchRequest):
     """Allows founder to toggle primary model on the fly for cost control."""
     target = req.model.strip()
@@ -108,7 +157,7 @@ def switch_active_model(req: ModelSwitchRequest):
         "rate_info": usage_tracker.get_rate_for_model(llm_engine.model)
     }
 
-@router.post("/reset-metrics")
+@router.post("/reset-metrics", dependencies=[Depends(verify_admin_access)])
 def reset_admin_metrics():
     """Resets the usage tracking logs."""
     usage_tracker.reset_stats()

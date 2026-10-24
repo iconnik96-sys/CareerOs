@@ -10,7 +10,7 @@ export const AcceptCampusInvitePage = () => {
   const token = searchParams.get('token');
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { login } = useAuth();
+  const { login, signup } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [inviteData, setInviteData] = useState(null);
@@ -57,19 +57,30 @@ export const AcceptCampusInvitePage = () => {
 
     setSubmitting(true);
     try {
+      // 1. Activate invite token on backend
       const res = await campusService.acceptInvite({
         token,
         password,
         full_name: inviteData?.full_name
       });
 
+      // 2. Sign up or log in through Supabase Auth
+      const email = inviteData?.email;
+      if (email && signup) {
+        const signupRes = await signup(email, password, inviteData?.full_name);
+        if (signupRes?.error) {
+          // If already registered in auth, attempt sign-in
+          await login(email, password);
+        }
+      }
+
       setSuccess(true);
       showToast('TPO Account activated successfully! Welcome to CareerOS.', 'success');
 
-      // Attempt login or redirect straight to campus dashboard
+      // 3. Navigate to campus dashboard
       setTimeout(() => {
         navigate('/campus');
-      }, 1500);
+      }, 1200);
     } catch (err) {
       showToast(err.message || 'Failed to activate account', 'error');
     } finally {

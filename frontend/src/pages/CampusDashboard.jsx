@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { campusService } from '../services/campusService';
@@ -15,6 +16,10 @@ export const CampusDashboard = () => {
 
   const isFounder = user?.email?.toLowerCase().trim() === 'nikhil@gmail.com' ||
                     profile?.email?.toLowerCase().trim() === 'nikhil@gmail.com';
+
+  const userRole = (user?.user_metadata?.role || profile?.role || '').toLowerCase().trim();
+  const userEmail = (user?.email || profile?.email || '').toLowerCase().trim();
+  const isAuthorized = isFounder || userRole === 'tpo' || userRole === 'admin' || userEmail.includes('tpo') || profile?.is_tpo;
 
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState(null);
@@ -66,8 +71,16 @@ export const CampusDashboard = () => {
   };
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [branchFilter, minCgpa, minAts, readinessFilter, skillSearch, searchQuery]);
+    if (isAuthorized) {
+      fetchDashboardData();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthorized, branchFilter, minCgpa, minAts, readinessFilter, skillSearch, searchQuery]);
+
+  if (!loading && !isAuthorized) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const handleOpenDrilldown = async (student) => {
     setSelectedStudent(student);
@@ -122,15 +135,19 @@ export const CampusDashboard = () => {
     setTimeout(() => setCopiedUrl(false), 2000);
   };
 
-  const handleExportCsv = () => {
-    const url = campusService.getCsvExportUrl({
-      branch: branchFilter,
-      min_cgpa: minCgpa > 0 ? minCgpa : undefined,
-      min_ats: minAts > 0 ? minAts : undefined,
-      readiness: readinessFilter !== 'all' ? readinessFilter : undefined
-    });
-    window.open(url, '_blank');
-    addToast('Exporting student roster to CSV...', 'info');
+  const handleExportCsv = async () => {
+    try {
+      addToast('Generating verified student roster CSV...', 'info');
+      await campusService.downloadStudentsCsv({
+        branch: branchFilter,
+        min_cgpa: minCgpa > 0 ? minCgpa : undefined,
+        min_ats: minAts > 0 ? minAts : undefined,
+        readiness: readinessFilter !== 'all' ? readinessFilter : undefined
+      });
+      addToast('Student roster exported successfully!', 'success');
+    } catch (err) {
+      addToast(err?.message || 'Failed to export CSV. Placement Officer authorization required.', 'error');
+    }
   };
 
   const metrics = overview?.metrics;

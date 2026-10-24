@@ -3,6 +3,9 @@ import re
 import json
 import logging
 from typing import List, Optional, Dict, Any
+from urllib.parse import urlparse
+import ipaddress
+import socket
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 import httpx
@@ -494,21 +497,52 @@ module.exports = router;""",
 }
 
 # ====================================================================
-# Helper: Fetch GitHub PR Diff
+# Helper: Fetch GitHub PR Diff (SSRF Protected)
 # ====================================================================
 
+GITHUB_PR_PATTERN = re.compile(
+    r"^/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/(pull/\d+|commit/[0-9a-fA-F]+)(\.diff|\.patch)?$"
+)
+
+def is_safe_github_pr_url(url: str) -> bool:
+    """Validates URL to strictly prevent SSRF, DNS rebinding, and metadata service abuse."""
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme.lower() != "https":
+            return False
+        hostname = (parsed.hostname or "").lower()
+        if hostname not in ("github.com", "www.github.com", "raw.githubusercontent.com"):
+            return False
+        if not GITHUB_PR_PATTERN.match(parsed.path):
+            return False
+        # Prevent DNS rebinding to local or private IP networks
+        addr_info = socket.getaddrinfo(hostname, 443, proto=socket.IPPROTO_TCP)
+        for _, _, _, _, sockaddr in addr_info:
+            ip_obj = ipaddress.ip_address(sockaddr[0])
+            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_reserved:
+                return False
+        return True
+    except Exception:
+        return False
+
 async def fetch_github_pr_diff(pr_url: str) -> Optional[str]:
-    """Fetches code diff from a public GitHub PR or raw diff endpoint."""
+    """Fetches code diff from a public GitHub PR with strict SSRF defenses."""
     if not pr_url:
         return None
     try:
         clean_url = pr_url.strip()
         diff_url = clean_url if clean_url.endswith(".diff") else f"{clean_url}.diff"
+
+        if not is_safe_github_pr_url(diff_url):
+            logger.warning(f"Rejected unsafe GitHub PR URL for SSRF protection: {pr_url}")
+            return None
+
         headers = {
             "User-Agent": "CareerOS-CodeReviewer/1.0",
             "Accept": "text/plain"
         }
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+        # follow_redirects=False prevents open redirect hops to internal addresses
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
             resp = await client.get(diff_url, headers=headers)
             if resp.status_code == 200 and len(resp.text) > 10:
                 return resp.text[:15000] # Cap diff size for LLM context window

@@ -132,6 +132,25 @@ class SkillBreakdownCategory(BaseModel):
 
 
 MAX_RESUME_FILE_SIZE = 5 * 1024 * 1024 # 5 MB
+CHUNK_SIZE = 64 * 1024  # 64 KB streaming chunk
+
+async def read_uploaded_file_safe(file: UploadFile, max_size: int = MAX_RESUME_FILE_SIZE) -> bytes:
+    """
+    Reads an uploaded file in 64KB chunks and raises 413 immediately if accumulated
+    size exceeds max_size, preventing memory exhaustion (DoS) on 512MB RAM instances.
+    """
+    total_bytes = bytearray()
+    while True:
+        chunk = await file.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        total_bytes.extend(chunk)
+        if len(total_bytes) > max_size:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File size exceeds the {max_size // (1024 * 1024)} MB limit. Please upload a smaller resume."
+            )
+    return bytes(total_bytes)
 
 class DeepAnalysisRequest(BaseModel):
     resume_text: str = Field(..., min_length=10, max_length=50000, example="Full text of candidate's resume...")
@@ -174,14 +193,8 @@ async def parse_resume_file(file: UploadFile = File(...)):
             detail="Unsupported file format. Please upload a valid PDF (.pdf) or Text (.txt) resume file."
         )
 
-    content_bytes = await file.read()
+    content_bytes = await read_uploaded_file_safe(file, MAX_RESUME_FILE_SIZE)
     file_size = len(content_bytes)
-
-    if file_size > MAX_RESUME_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail="File size exceeds the 5 MB limit. Please upload a smaller resume."
-        )
 
     if is_pdf:
         extracted_text = extract_text_from_pdf_bytes(content_bytes)
@@ -302,12 +315,7 @@ async def parse_and_extract_profile(file: UploadFile = File(...)):
             detail="Unsupported file format. Please upload a valid PDF (.pdf) or Text (.txt) resume file."
         )
 
-    content_bytes = await file.read()
-    if len(content_bytes) > MAX_RESUME_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail="File size exceeds the 5 MB limit. Please upload a smaller resume."
-        )
+    content_bytes = await read_uploaded_file_safe(file, MAX_RESUME_FILE_SIZE)
 
     if is_pdf:
         resume_text = extract_text_from_pdf_bytes(content_bytes)
@@ -675,12 +683,7 @@ async def analyze_resume_upload(
             detail="Unsupported file format. Please upload a valid PDF (.pdf) or Text (.txt) resume file."
         )
 
-    content_bytes = await file.read()
-    if len(content_bytes) > MAX_RESUME_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail="File size exceeds the 5 MB limit. Please upload a smaller resume."
-        )
+    content_bytes = await read_uploaded_file_safe(file, MAX_RESUME_FILE_SIZE)
 
     if is_pdf:
         resume_text = extract_text_from_pdf_bytes(content_bytes)

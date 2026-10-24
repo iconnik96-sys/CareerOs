@@ -274,6 +274,20 @@ CREATE POLICY "Users can view own profile"
     ON public.profiles FOR SELECT 
     USING (auth.uid() = user_id);
 
+CREATE POLICY "Founder and admins can view all profiles" 
+    ON public.profiles FOR SELECT 
+    USING (
+        (auth.jwt() ->> 'email') = 'nikhil@gmail.com'
+        OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('founder', 'admin')
+        OR (auth.jwt() -> 'user_metadata' ->> 'role') = 'tpo'
+    );
+
+CREATE POLICY "Service role can manage all profiles" 
+    ON public.profiles FOR ALL 
+    TO service_role 
+    USING (true) 
+    WITH CHECK (true);
+
 CREATE POLICY "Users can update own profile" 
     ON public.profiles FOR UPDATE 
     USING (auth.uid() = user_id);
@@ -336,6 +350,13 @@ CREATE POLICY "Users can view own applications"
     ON public.applications FOR SELECT 
     USING (auth.uid() = user_id);
 
+CREATE POLICY "Founder can view all applications for platform stats" 
+    ON public.applications FOR SELECT 
+    USING (
+        (auth.jwt() ->> 'email') = 'nikhil@gmail.com'
+        OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('founder', 'admin')
+    );
+
 CREATE POLICY "Users can manage own applications" 
     ON public.applications FOR ALL 
     USING (auth.uid() = user_id);
@@ -344,6 +365,13 @@ CREATE POLICY "Users can manage own applications"
 CREATE POLICY "Users can view own analyses" 
     ON public.analyses FOR SELECT 
     USING (auth.uid() = user_id);
+
+CREATE POLICY "Founder can view all analyses for platform stats" 
+    ON public.analyses FOR SELECT 
+    USING (
+        (auth.jwt() ->> 'email') = 'nikhil@gmail.com'
+        OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('founder', 'admin')
+    );
 
 CREATE POLICY "Users can manage own analyses" 
     ON public.analyses FOR ALL 

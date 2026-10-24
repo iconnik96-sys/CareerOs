@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { supabase } from '../lib/supabase';
+
 const FASTAPI_BASE_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8000';
 const client = axios.create({
     baseURL: FASTAPI_BASE_URL,
@@ -6,6 +8,22 @@ const client = axios.create({
     headers: {
         'Content-Type': 'application/json'
     }
+});
+
+// Automatically inject session token and user email if authenticated
+client.interceptors.request.use(async (config) => {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+            config.headers['Authorization'] = `Bearer ${session.access_token}`;
+            if (session.user?.email) {
+                config.headers['X-Founder-Email'] = session.user.email;
+            }
+        }
+    } catch {
+        // Fallback gracefully if Supabase is offline or uninitialized
+    }
+    return config;
 });
 function formatApiError(err) {
     if (axios.isAxiosError(err)) {
@@ -226,25 +244,29 @@ export const aiFastApiService = {
     },
     async getAdminMetrics(founderEmail) {
         try {
+            const headers = founderEmail ? { 'X-Founder-Email': founderEmail } : {};
             const res = await client.get('/api/admin/metrics', {
-                params: { founder_email: founderEmail }
+                params: { founder_email: founderEmail },
+                headers
             });
             return res.data;
         } catch (err) {
             throw formatApiError(err);
         }
     },
-    async switchAdminModel(model) {
+    async switchAdminModel(model, founderEmail) {
         try {
-            const res = await client.post('/api/admin/switch-model', { model });
+            const headers = founderEmail ? { 'X-Founder-Email': founderEmail } : {};
+            const res = await client.post('/api/admin/switch-model', { model }, { headers });
             return res.data;
         } catch (err) {
             throw formatApiError(err);
         }
     },
-    async resetAdminMetrics() {
+    async resetAdminMetrics(founderEmail) {
         try {
-            const res = await client.post('/api/admin/reset-metrics');
+            const headers = founderEmail ? { 'X-Founder-Email': founderEmail } : {};
+            const res = await client.post('/api/admin/reset-metrics', {}, { headers });
             return res.data;
         } catch (err) {
             throw formatApiError(err);

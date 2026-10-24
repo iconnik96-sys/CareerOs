@@ -49,6 +49,50 @@ const ProtectedRoute = ({ children }) => {
     return <>{children}</>;
 };
 
+// Role-based guard for Founder / Admin console
+const FounderRoute = ({ children }) => {
+    const { user, profile, loading } = useAuth();
+    if (loading) {
+        return (
+            <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)' }}>
+                <div className="loading-spinner" style={{ width: 36, height: 36 }} />
+            </div>
+        );
+    }
+    if (!user) {
+        return <Navigate to="/login" replace />;
+    }
+    const email = (user?.email || profile?.email || '').toLowerCase().trim();
+    const role = (user?.user_metadata?.role || profile?.role || '').toLowerCase().trim();
+    const isFounder = email === 'nikhil@gmail.com' || role === 'founder' || role === 'admin';
+    if (!isFounder) {
+        return <Navigate to="/dashboard" replace />;
+    }
+    return <>{children}</>;
+};
+
+// Role-based guard for Campus / TPO portal
+const CampusRoute = ({ children }) => {
+    const { user, profile, loading } = useAuth();
+    if (loading) {
+        return (
+            <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)' }}>
+                <div className="loading-spinner" style={{ width: 36, height: 36 }} />
+            </div>
+        );
+    }
+    if (!user) {
+        return <Navigate to="/login" replace />;
+    }
+    const email = (user?.email || profile?.email || '').toLowerCase().trim();
+    const role = (user?.user_metadata?.role || profile?.role || '').toLowerCase().trim();
+    const isAuthorized = email === 'nikhil@gmail.com' || role === 'founder' || role === 'admin' || role === 'tpo' || email.includes('tpo') || profile?.is_tpo;
+    if (!isAuthorized) {
+        return <Navigate to="/dashboard" replace />;
+    }
+    return <>{children}</>;
+};
+
 export const App = () => {
     return (
         <ErrorBoundary>
@@ -70,9 +114,9 @@ export const App = () => {
                             {/* Protected App Routes with AppLayout Shell */}
                             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                                 <Route path="/dashboard" element={<DashboardPage />} />
-                                <Route path="/campus" element={<CampusDashboard />} />
-                                <Route path="/campus-dashboard" element={<CampusDashboard />} />
-                                <Route path="/tpo" element={<CampusDashboard />} />
+                                <Route path="/campus" element={<CampusRoute><CampusDashboard /></CampusRoute>} />
+                                <Route path="/campus-dashboard" element={<CampusRoute><CampusDashboard /></CampusRoute>} />
+                                <Route path="/tpo" element={<CampusRoute><CampusDashboard /></CampusRoute>} />
                                 <Route path="/profile" element={<CareerProfilePage />} />
                                 <Route path="/ai-studio" element={<AICareerStudioPage />} />
                                 <Route path="/ai-career-studio" element={<AICareerStudioPage />} />
@@ -87,8 +131,8 @@ export const App = () => {
                                 <Route path="/simulations" element={<SimulationsPage />} />
                                 <Route path="/simulations/:trackKey" element={<SimulationWorkspacePage />} />
                                 <Route path="/settings" element={<SettingsPage />} />
-                                <Route path="/admin" element={<FounderAdminPage />} />
-                                <Route path="/founder" element={<FounderAdminPage />} />
+                                <Route path="/admin" element={<FounderRoute><FounderAdminPage /></FounderRoute>} />
+                                <Route path="/founder" element={<FounderRoute><FounderAdminPage /></FounderRoute>} />
                             </Route>
 
                             {/* Fallback */}

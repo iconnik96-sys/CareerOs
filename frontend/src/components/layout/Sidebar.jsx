@@ -18,20 +18,11 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-    { to: '/profile', label: 'Career Profile', icon: <User size={18} /> },
-    { to: '/ai-studio', label: 'AI Career Studio', icon: <Sparkles size={18} />, badge: 'FastAPI' },
-    { to: '/job-analyzer', label: 'Job Analyzer', icon: <ScanSearch size={18} />, badge: 'AI' },
-    { to: '/jobs', label: 'Jobs', icon: <Briefcase size={18} /> },
-    { to: '/applications', label: 'Applications', icon: <Layers size={18} /> },
-    { to: '/roadmap', label: 'Career Roadmap', icon: <Milestone size={18} /> },
-    {
-      to: '/interview-prep',
-      label: 'Interview Prep',
-      icon: <HelpCircle size={18} />,
-      badge: 'AI Live'
-    },
-    { to: '/simulations', label: 'Workplace Simulation', icon: <Terminal size={18} />, badge: 'Practice' },
-    { to: '/settings', label: 'Settings', icon: <Settings size={18} /> },
+    { to: '/ai-studio', label: 'AI Career Studio', icon: <Sparkles size={18} />, badge: 'ATS 85' },
+    { to: '/roadmap', label: 'Career Roadmap', icon: <Milestone size={18} />, badge: 'Skills' },
+    { to: '/simulations', label: 'Workplace Simulation', icon: <Terminal size={18} />, badge: 'Code IDE' },
+    { to: '/interview-prep', label: 'Mock Interviews', icon: <HelpCircle size={18} />, badge: 'AI Voice' },
+    { to: '/jobs', label: 'Jobs & Pipeline', icon: <Briefcase size={18} />, badge: 'Matches' },
   ];
 
   return (<aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}>
@@ -48,9 +39,8 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
       </div>
     </div>
 
-    {/* Navigation List */}
-    <nav className="sidebar-nav">
-      <span className="nav-category-title">Platform</span>
+    {/* 5 Core Navigation Items */}
+    <nav className="sidebar-nav" style={{ padding: '0.5rem 0.25rem' }}>
       {navItems.map(item => (
         <NavLink
           key={item.to}
@@ -61,7 +51,7 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
           {item.icon}
           <span style={{ flex: 1 }}>{item.label}</span>
           {item.badge && (
-            <span className="badge badge-purple" style={{ padding: '0.1rem 0.4rem', fontSize: '0.6875rem' }}>
+            <span className="badge badge-purple" style={{ padding: '0.12rem 0.45rem', fontSize: '0.6875rem' }}>
               {item.badge}
             </span>
           )}
@@ -119,17 +109,50 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
       )}
     </nav>
 
-    {/* Sidebar Footer User Info & Logout */}
+    {/* Sidebar Footer User Info & Quick Action Icons */}
     <div className="sidebar-footer">
-      <div className="user-profile-card">
-        <img src={profile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'} alt="User Avatar" className="user-avatar" />
-        <div className="user-info-text">
-          <div className="user-name">{profile?.full_name || 'Alex Rivera'}</div>
-          <div className="user-email">{profile?.email || user?.email || 'alex.rivera@university.edu'}</div>
+      <div className="user-profile-card" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.65rem 0.75rem' }}>
+        <NavLink
+          to="/profile"
+          onClick={onCloseMobile}
+          title="View Career Profile & Skills"
+          style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}
+        >
+          <img
+            src={profile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
+            alt="User Avatar"
+            className="user-avatar"
+            style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
+          />
+          <div className="user-info-text" style={{ minWidth: 0 }}>
+            <div className="user-name" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {profile?.full_name || 'Alex Rivera'}
+            </div>
+            <div className="user-email" style={{ fontSize: '0.6875rem', color: 'var(--primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Profile & Skills →
+            </div>
+          </div>
+        </NavLink>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <NavLink
+            to="/settings"
+            onClick={onCloseMobile}
+            title="Settings"
+            className={({ isActive }) => `btn-ghost ${isActive ? 'active' : ''}`}
+            style={{ padding: '6px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+          >
+            <Settings size={16} />
+          </NavLink>
+          <button
+            onClick={handleLogout}
+            title="Logout"
+            className="btn-ghost"
+            style={{ padding: '6px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+          >
+            <LogOut size={16} />
+          </button>
         </div>
-        <button onClick={handleLogout} title="Logout" className="btn-ghost" style={{ padding: '6px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)' }}>
-          <LogOut size={16} />
-        </button>
       </div>
     </div>
   </aside>);

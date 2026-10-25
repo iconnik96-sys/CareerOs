@@ -180,12 +180,26 @@ export const JobsPage = () => {
 
     return (
         <div className="page-container">
-            <div className="page-header">
+            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
                 <div>
-                    <h1 className="page-title">Job Discovery</h1>
+                    <h1 className="page-title">Jobs & Hiring Pipeline</h1>
                     <p className="page-subtitle">
                         Explore curated opportunities for freshers and early-career engineering talent matched with your skills.
                     </p>
+                </div>
+
+                {/* Seamless Pipeline Tabs */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '3px', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                    <Link to="/jobs" style={{ textDecoration: 'none' }}>
+                        <Button variant="primary" size="sm" style={{ padding: '0.4rem 0.85rem', fontSize: '0.8125rem' }}>
+                            Explore Matches ({jobs.length})
+                        </Button>
+                    </Link>
+                    <Link to="/applications" style={{ textDecoration: 'none' }}>
+                        <Button variant="ghost" size="sm" style={{ padding: '0.4rem 0.85rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                            Applications Pipeline (Kanban)
+                        </Button>
+                    </Link>
                 </div>
             </div>
 

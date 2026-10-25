@@ -146,6 +146,222 @@ export const SimulationsPage = () => {
                 </div>
             </div>
 
+            {/* 1.5 Progressive Difficulty Ladder for Students & Freshers */}
+            <div style={{
+                margin: '1rem 0 2.5rem',
+                padding: '1.75rem',
+                borderRadius: 'var(--radius-xl)',
+                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.6) 100%)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: 'var(--shadow-lg)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#38bdf8' }}>
+                                Progressive Skill Ladder
+                            </span>
+                            <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '100px', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 700 }}>
+                                Fresher to Production Ready
+                            </span>
+                        </div>
+                        <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                            Choose Your Simulation Experience Level
+                        </h2>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '420px', lineHeight: 1.4 }}>
+                        Start with step-by-step guided tickets or dive straight into high-concurrency production outages.
+                    </p>
+                </div>
+
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '1.25rem'
+                }}>
+                    {/* Level 1 Card: Ticket FIN-101 */}
+                    <div
+                        onClick={() => {
+                            const target = tracks[0]?.track_key || 'finpulse-payments';
+                            navigate(`/simulations/${target}?mode=guided&ticket=FIN-101`);
+                        }}
+                        style={{
+                            background: 'rgba(16, 185, 129, 0.06)',
+                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                            borderRadius: 'var(--radius-lg)',
+                            padding: '1.25rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            transition: 'all 0.2s ease',
+                            position: 'relative'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+                            e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(16, 185, 129, 0.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.25)';
+                            e.currentTarget.style.boxShadow = 'none';
+                        }}
+                    >
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 800,
+                                    padding: '0.2rem 0.6rem',
+                                    borderRadius: '100px',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+                                    color: '#34d399'
+                                }}>
+                                    🟢 Level 1 • Beginner Friendly
+                                </span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>~15 mins</span>
+                            </div>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.4rem', color: '#f8fafc' }}>
+                                FIN-101: Validate Currency & Amounts
+                            </h3>
+                            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
+                                Plain-English mission brief. Implement ISO-4217 uppercase currency and boundary validation in paymentController.ts.
+                            </p>
+                        </div>
+                        <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 600 }}>Guided 2-Pane IDE</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#34d399' }}>
+                                Start Ticket <ArrowRight size={14} />
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Level 2 Card: Ticket FIN-102 */}
+                    <div
+                        onClick={() => {
+                            const target = tracks[0]?.track_key || 'finpulse-payments';
+                            navigate(`/simulations/${target}?mode=guided&ticket=FIN-102`);
+                        }}
+                        style={{
+                            background: 'rgba(245, 158, 11, 0.06)',
+                            border: '1px solid rgba(245, 158, 11, 0.25)',
+                            borderRadius: 'var(--radius-lg)',
+                            padding: '1.25rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+                            e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(245, 158, 11, 0.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.25)';
+                            e.currentTarget.style.boxShadow = 'none';
+                        }}
+                    >
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 800,
+                                    padding: '0.2rem 0.6rem',
+                                    borderRadius: '100px',
+                                    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                                    color: '#fbbf24'
+                                }}>
+                                    🟡 Level 2 • Intermediate
+                                </span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>~30 mins</span>
+                            </div>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.4rem', color: '#f8fafc' }}>
+                                FIN-102: Distributed Idempotency Lock
+                            </h3>
+                            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
+                                Prevent duplicate transaction race conditions using atomic Redis distributed locks in idempotencyService.ts.
+                            </p>
+                        </div>
+                        <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: '0.75rem', color: '#fbbf24', fontWeight: 600 }}>Guided 2-Pane IDE</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#fbbf24' }}>
+                                Start Ticket <ArrowRight size={14} />
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Level 3 Card: Incident #504 */}
+                    <div
+                        onClick={() => {
+                            const target = tracks[0]?.track_key || 'finpulse-payments';
+                            navigate(`/simulations/${target}?mode=pro&ticket=INC-504`);
+                        }}
+                        style={{
+                            background: 'rgba(239, 68, 68, 0.06)',
+                            border: '1px solid rgba(239, 68, 68, 0.25)',
+                            borderRadius: 'var(--radius-lg)',
+                            padding: '1.25rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                            e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(239, 68, 68, 0.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+                            e.currentTarget.style.boxShadow = 'none';
+                        }}
+                    >
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 800,
+                                    padding: '0.2rem 0.6rem',
+                                    borderRadius: '100px',
+                                    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+                                    color: '#f87171'
+                                }}>
+                                    🔴 Level 3 • Production Outage
+                                </span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>~45 mins</span>
+                            </div>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.4rem', color: '#f8fafc' }}>
+                                Incident #504: Flash Sale Bottleneck
+                            </h3>
+                            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
+                                Live terminal, Docker logs, pool starvation diagnosis, WASM unit tests, and Staff AI review in docker-compose.yml.
+                            </p>
+                        </div>
+                        <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 600 }}>4-Pane Incident IDE</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#f87171' }}>
+                                Launch Incident <ArrowRight size={14} />
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* 2. Interactive Filter & Search Controls */}
             <div style={{
                 display: 'flex',

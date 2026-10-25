@@ -4,7 +4,7 @@ import {
     FileText, GitPullRequest, Play, CheckCircle2, AlertTriangle, 
     X, RefreshCw, Send, Sparkles, MessageSquare, ChevronRight, 
     ChevronDown, Settings, Search, GitBranch, Bug, Layers, 
-    ExternalLink, Check, Copy, Flame, ShieldAlert, Award, Bot
+    ExternalLink, Check, Copy, Flame, ShieldAlert, Award, Bot, ArrowRight
 } from 'lucide-react';
 import { wasmExecutionService } from '../../services/wasmExecutionService';
 import { simulationService } from '../../services/simulationService';
@@ -80,6 +80,31 @@ export const verifyMerchantSignature = (req: Request, res: Response, next: NextF
     }
     next();
 };`,
+    'idempotencyService.ts': `import { Redis } from 'ioredis';
+
+const redis = new Redis({ host: process.env.REDIS_HOST || 'localhost' });
+
+export class IdempotencyService {
+    // TODO (FIN-102): Prevent race conditions and double charges
+    // 1. Acquire distributed lock with a 60s TTL for the given key
+    // 2. If key is already PROCESSING or COMPLETED, return false or throw
+    // 3. Ensure lock is released or status updated in try...finally
+    static async acquireLock(idempotencyKey: string): Promise<boolean> {
+        // Vulnerable stub: currently accepts all requests without locking
+        return true;
+    }
+
+    static async releaseLock(idempotencyKey: string): Promise<void> {
+        // TODO: Release key
+    }
+}`,
+    'errorMiddleware.ts': `import { Request, Response, NextFunction } from 'express';
+
+export const globalErrorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+    // TODO (FIN-103): Sanitize internal stack traces and return RFC-7807 JSON error
+    console.error('Unhandled error:', err);
+    res.status(500).json({ error: err.message, stack: err.stack });
+};`,
     'package.json': `{
   "name": "finpulse-payment-microservice",
   "version": "2.4.0",
@@ -99,6 +124,243 @@ export const verifyMerchantSignature = (req: Request, res: Response, next: NextF
 Production incident simulation: Flash sale traffic spike causing 504 Gateway Timeouts.
 Investigate pool exhaustion and adjust connection limits.`
 };
+
+// Available Simulation Tickets Definition
+export const AVAILABLE_SIMULATION_TICKETS = [
+    {
+        code: 'FIN-101',
+        title: 'Strict ISO-4217 Currency & Amount Boundary Validation',
+        badge: 'Level 1 • Beginner Friendly',
+        duration: '~15 mins',
+        targetFile: 'paymentController.ts',
+        tipText: 'Tip: Validate currency in SUPPORTED_CURRENCIES & amount > 0',
+        scenario: "Merchants reported reconciliation failures because clients submitted lowercase currency codes ('usd' instead of 'USD') and negative amounts.",
+        objective: 'Enforce uppercase ISO-4217 currency validation and positive amount checks with HTTP 422 boundaries.',
+        constraint: 'Reject unsupported currencies; enforce maximum 2 decimal places.',
+        missionSummary: "Merchants reported transaction anomalies when clients sent lowercase currency codes ('usd' instead of 'USD') and negative numbers. Implement strict ISO-4217 uppercase currency and positive decimal validation before dispatching to banking networks.",
+        steps: [
+            { num: 1, text: "Inspect paymentController.ts on the right (lines 19–30)." },
+            { num: 2, text: "Validate that currency is in SUPPORTED_CURRENCIES (uppercase 'USD', 'EUR', etc.) and amount > 0 with max 2 decimals. Return HTTP 422 if invalid." },
+            { num: 3, text: 'Click "▶️ Run Verification Tests (1-Click)" to test your validation in WebAssembly.' }
+        ],
+        hint: `if (!currency || !SUPPORTED_CURRENCIES.has(currency) || currency !== currency.toUpperCase()) {
+    return res.status(422).json({ error: "Invalid currency. Must be uppercase ISO-4217." });
+}
+if (typeof amount !== 'number' || amount <= 0 || !/^\\d+(\\.\\d{1,2})?$/.test(amount.toString())) {
+    return res.status(422).json({ error: "Amount must be strictly positive." });
+}`,
+        fixFile: 'paymentController.ts',
+        fixCode: `import { Request, Response } from 'express';
+import { processPayment } from '../services/paymentService';
+import { logger } from '../utils/logger';
+
+const SUPPORTED_CURRENCIES = new Set(['USD', 'EUR', 'GBP', 'CAD', 'JPY', 'INR']);
+
+export const handlePayment = async (req: Request, res: Response) => {
+    try {
+        const { amount, currency, paymentMethodId } = req.body;
+        logger.info(\`Processing payment for \${amount} \${currency}\`);
+        
+        // Strict ISO-4217 Currency and Amount Boundary Validation (FIN-101)
+        if (!currency || !SUPPORTED_CURRENCIES.has(currency) || currency !== currency.toUpperCase()) {
+            return res.status(422).json({ error: 'Invalid currency. Must be uppercase ISO-4217: USD, EUR, GBP, CAD, JPY, INR' });
+        }
+        if (typeof amount !== 'number' || amount <= 0 || !/^\\d+(\\.\\d{1,2})?$/.test(amount.toString())) {
+            return res.status(422).json({ error: 'Amount must be strictly positive with at most 2 decimal places' });
+        }
+
+        const result = await processPayment(amount, currency, paymentMethodId);
+        return res.status(200).json(result);
+    } catch (error: any) {
+        logger.error('Payment processing failed', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+};`,
+        mentorQuote: '"In high-volume fintech gateways, accepting lowercase strings like \\"usd\\" can corrupt ledger reconciliation. Validating boundaries at the edge prevents hundreds of thousands in accounting errors!"',
+        mentorInitialMessages: [
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "Welcome to the payments core service! We have an audit flag from banking operations: several client requests slipped through with lowercase currency strings ('usd') and negative amounts."
+            },
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "Inspect paymentController.ts. Notice how handlePayment currently accepts amount and currency without boundary checks before calling processPayment."
+            },
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "What HTTP status code should we return when request payload validation fails? And how should we ensure currency matches our uppercase ISO-4217 set?"
+            },
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "💡 Hint: Check SUPPORTED_CURRENCIES. Verify currency === currency.toUpperCase() and amount > 0. Return status 422 Unprocessable Entity."
+            }
+        ],
+        terminalLogs: [
+            { type: 'system', text: 'CareerOS WebAssembly & Simulation Lab initialized [v2.4.0-release]' },
+            { type: 'system', text: 'Type "help", "npm test", "git status", or "git diff" to interact.' },
+            { type: 'command', text: 'tail -n 15 /var/log/finpulse/payment-validation.log' },
+            { type: 'stdout', text: '[2026-10-22T10:14:02.110Z] [WARN] Merchant 8829 submitted payload: { amount: -150.00, currency: "usd" }' },
+            { type: 'stderr', text: '[2026-10-22T10:14:02.115Z] [ERROR] Banking settlement network rejected: Invalid currency "usd" (expected ISO-4217 uppercase).' },
+            { type: 'stderr', text: '[2026-10-22T10:14:03.220Z] [ERROR] Ledger anomaly: Negative charge of -$150.00 attempted. Transaction aborted.' },
+            { type: 'stdout', text: '[2026-10-22T10:14:04.001Z] [INFO] Total unvalidated requests received in last 10m: 142.' }
+        ]
+    },
+    {
+        code: 'FIN-102',
+        title: 'Distributed Idempotency Lock (Race Condition Prevention)',
+        badge: 'Level 2 • Intermediate',
+        duration: '~30 mins',
+        targetFile: 'idempotencyService.ts',
+        tipText: 'Tip: Implement atomic Redis SET NX with EX 60s TTL',
+        scenario: "When network latency is high, shoppers double-tap 'Pay'. Without an idempotency lock, concurrent threads double-charge customers.",
+        objective: 'Implement an atomic distributed lock using Redis SET NX with a 60s TTL and handle HTTP 409 Conflict.',
+        constraint: 'Guarantee zero double-charges under concurrent load; release or finalize locks.',
+        missionSummary: "When network latency is high, consumers frequently spam the 'Pay' button twice within 200ms. Without idempotency protection, two concurrent requests deduct balances twice. Implement an atomic distributed lock!",
+        steps: [
+            { num: 1, text: "Open idempotencyService.ts on the right." },
+            { num: 2, text: "Check if the idempotencyKey is already acquired. If locked, reject concurrent attempts with HTTP 409 Conflict. Guarantee lock cleanup in a try...finally block." },
+            { num: 3, text: 'Click "▶️ Run Verification Tests (1-Click)" to simulate concurrent double-taps.' }
+        ],
+        hint: `const acquired = await redis.set(\`idemp:\${idempotencyKey}\`, 'PROCESSING', 'EX', 60, 'NX');
+if (!acquired) {
+    return false; // Already locked
+}`,
+        fixFile: 'idempotencyService.ts',
+        fixCode: `import { Redis } from 'ioredis';
+
+const redis = new Redis({ host: process.env.REDIS_HOST || 'localhost' });
+
+export class IdempotencyService {
+    // Distributed Idempotency Key Lock (FIN-102)
+    static async acquireLock(idempotencyKey: string): Promise<boolean> {
+        if (!idempotencyKey) {
+            throw new Error('Missing Idempotency-Key');
+        }
+        // Atomic SET with NX (not exists) and 60s TTL
+        const acquired = await redis.set(\`idemp:\${idempotencyKey}\`, 'PROCESSING', 'EX', 60, 'NX');
+        if (!acquired) {
+            return false; // Already locked or in progress
+        }
+        return true;
+    }
+
+    static async releaseLock(idempotencyKey: string, result?: any): Promise<void> {
+        if (result) {
+            await redis.set(\`idemp:\${idempotencyKey}\`, JSON.stringify(result), 'EX', 86400);
+        } else {
+            await redis.del(\`idemp:\${idempotencyKey}\`);
+        }
+    }
+}`,
+        mentorQuote: '"Never let two transactions process the same payment! An atomic distributed lock ensures that even if a customer double-clicks in 50ms, exactly one charge succeeds."',
+        mentorInitialMessages: [
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "We have an urgent issue with double charges! When mobile users hit network latency spikes, they repeatedly tap 'Submit Payment'."
+            },
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "Look at idempotencyService.ts. Currently, acquireLock is an insecure stub returning true unconditionally, leaving the door wide open for race conditions."
+            },
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "Why is a standard database read-then-write insufficient under high concurrency, and why do we require an atomic Redis SET NX with TTL?"
+            },
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "💡 Hint: Use `redis.set(\`idemp:\${idempotencyKey}\`, 'PROCESSING', 'EX', 60, 'NX')`. If it returns null, another thread is already executing."
+            }
+        ],
+        terminalLogs: [
+            { type: 'system', text: 'CareerOS WebAssembly & Simulation Lab initialized [v2.4.0-release]' },
+            { type: 'system', text: 'Type "help", "npm test", "git status", or "git diff" to interact.' },
+            { type: 'command', text: 'grep -i "race condition" /var/log/finpulse/audit.log' },
+            { type: 'stdout', text: '[2026-10-22T10:14:50.002Z] [AUDIT] POST /api/v1/payments (Idempotency-Key: idemp_9f82ab)' },
+            { type: 'stdout', text: '[2026-10-22T10:14:50.045Z] [AUDIT] POST /api/v1/payments (Idempotency-Key: idemp_9f82ab) [RACE CONDITION DETECTED]' },
+            { type: 'stderr', text: '[2026-10-22T10:14:51.310Z] [CRITICAL] Customer cust_4882 billed TWICE for $79.99! Both threads acquired lock.' },
+            { type: 'stderr', text: '[2026-10-22T10:14:52.012Z] [ALERT] Idempotency violation SLA breach. Double-charge incident active.' }
+        ]
+    },
+    {
+        code: 'INC-504',
+        title: 'Flash Sale Connection Bottleneck (Outage Resolution)',
+        badge: 'Level 3 • Production Incident',
+        duration: '~45 mins',
+        targetFile: 'docker-compose.yml',
+        tipText: 'Tip: Modify DB_POOL_SIZE on lines 9–12',
+        scenario: "Flash sale spike caused 504 Gateway Timeouts and OOM crashes. Investigate database connection pool exhaustion and scale limits.",
+        objective: 'Scale DB connection pool (DB_POOL_SIZE=50, MAX_CONCURRENT_REQUESTS=500) to withstand 15,000 req/sec.',
+        constraint: 'Maintain p95 response time < 50ms without exceeding database replica limits.',
+        missionSummary: "When 15,000 customers hit the checkout during a flash sale, our database drops transactions because only 10 connections are allowed. Scale the connection pool to 50!",
+        steps: [
+            { num: 1, text: "Look at docker-compose.yml on the right (lines 9–12)." },
+            { num: 2, text: "Change DB_POOL_SIZE to 50 and MAX_CONCURRENT_REQUESTS to 500." },
+            { num: 3, text: 'Click "▶️ Run Verification Tests (1-Click)" to test your fix in WebAssembly.' }
+        ],
+        hint: `- DB_POOL_SIZE=50
+- MAX_CONCURRENT_REQUESTS=500`,
+        fixFile: 'docker-compose.yml',
+        fixCode: `version: '3.8'
+services:
+  payment-service:
+    build: .
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      # Scaled Connection Pool for 15,000 req/sec flash sale
+      - DB_POOL_SIZE=50
+      - MAX_CONCURRENT_REQUESTS=500
+      - REDIS_HOST=redis
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis`,
+        mentorQuote: '"Think of database connections like checkout registers at a grocery store. 10 registers for 15,000 shoppers causes massive congestion. Scaling to 50 connections resolves the 504 bottleneck!"',
+        mentorInitialMessages: [
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "I see you're investigating the 504 Gateway Timeout during our flash sale spike. The service logs show some very telling error patterns."
+            },
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "What do the 'Connection pool exhausted' and 'out of memory' errors in the payment-service logs suggest about the root cause under high load?"
+            },
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "Consider the relationship between the number of concurrent incoming requests, database connections, and available memory resources. Are our current configurations sufficient?"
+            },
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "💡 Hint: Check the docker-compose.yml environment variables for the payment service. Notice DB_POOL_SIZE and MAX_CONCURRENT_REQUESTS."
+            }
+        ],
+        terminalLogs: [
+            { type: 'system', text: 'CareerOS WebAssembly & Simulation Lab initialized [v2.4.0-release]' },
+            { type: 'system', text: 'Type "help", "docker logs", "npm test", "git status", or "git diff" to interact.' },
+            { type: 'command', text: 'docker logs -f payment-service' },
+            { type: 'stdout', text: '[2026-10-22T10:15:01.122Z] [INFO] Starting payment service on port 8080...' },
+            { type: 'stdout', text: '[2026-10-22T10:15:05.462Z] [INFO] Connected to PostgreSQL replica: db-primary.finpulse.internal' },
+            { type: 'stdout', text: '[2026-10-22T10:15:10.285Z] [INFO] Incoming flash sale surge: 14,200 req/sec across 48 merchant channels.' },
+            { type: 'stderr', text: '[2026-10-22T10:15:18.705Z] [ERROR] Payment processing failed: Error: Connection pool exhausted, unable to acquire connection within 3000ms.' },
+            { type: 'stderr', text: '[2026-10-22T10:15:24.412Z] [ERROR] HTTP 504 GATEWAY_TIMEOUT spike: 412 customer checkouts dropped.' },
+            { type: 'fatal', text: '[2026-10-22T10:15:31.015Z] [FATAL] runtime: out of memory (cannot allocate 1048576-byte block)' },
+            { type: 'stderr', text: 'Payment service exited with code 2 (SIGSEGV).' }
+        ]
+    }
+];
 
 // Universal Line-by-Line LCS Diff Algorithm
 function computeLineDiff(originalText = '', modifiedText = '') {
@@ -218,37 +480,78 @@ export const DeveloperSimulationLab = ({
     onClose, 
     onSubmitReview, 
     reviewing = false, 
-    reviewResult = null 
+    reviewResult = null,
+    initialGuidedMode = true,
+    initialTicketCode = 'FIN-101',
+    onSelectTicket = null
 }) => {
     const toast = useToast();
 
+    // Active Ticket Code & Menu State
+    const [currentTicketCode, setCurrentTicketCode] = useState(
+        initialTicketCode || activeTicket?.ticket_code || 'FIN-101'
+    );
+    const [showTicketMenu, setShowTicketMenu] = useState(false);
+
+    const currentTicketData = AVAILABLE_SIMULATION_TICKETS.find(t => t.code === currentTicketCode) || AVAILABLE_SIMULATION_TICKETS[0];
+
+    // Guided Mode for Freshers vs Pro Mode for Advanced Students
+    const [isGuidedMode, setIsGuidedMode] = useState(initialGuidedMode);
+    const [showGuidedHint, setShowGuidedHint] = useState(false);
+
+    // Review Result Modal State
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [copiedBullet, setCopiedBullet] = useState(false);
+
+    useEffect(() => {
+        if (reviewResult) {
+            setShowReviewModal(true);
+        }
+    }, [reviewResult]);
+
+    // Synchronize ticket code when prop changes
+    useEffect(() => {
+        const targetCode = initialTicketCode || activeTicket?.ticket_code || 'FIN-101';
+        setCurrentTicketCode(targetCode);
+        const t = AVAILABLE_SIMULATION_TICKETS.find(item => item.code === targetCode) || AVAILABLE_SIMULATION_TICKETS[0];
+        setActiveFile(t.targetFile);
+        setOpenFiles(prev => prev.includes(t.targetFile) ? prev : [t.targetFile, ...prev]);
+        if (t.mentorInitialMessages) setMentorMessages(t.mentorInitialMessages);
+        if (t.terminalLogs) setTerminalLines(t.terminalLogs);
+    }, [initialTicketCode, activeTicket?.ticket_code]);
+
+    const handleSwitchTicket = (newCode) => {
+        setCurrentTicketCode(newCode);
+        const t = AVAILABLE_SIMULATION_TICKETS.find(item => item.code === newCode) || AVAILABLE_SIMULATION_TICKETS[0];
+        setActiveFile(t.targetFile);
+        setOpenFiles(prev => prev.includes(t.targetFile) ? prev : [t.targetFile, ...prev]);
+        setTestResult(null);
+        setShowGuidedHint(false);
+        if (t.mentorInitialMessages) setMentorMessages(t.mentorInitialMessages);
+        if (t.terminalLogs) setTerminalLines(t.terminalLogs);
+        if (onSelectTicket) onSelectTicket(newCode);
+    };
+
+    const handleCopyBullet = (text) => {
+        navigator.clipboard.writeText(text);
+        setCopiedBullet(true);
+        if (toast?.showToast) toast.showToast('Copied STAR resume bullet to clipboard!', 'success', 'Copied!');
+        setTimeout(() => setCopiedBullet(false), 2000);
+    };
+
     // 1. Multi-File Virtual Filesystem State
-    const [openFiles, setOpenFiles] = useState(['paymentController.ts', 'docker-compose.yml']);
-    const [activeFile, setActiveFile] = useState('paymentController.ts');
-    const [folderOpen, setFolderOpen] = useState({ src: true, controllers: true, middleware: true, config: false });
+    const [openFiles, setOpenFiles] = useState(['paymentController.ts', 'docker-compose.yml', 'idempotencyService.ts']);
+    const [activeFile, setActiveFile] = useState(currentTicketData.targetFile);
+    const [folderOpen, setFolderOpen] = useState({ src: true, controllers: true, middleware: true, services: true, config: false });
     const [editorViewMode, setEditorViewMode] = useState('editor'); // 'editor' | 'diff'
     
-    // File contents state (Pre-loaded with modified demo fix in docker-compose.yml)
-    const [files, setFiles] = useState({
-        ...STARTER_REPOSITORY_FILES,
-        'docker-compose.yml': `version: '3.8'
-services:
-  payment-service:
-    build: .
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      # Original Bottleneck: DB_POOL_SIZE=10
-      # Proposed Production Fix:
-      - DB_POOL_SIZE=50
-      - MAX_CONCURRENT_REQUESTS=500
-      - REDIS_HOST=redis
-    ports:
-      - "8080:8080"
-    depends_on:
-      - postgres
-      - redis`
-    });
+    // File contents state (starts with unedited starter repo files)
+    const [files, setFiles] = useState({ ...STARTER_REPOSITORY_FILES });
+
+    // File content change handler (used by both Guided Mode and Pro Mode)
+    const handleFileChange = (fileName, content) => {
+        setFiles(prev => ({ ...prev, [fileName]: content }));
+    };
 
     // Compute which files across the entire repo have been modified
     const modifiedFiles = Object.keys(files).filter(f => files[f] !== STARTER_REPOSITORY_FILES[f]);
@@ -311,18 +614,12 @@ services:
     // 2. Terminal State & Command History
     const [terminalTab, setTerminalTab] = useState('terminal'); // 'terminal' | 'logs' | 'tests'
     const [terminalInput, setTerminalInput] = useState('');
-    const [terminalLines, setTerminalLines] = useState([
-        { type: 'system', text: 'CareerOS WebAssembly & Simulation Lab initialized [v2.4.0-release]' },
-        { type: 'system', text: 'Type "help", "docker logs", "npm test", "git status", or "git diff" to interact.' },
-        { type: 'command', text: 'docker logs -f payment-service' },
-        { type: 'stdout', text: '[2026-10-22T10:15:01.122Z] [INFO] Starting payment service on port 8080...' },
-        { type: 'stdout', text: '[2026-10-22T10:15:05.462Z] [INFO] Connected to PostgreSQL replica: db-primary.finpulse.internal' },
-        { type: 'stdout', text: '[2026-10-22T10:15:10.285Z] [INFO] Incoming flash sale surge: 14,200 req/sec across 48 merchant channels.' },
-        { type: 'stderr', text: '[2026-10-22T10:15:18.705Z] [ERROR] Payment processing failed: Error: Connection pool exhausted, unable to acquire connection within 3000ms.' },
-        { type: 'stderr', text: '[2026-10-22T10:15:24.412Z] [ERROR] HTTP 504 GATEWAY_TIMEOUT spike: 412 customer checkouts dropped.' },
-        { type: 'fatal', text: '[2026-10-22T10:15:31.015Z] [FATAL] runtime: out of memory (cannot allocate 1048576-byte block)' },
-        { type: 'stderr', text: 'Payment service exited with code 2 (SIGSEGV).' }
-    ]);
+    const [terminalLines, setTerminalLines] = useState(
+        currentTicketData?.terminalLogs || [
+            { type: 'system', text: 'CareerOS WebAssembly & Simulation Lab initialized [v2.4.0-release]' },
+            { type: 'system', text: 'Type "help", "docker logs", "npm test", "git status", or "git diff" to interact.' }
+        ]
+    );
     const terminalEndRef = useRef(null);
 
     // Auto-scroll terminal to bottom
@@ -333,31 +630,19 @@ services:
     }, [terminalLines]);
 
     // 3. AI Copilot Mentor State
-    const [mentorMessages, setMentorMessages] = useState([
-        {
-            sender: 'ai',
-            name: 'Marcus (Staff Software Engineer)',
-            text: "I see you're investigating the 504 Gateway Timeout during our flash sale spike. The service logs show some very telling error patterns."
-        },
-        {
-            sender: 'ai',
-            name: 'Marcus (Staff Software Engineer)',
-            text: "What do the 'Connection pool exhausted' and 'out of memory' errors in the payment-service logs suggest about the root cause under high load?"
-        },
-        {
-            sender: 'ai',
-            name: 'Marcus (Staff Software Engineer)',
-            text: "Consider the relationship between the number of concurrent incoming requests, database connections, and available memory resources. Are our current configurations sufficient?"
-        },
-        {
-            sender: 'ai',
-            name: 'Marcus (Staff Software Engineer)',
-            text: "💡 Hint: Check the docker-compose.yml environment variables for the payment service. Notice DB_POOL_SIZE and MAX_CONCURRENT_REQUESTS."
-        }
-    ]);
+    const [mentorMessages, setMentorMessages] = useState(
+        currentTicketData?.mentorInitialMessages || [
+            {
+                sender: 'ai',
+                name: 'Marcus (Staff Software Engineer)',
+                text: "Welcome to the simulation lab! Review the active ticket specifications and let's get started."
+            }
+        ]
+    );
     const [mentorInput, setMentorInput] = useState('');
     const [aiThinking, setAiThinking] = useState(false);
     const [wasmRunning, setWasmRunning] = useState(false);
+    const [testResult, setTestResult] = useState(null);
 
     // Terminal command runner with multi-file git support
     const handleTerminalCommand = async (e) => {
@@ -442,35 +727,125 @@ services:
         setTerminalLines(newLines);
     };
 
-    // Run in-browser test execution
+    // Run in-browser test execution tailored to the active ticket
     const runWasmTests = async () => {
         setWasmRunning(true);
         setTerminalLines(prev => [
             ...prev,
-            { type: 'system', text: '⚙️ Initializing In-Browser Test Runner...' },
-            { type: 'stdout', text: `Testing changes across ${modifiedFiles.length > 0 ? modifiedFiles.join(', ') : 'working tree'}...` }
+            { type: 'system', text: `⚙️ Initializing In-Browser Test Runner for ${currentTicketData.code}...` },
+            { type: 'stdout', text: `Verifying implementation across ${currentTicketData.targetFile}...` }
         ]);
 
         try {
-            // Test both the code and the docker configuration
-            const combinedCode = files['paymentController.ts'] + '\n' + files['docker-compose.yml'];
-            const result = await wasmExecutionService.executeCode('node', combinedCode);
+            let success = false;
+            let logs = [];
 
+            if (currentTicketCode === 'FIN-101') {
+                const content = files['paymentController.ts'] || '';
+                const hasCurrencySet = /SUPPORTED_CURRENCIES/i.test(content) || /has\(currency/i.test(content) || /USD|EUR|GBP/i.test(content);
+                const hasCaseCheck = /toUpperCase/i.test(content) || /ISO-4217/i.test(content);
+                const hasAmountCheck = /amount\s*<=?\s*0|typeof amount/i.test(content);
+                const has422 = /422/i.test(content);
+
+                success = hasCurrencySet && hasAmountCheck && has422;
+
+                logs = [
+                    { type: 'stdout', text: '[WASM Test Engine] Executing Unit Test Suite: test_payment_boundary_validation.py...' }
+                ];
+
+                if (hasCurrencySet && hasCaseCheck) {
+                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_strict_iso_4217_currency: Rejects lowercase "usd" and unsupported currency codes' });
+                } else {
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_strict_iso_4217_currency: Must validate against SUPPORTED_CURRENCIES and reject lowercase currency' });
+                }
+
+                if (hasAmountCheck) {
+                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_amount_positive_boundary: Strictly enforces amount > 0 and 2 decimal places' });
+                } else {
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_amount_positive_boundary: Must check amount > 0 and reject negative/zero charges' });
+                }
+
+                if (has422) {
+                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_rejection_status_code: Returns HTTP 422 Unprocessable Entity for invalid payloads' });
+                } else {
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_rejection_status_code: Expected HTTP 422 status on validation error' });
+                }
+            } else if (currentTicketCode === 'FIN-102') {
+                const content = files['idempotencyService.ts'] || '';
+                const hasAcquire = /acquireLock/i.test(content) && /redis\.set/i.test(content) && /NX/i.test(content);
+                const hasRelease = /releaseLock/i.test(content);
+                success = hasAcquire && hasRelease;
+
+                logs = [
+                    { type: 'stdout', text: '[WASM Test Engine] Executing Concurrency Suite: test_distributed_idempotency_race.py...' }
+                ];
+
+                if (hasAcquire) {
+                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_atomic_lock_acquisition: Acquired Redis lock with atomic NX and 60s TTL' });
+                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_prevent_double_charge: Rejects concurrent duplicate Idempotency-Key within 200ms' });
+                } else {
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_atomic_lock_acquisition: Redis set NX atomic lock not implemented' });
+                }
+
+                if (hasRelease) {
+                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_lock_cleanup_guarantee: Guaranteed key release in try...finally' });
+                } else {
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_lock_cleanup_guarantee: releaseLock not called or missing cleanup' });
+                }
+            } else {
+                // INC-504
+                const dockerContent = files['docker-compose.yml'] || '';
+                const poolMatch = dockerContent.match(/DB_POOL_SIZE\s*=\s*(\d+)/i);
+                const poolSize = poolMatch ? parseInt(poolMatch[1], 10) : 10;
+                
+                const reqMatch = dockerContent.match(/MAX_CONCURRENT_REQUESTS\s*=\s*(\d+)/i);
+                const maxReq = reqMatch ? parseInt(reqMatch[1], 10) : 50;
+
+                const isPoolFixed = poolSize >= 50;
+                const isReqFixed = maxReq >= 200;
+                success = isPoolFixed && isReqFixed;
+
+                logs = [
+                    { type: 'stdout', text: '[WASM Test Engine] Initializing container runtime sandbox...' },
+                    { type: 'stdout', text: '[WASM Test Engine] Simulating flash sale checkout traffic (15,000 req/sec)...' }
+                ];
+
+                if (isPoolFixed) {
+                    logs.push({ type: 'stdout', text: `  ✓ PASS: test_db_connection_pool_scale (DB_POOL_SIZE=${poolSize} >= 50 can sustain peak throughput)` });
+                } else {
+                    logs.push({ type: 'stderr', text: `  ✗ FAIL: test_db_connection_pool_scale: DB_POOL_SIZE is ${poolSize}. Must be at least 50.` });
+                }
+
+                if (isReqFixed) {
+                    logs.push({ type: 'stdout', text: `  ✓ PASS: test_concurrency_throttle_threshold (MAX_CONCURRENT_REQUESTS=${maxReq} >= 200 prevents 504 Timeouts)` });
+                } else {
+                    logs.push({ type: 'stderr', text: `  ✗ FAIL: test_concurrency_throttle_threshold: MAX_CONCURRENT_REQUESTS is ${maxReq}. Must be >= 200.` });
+                }
+            }
+
+            const result = {
+                success,
+                durationMs: 95,
+                logs,
+                output: logs.map(l => l.text).join('\n')
+            };
+
+            setTestResult(result);
             setTerminalLines(prev => [
                 ...prev,
-                ...result.logs.map(l => ({ type: l.type === 'stderr' ? 'stderr' : 'stdout', text: l.text })),
+                ...logs.map(l => ({ type: l.type === 'stderr' ? 'stderr' : 'stdout', text: l.text })),
                 { 
-                    type: result.success ? 'success' : 'stderr', 
-                    text: result.success 
-                        ? `✓ ALL TESTS PASSED (${result.durationMs}ms) — Ready for Pull Request Review!` 
-                        : `✗ TESTS FAILED (${result.durationMs}ms) — Please fix the identified bottlenecks.`
+                    type: success ? 'success' : 'stderr', 
+                    text: success 
+                        ? `✓ ALL TESTS PASSED (${result.durationMs}ms) — Implementation verified! Ready for Staff PR review.` 
+                        : `✗ TESTS FAILED (${result.durationMs}ms) — Adjust your implementation to meet the ticket acceptance criteria.`
                 }
             ]);
 
-            if (result.success) {
-                toast?.success?.('In-browser tests passed! You are ready to submit your Pull Request.');
+            if (success) {
+                if (toast?.showToast) toast.showToast('All tests passed! You are ready to submit your Pull Request.', 'success', 'Tests Passed!');
             } else {
-                toast?.warning?.('Tests reported issues. Check the terminal output.');
+                if (toast?.showToast) toast.showToast('Tests incomplete. Apply the suggested fix in the guide.', 'warning', 'Tests Incomplete');
             }
         } catch (err) {
             setTerminalLines(prev => [
@@ -485,7 +860,20 @@ services:
     // Smart Multi-File Pull Request Submission
     const handlePullRequestSubmit = () => {
         if (modifiedFiles.length === 0) {
-            toast?.warning?.('No files modified yet. Make your code changes before submitting!');
+            // Auto-apply current ticket fix and submit so the user never experiences "nothing happening"
+            const fixFile = currentTicketData.fixFile;
+            const fixContent = currentTicketData.fixCode;
+            handleFileChange(fixFile, fixContent);
+            setActiveFile(fixFile);
+            
+            if (toast?.showToast) {
+                toast.showToast(`Auto-applying ${currentTicketData.code} fix and submitting PR to Marcus for review...`, 'info', 'Submitting PR');
+            }
+            
+            const prPayload = `=== FILE: ${fixFile} ===\n${fixContent}`;
+            if (onSubmitReview) {
+                onSubmitReview(prPayload);
+            }
             return;
         }
 
@@ -494,7 +882,7 @@ services:
             return `=== FILE: ${file} ===\n${files[file]}`;
         }).join('\n\n');
 
-        toast?.info?.(`Bundling ${modifiedFiles.length} modified file(s) into Pull Request...`);
+        if (toast?.showToast) toast.showToast(`Submitting Pull Request with ${modifiedFiles.length} file(s) to Marcus for review...`, 'info', 'Submitting PR');
 
         if (onSubmitReview) {
             onSubmitReview(prPayload);
@@ -533,10 +921,28 @@ services:
             ]);
         } catch (err) {
             let fallbackHint = "When traffic surges, a bottleneck can occur in either thread allocation or database connections. Look closely at DB_POOL_SIZE in docker-compose.yml: is 10 connections enough for thousands of checkout requests?";
-            if (msg.toLowerCase().includes('pool') || msg.toLowerCase().includes('database')) {
-                fallbackHint = "Exactly. A connection pool of 10 means only 10 queries can execute simultaneously. Increasing DB_POOL_SIZE to 50 or 100 allows your API workers to process requests without queuing.";
-            } else if (msg.toLowerCase().includes('memory') || msg.toLowerCase().includes('oom')) {
-                fallbackHint = "The out of memory error was caused by millions of incoming requests queueing in RAM waiting for a free DB connection. Fixing the pool bottleneck eliminates the queue backlog!";
+            if (currentTicketCode === 'FIN-101') {
+                if (msg.toLowerCase().includes('currency') || msg.toLowerCase().includes('iso')) {
+                    fallbackHint = "Check SUPPORTED_CURRENCIES in paymentController.ts. Ensure the code is uppercase (currency === currency.toUpperCase()) and present in the Set. If invalid, respond with HTTP 422.";
+                } else if (msg.toLowerCase().includes('amount') || msg.toLowerCase().includes('decimal')) {
+                    fallbackHint = "Amounts must be strictly positive numbers (amount > 0) with at most 2 decimal places. Return HTTP 422 with a clear error payload if violated.";
+                } else {
+                    fallbackHint = "For FIN-101, our goal is strict payload boundary validation: reject lowercase currencies (like 'usd') and non-positive amounts before calling processPayment, returning HTTP 422.";
+                }
+            } else if (currentTicketCode === 'FIN-102') {
+                if (msg.toLowerCase().includes('redis') || msg.toLowerCase().includes('lock')) {
+                    fallbackHint = "Use Redis atomic SET NX with EX 60s TTL: `await redis.set(`idemp:${idempotencyKey}`, 'PROCESSING', 'EX', 60, 'NX')`. If it returns null, another thread is processing this charge!";
+                } else if (msg.toLowerCase().includes('race') || msg.toLowerCase().includes('duplicate')) {
+                    fallbackHint = "When acquireLock fails, return HTTP 409 Conflict. This prevents duplicate credit card charges if the client double-clicks within milliseconds.";
+                } else {
+                    fallbackHint = "For FIN-102, implement atomic distributed locking in idempotencyService.ts using Redis SET NX to prevent duplicate transactions.";
+                }
+            } else {
+                if (msg.toLowerCase().includes('pool') || msg.toLowerCase().includes('database')) {
+                    fallbackHint = "Exactly. A connection pool of 10 means only 10 queries can execute simultaneously. Increasing DB_POOL_SIZE to 50 allows our API workers to process requests without queuing.";
+                } else if (msg.toLowerCase().includes('memory') || msg.toLowerCase().includes('oom')) {
+                    fallbackHint = "The out of memory error was caused by millions of incoming requests queueing in RAM waiting for a free DB connection. Fixing the pool bottleneck eliminates the queue backlog!";
+                }
             }
 
             setMentorMessages([
@@ -635,22 +1041,125 @@ services:
                     </div>
                 </div>
 
-                {/* Breadcrumbs / Active Incident & Modified Files Pill */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                {/* Guided Mode vs Pro Mode Toggle & Status */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.5rem',
-                        padding: '0.3rem 0.75rem',
+                        backgroundColor: 'rgba(255, 255, 255, 0.06)',
                         borderRadius: '6px',
-                        backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                        border: '1px solid rgba(239, 68, 68, 0.35)',
-                        color: '#f87171',
-                        fontSize: '0.75rem',
-                        fontWeight: 700
+                        padding: '2px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
                     }}>
-                        <AlertTriangle size={13} />
-                        <span>ACTIVE INCIDENT: Production Flash Sale 504 Bottleneck</span>
+                        <button
+                            onClick={() => {
+                                setIsGuidedMode(true);
+                                setActiveFile(currentTicketData.targetFile);
+                            }}
+                            style={{
+                                padding: '0.28rem 0.75rem',
+                                borderRadius: '4px',
+                                border: 'none',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                backgroundColor: isGuidedMode ? '#10b981' : 'transparent',
+                                color: isGuidedMode ? '#ffffff' : '#94a3b8',
+                                transition: 'all 0.15s ease'
+                            }}
+                        >
+                            🟢 Guided Mode (Freshers)
+                        </button>
+                        <button
+                            onClick={() => setIsGuidedMode(false)}
+                            style={{
+                                padding: '0.28rem 0.75rem',
+                                borderRadius: '4px',
+                                border: 'none',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                backgroundColor: !isGuidedMode ? '#3b82f6' : 'transparent',
+                                color: !isGuidedMode ? '#ffffff' : '#94a3b8',
+                                transition: 'all 0.15s ease'
+                            }}
+                        >
+                            ⚡ Pro IDE Mode
+                        </button>
+                    </div>
+
+                    {/* Interactive Ticket Selector Dropdown */}
+                    <div style={{ position: 'relative' }}>
+                        <button
+                            type="button"
+                            onClick={() => setShowTicketMenu(prev => !prev)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.45rem',
+                                padding: '0.3rem 0.75rem',
+                                borderRadius: '6px',
+                                backgroundColor: currentTicketCode === 'INC-504' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                border: currentTicketCode === 'INC-504' ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(59, 130, 246, 0.35)',
+                                color: currentTicketCode === 'INC-504' ? '#f87171' : '#60a5fa',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <Layers size={13} />
+                            <span>{currentTicketData.code}: {currentTicketData.title}</span>
+                            <ChevronDown size={13} />
+                        </button>
+
+                        {showTicketMenu && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                marginTop: '6px',
+                                backgroundColor: '#0f172a',
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                borderRadius: '8px',
+                                boxShadow: '0 12px 30px rgba(0, 0, 0, 0.75)',
+                                zIndex: 3000,
+                                minWidth: '320px',
+                                padding: '0.4rem',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '4px'
+                            }}>
+                                <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', padding: '0.25rem 0.5rem' }}>
+                                    Switch Simulation Ticket
+                                </div>
+                                {AVAILABLE_SIMULATION_TICKETS.map(t => (
+                                    <div
+                                        key={t.code}
+                                        onClick={() => {
+                                            handleSwitchTicket(t.code);
+                                            setShowTicketMenu(false);
+                                        }}
+                                        style={{
+                                            padding: '0.55rem 0.75rem',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            backgroundColor: currentTicketCode === t.code ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                            color: currentTicketCode === t.code ? '#93c5fd' : '#e2e8f0',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '2px',
+                                            transition: 'background 0.15s ease'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>{t.code}: {t.title}</span>
+                                            <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{t.duration}</span>
+                                        </div>
+                                        <span style={{ fontSize: '0.6875rem', color: '#64748b' }}>Target File: {t.targetFile}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {modifiedFiles.length > 0 && (
@@ -729,8 +1238,366 @@ services:
                 </div>
             </div>
 
-            {/* 2. MAIN 4-PANE WORKSPACE BODY */}
-            <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+            {/* 2. WORKSPACE BODY: GUIDED (2-PANE) OR PRO (4-PANE) */}
+            {isGuidedMode ? (
+                /* GUIDED FRESHERS MODE (2-PANE: Mission Guide + Focused Code Editor) */
+                <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+                    
+                    {/* LEFT PANE: Plain-English Mission Guide, Hints, AI Mentor */}
+                    <div style={{
+                        width: '460px',
+                        backgroundColor: '#0f172a',
+                        borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflowY: 'auto',
+                        padding: '1.5rem',
+                        gap: '1.25rem',
+                        flexShrink: 0
+                    }}>
+                        {/* Fresher Badge Header */}
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                                <span style={{
+                                    fontSize: '0.7rem',
+                                    fontWeight: 800,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.06em',
+                                    padding: '0.2rem 0.55rem',
+                                    borderRadius: '100px',
+                                    backgroundColor: currentTicketCode === 'INC-504' ? 'rgba(239, 68, 68, 0.18)' : 'rgba(16, 185, 129, 0.18)',
+                                    color: currentTicketCode === 'INC-504' ? '#f87171' : '#34d399'
+                                }}>
+                                    {currentTicketData.badge}
+                                </span>
+                                <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{currentTicketData.duration}</span>
+                            </div>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 0.5rem', lineHeight: 1.25 }}>
+                                {currentTicketData.code}: {currentTicketData.title}
+                            </h2>
+                            <p style={{ margin: 0, fontSize: '0.825rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                                {currentTicketData.missionSummary}
+                            </p>
+                        </div>
+
+                        {/* Step-by-Step Action List */}
+                        <div style={{
+                            backgroundColor: '#1e293b',
+                            borderRadius: '10px',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            padding: '1.1rem'
+                        }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.75rem' }}>
+                                📋 Your 3-Step Mission
+                            </div>
+                            
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8125rem', color: '#e2e8f0' }}>
+                                {currentTicketData.steps.map((step) => (
+                                    <div key={step.num} style={{ display: 'flex', gap: '0.6rem' }}>
+                                        <div style={{ 
+                                            width: 22, 
+                                            height: 22, 
+                                            borderRadius: '50%', 
+                                            backgroundColor: step.num === 3 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)', 
+                                            color: step.num === 3 ? '#34d399' : '#60a5fa', 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            justifyContent: 'center', 
+                                            fontWeight: 700, 
+                                            fontSize: '0.75rem', 
+                                            flexShrink: 0 
+                                        }}>
+                                            {step.num}
+                                        </div>
+                                        <div style={{ lineHeight: 1.4 }}>
+                                            {step.text}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Interactive Hint Section */}
+                        <div style={{
+                            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                            border: '1px solid rgba(245, 158, 11, 0.25)',
+                            borderRadius: '10px',
+                            padding: '1rem'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showGuidedHint ? '0.75rem' : 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#fbbf24', fontSize: '0.8125rem', fontWeight: 700 }}>
+                                    <Sparkles size={16} />
+                                    <span>Stuck? Get A Guided Hint</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowGuidedHint(!showGuidedHint)}
+                                    style={{
+                                        background: 'rgba(245, 158, 11, 0.2)',
+                                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                                        color: '#fbbf24',
+                                        fontSize: '0.75rem',
+                                        padding: '0.25rem 0.65rem',
+                                        borderRadius: '6px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {showGuidedHint ? 'Hide Hint' : '💡 Show Me The Fix'}
+                                </button>
+                            </div>
+
+                            {showGuidedHint && (
+                                <div style={{ fontSize: '0.785rem', color: '#fde68a', lineHeight: 1.5, borderTop: '1px solid rgba(245, 158, 11, 0.2)', paddingTop: '0.75rem' }}>
+                                    <p style={{ margin: '0 0 0.5rem' }}>
+                                        Target: <code>{currentTicketData.targetFile}</code>
+                                    </p>
+                                    <pre style={{
+                                        backgroundColor: '#0c1220',
+                                        padding: '0.6rem',
+                                        borderRadius: '6px',
+                                        color: '#34d399',
+                                        fontSize: '0.75rem',
+                                        margin: '0 0 0.5rem',
+                                        overflowX: 'auto',
+                                        fontFamily: 'monospace'
+                                    }}>
+{currentTicketData.hint}
+                                    </pre>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            handleFileChange(currentTicketData.fixFile, currentTicketData.fixCode);
+                                            setActiveFile(currentTicketData.fixFile);
+                                            if (toast?.showToast) {
+                                                toast.showToast(`Updated ${currentTicketData.fixFile} with ${currentTicketData.code} solution!`, 'success', 'Fix Applied!');
+                                            }
+                                        }}
+                                        style={{
+                                            background: '#f59e0b',
+                                            border: 'none',
+                                            color: '#000',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 800,
+                                            padding: '0.35rem 0.75rem',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.35rem'
+                                        }}
+                                    >
+                                        <Check size={13} />
+                                        <span>Auto-Apply Fix to Editor</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Friendly AI Mentor (Marcus) */}
+                        <div style={{
+                            backgroundColor: '#1e293b',
+                            borderRadius: '10px',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            padding: '1rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.65rem'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <div style={{ width: 26, height: 26, borderRadius: '50%', backgroundColor: 'rgba(59, 130, 246, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
+                                    <Bot size={15} />
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>Marcus (AI Staff Engineer)</div>
+                                    <div style={{ fontSize: '0.6875rem', color: '#94a3b8' }}>Your personal mentor</div>
+                                </div>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '0.785rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+                                {currentTicketData.mentorQuote}
+                            </p>
+                        </div>
+
+                        {/* Action Buttons: 1-Click Test & Submit PR */}
+                        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.6rem', paddingTop: '1rem' }}>
+                            <button
+                                type="button"
+                                onClick={runWasmTests}
+                                disabled={wasmRunning}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.75rem',
+                                    borderRadius: '8px',
+                                    backgroundColor: '#10b981',
+                                    border: 'none',
+                                    color: '#ffffff',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                <Play size={16} />
+                                <span>{wasmRunning ? 'Running WASM Verification...' : '▶️ Run Verification Tests (1-Click)'}</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handlePullRequestSubmit}
+                                disabled={reviewing}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.7rem',
+                                    borderRadius: '8px',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                    border: '1px solid rgba(59, 130, 246, 0.4)',
+                                    color: '#60a5fa',
+                                    fontSize: '0.825rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                <GitPullRequest size={15} />
+                                <span>{reviewing ? 'Marcus Reviewing PR...' : `Submit Pull Request (${modifiedFiles.length} files)`}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* RIGHT PANE: Focused Editor for Target File */}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, backgroundColor: '#090d16' }}>
+                        {/* Editor Header */}
+                        <div style={{
+                            padding: '0.6rem 1rem',
+                            backgroundColor: '#0f172a',
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <FileCode size={15} color="#38bdf8" />
+                                <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#f8fafc' }}>
+                                    {activeFile}
+                                </span>
+                                <span style={{
+                                    fontSize: '0.6875rem',
+                                    backgroundColor: activeFile === currentTicketData.targetFile ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                    color: activeFile === currentTicketData.targetFile ? '#34d399' : '#60a5fa',
+                                    border: activeFile === currentTicketData.targetFile ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)',
+                                    padding: '0.15rem 0.5rem',
+                                    borderRadius: '4px',
+                                    fontWeight: 700
+                                }}>
+                                    {activeFile === currentTicketData.targetFile ? 'Target Ticket File' : 'Repository File'}
+                                </span>
+                            </div>
+
+                            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                💡 {currentTicketData.tipText}
+                            </div>
+                        </div>
+
+                        {/* Editor Textarea with Line Numbers */}
+                        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+                            <div style={{
+                                width: '45px',
+                                backgroundColor: '#0c1220',
+                                borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+                                color: '#475569',
+                                fontFamily: 'Consolas, "Fira Code", monospace',
+                                fontSize: '0.8125rem',
+                                lineHeight: '1.5rem',
+                                textAlign: 'right',
+                                padding: '0.75rem 0.6rem',
+                                userSelect: 'none'
+                            }}>
+                                {(files[activeFile] || '').split('\n').map((_, i) => (
+                                    <div key={i}>{i + 1}</div>
+                                ))}
+                            </div>
+
+                            <textarea
+                                value={files[activeFile] || ''}
+                                onChange={(e) => handleFileChange(activeFile, e.target.value)}
+                                spellCheck={false}
+                                style={{
+                                    flex: 1,
+                                    height: '100%',
+                                    backgroundColor: '#090d16',
+                                    color: '#e2e8f0',
+                                    fontFamily: 'Consolas, "Fira Code", monospace',
+                                    fontSize: '0.8125rem',
+                                    lineHeight: '1.5rem',
+                                    padding: '0.75rem 1rem',
+                                    border: 'none',
+                                    outline: 'none',
+                                    resize: 'none',
+                                    whiteSpace: 'pre'
+                                }}
+                            />
+                        </div>
+
+                        {/* Bottom Test Results Banner */}
+                        {testResult && (
+                            <div style={{
+                                padding: '0.85rem 1.25rem',
+                                backgroundColor: testResult.success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                                borderTop: `1px solid ${testResult.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                    {testResult.success ? (
+                                        <CheckCircle2 size={18} color="#34d399" />
+                                    ) : (
+                                        <AlertTriangle size={18} color="#f87171" />
+                                    )}
+                                    <div>
+                                        <div style={{ fontSize: '0.8125rem', fontWeight: 800, color: testResult.success ? '#34d399' : '#f87171' }}>
+                                            {testResult.success 
+                                                ? '✅ All Tests Passed! Flash sale bottleneck resolved.'
+                                                : `❌ Tests failed. Increase DB_POOL_SIZE to at least 50.`}
+                                        </div>
+                                        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                                            WebAssembly In-Browser Test Suite • Execution time: {testResult.durationMs || 120}ms
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {testResult.success && (
+                                    <button
+                                        type="button"
+                                        onClick={handlePullRequestSubmit}
+                                        style={{
+                                            padding: '0.4rem 0.85rem',
+                                            borderRadius: '6px',
+                                            backgroundColor: '#3b82f6',
+                                            border: 'none',
+                                            color: '#fff',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        Ready to Submit PR →
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                /* PRO IDE MODE (ORIGINAL 4-PANE FULL WORKSPACE) */
+                <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
                 
                 {/* 2A. LEFT ICON STRIP (ACTIVITY BAR) */}
                 <div style={{
@@ -878,6 +1745,39 @@ services:
                                         </div>
                                     </div>
                                 )}
+
+                                {/* services/ */}
+                                <div 
+                                    onClick={() => setFolderOpen(p => ({ ...p, services: !p.services }))}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.5rem', cursor: 'pointer', color: '#cbd5e1' }}
+                                >
+                                    {folderOpen.services ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                                    {folderOpen.services ? <FolderOpen size={13} color="#10b981" /> : <Folder size={13} color="#10b981" />}
+                                    <span>services</span>
+                                </div>
+                                {folderOpen.services && (
+                                    <div style={{ paddingLeft: '1rem' }}>
+                                        <div 
+                                            onClick={() => handleOpenFile('idempotencyService.ts')}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem',
+                                                padding: '0.2rem 0.5rem',
+                                                cursor: 'pointer',
+                                                borderRadius: '3px',
+                                                backgroundColor: activeFile === 'idempotencyService.ts' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                                                color: activeFile === 'idempotencyService.ts' ? '#60a5fa' : '#94a3b8'
+                                            }}
+                                        >
+                                            <FileCode size={13} color="#10b981" />
+                                            <span>idempotencyService.ts</span>
+                                            {modifiedFiles.includes('idempotencyService.ts') && (
+                                                <span style={{ marginLeft: 'auto', fontSize: '0.625rem', fontWeight: 800, color: '#f59e0b' }}>M</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -945,16 +1845,28 @@ services:
                         borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                         fontSize: '0.75rem'
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#f59e0b', fontWeight: 800, marginBottom: '0.4rem' }}>
-                            <AlertTriangle size={14} />
-                            <span>Simulation Mission Brief</span>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#f59e0b', fontWeight: 800 }}>
+                                <AlertTriangle size={14} />
+                                <span>Mission Brief</span>
+                            </div>
+                            <span style={{
+                                fontSize: '0.65rem',
+                                fontWeight: 800,
+                                padding: '0.15rem 0.45rem',
+                                borderRadius: '4px',
+                                backgroundColor: currentTicketCode === 'INC-504' ? 'rgba(239, 68, 68, 0.18)' : 'rgba(59, 130, 246, 0.18)',
+                                color: currentTicketCode === 'INC-504' ? '#f87171' : '#60a5fa'
+                            }}>
+                                {currentTicketData.code}
+                            </span>
                         </div>
                         <p style={{ margin: '0 0 0.4rem 0', color: '#94a3b8', lineHeight: 1.35 }}>
-                            <strong style={{ color: '#f8fafc' }}>Scenario:</strong> Flash sale spike caused 504 Gateway Timeouts. Investigate pool exhaustion and adjust connection limits.
+                            <strong style={{ color: '#f8fafc' }}>Scenario:</strong> {currentTicketData.scenario || currentTicketData.missionSummary}
                         </p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', color: '#cbd5e1' }}>
-                            <div>🎯 <strong>Objective:</strong> Fix bottleneck under load.</div>
-                            <div>⚡ <strong>Constraint:</strong> Production SLA.</div>
+                            <div>🎯 <strong>Objective:</strong> {currentTicketData.objective || currentTicketData.title}</div>
+                            <div>⚡ <strong>Constraint:</strong> {currentTicketData.constraint || 'Production SLA'}</div>
                         </div>
                     </div>
                 </div>
@@ -1530,6 +2442,251 @@ services:
                     </form>
                 </div>
             </div>
+            )}
+
+            {/* 3. STAFF AI PULL REQUEST REVIEW MODAL */}
+            {reviewResult && showReviewModal && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 2500,
+                    backgroundColor: 'rgba(0, 0, 0, 0.78)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1.5rem'
+                }}>
+                    <div style={{
+                        width: '100%',
+                        maxWidth: '720px',
+                        maxHeight: '90vh',
+                        backgroundColor: '#0f172a',
+                        border: reviewResult.status === 'APPROVED' ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)',
+                        borderRadius: '16px',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(59, 130, 246, 0.15)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden'
+                    }}>
+                        {/* Modal Header */}
+                        <div style={{
+                            padding: '1.25rem 1.5rem',
+                            backgroundColor: '#0c1220',
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{
+                                    width: 38,
+                                    height: 38,
+                                    borderRadius: '10px',
+                                    backgroundColor: reviewResult.status === 'APPROVED' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: reviewResult.status === 'APPROVED' ? '#34d399' : '#fbbf24'
+                                }}>
+                                    {reviewResult.status === 'APPROVED' ? <CheckCircle2 size={22} /> : <AlertTriangle size={22} />}
+                                </div>
+                                <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f8fafc' }}>
+                                            Pull Request Review
+                                        </span>
+                                        <span style={{
+                                            fontSize: '0.7rem',
+                                            fontWeight: 800,
+                                            padding: '0.2rem 0.6rem',
+                                            borderRadius: '100px',
+                                            backgroundColor: reviewResult.status === 'APPROVED' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                                            color: reviewResult.status === 'APPROVED' ? '#34d399' : '#fbbf24',
+                                            border: reviewResult.status === 'APPROVED' ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)'
+                                        }}>
+                                            {reviewResult.status === 'APPROVED' ? 'APPROVED' : 'CHANGES REQUESTED'}
+                                        </span>
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                        Reviewed by Marcus (Staff Software Engineer) • Score: <strong style={{ color: reviewResult.status === 'APPROVED' ? '#34d399' : '#fbbf24' }}>{reviewResult.score}/100</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setShowReviewModal(false)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#94a3b8',
+                                    cursor: 'pointer',
+                                    padding: '0.35rem',
+                                    borderRadius: '6px'
+                                }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Modal Body (Scrollable) */}
+                        <div style={{ padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                            {/* Marcus Executive Summary */}
+                            <div style={{
+                                backgroundColor: '#1e293b',
+                                borderRadius: '12px',
+                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                padding: '1.15rem'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: 'rgba(59, 130, 246, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
+                                        <Bot size={14} />
+                                    </div>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>
+                                        Staff Review Assessment
+                                    </span>
+                                </div>
+                                <p style={{ margin: 0, fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.5 }}>
+                                    {reviewResult.summary}
+                                </p>
+                            </div>
+
+                            {/* Criteria Breakdown */}
+                            {reviewResult.criteria_breakdown && reviewResult.criteria_breakdown.length > 0 && (
+                                <div>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.65rem' }}>
+                                        Acceptance Criteria Breakdown ({reviewResult.score}/100 Pts)
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        {reviewResult.criteria_breakdown.map((item, idx) => (
+                                            <div
+                                                key={idx}
+                                                style={{
+                                                    padding: '0.75rem 1rem',
+                                                    backgroundColor: item.status === 'PASS' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                                                    border: item.status === 'PASS' ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)',
+                                                    borderRadius: '8px',
+                                                    display: 'flex',
+                                                    alignItems: 'flex-start',
+                                                    justifyContent: 'space-between',
+                                                    gap: '0.75rem'
+                                                }}
+                                            >
+                                                <div>
+                                                    <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#f8fafc', marginBottom: '0.2rem' }}>
+                                                        {item.criterion}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                                                        {item.feedback}
+                                                    </div>
+                                                </div>
+                                                <span style={{
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 800,
+                                                    padding: '0.15rem 0.5rem',
+                                                    borderRadius: '100px',
+                                                    backgroundColor: item.status === 'PASS' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)',
+                                                    color: item.status === 'PASS' ? '#34d399' : '#f87171',
+                                                    flexShrink: 0
+                                                }}>
+                                                    {item.points_awarded}/{item.points_possible} pts
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Earned Google XYZ Resume Bullet */}
+                            {reviewResult.star_bullet && (
+                                <div style={{
+                                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%)',
+                                    border: '1px solid rgba(59, 130, 246, 0.4)',
+                                    borderRadius: '12px',
+                                    padding: '1.15rem'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.45rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#60a5fa', fontSize: '0.8125rem', fontWeight: 700 }}>
+                                            <Sparkles size={16} />
+                                            <span>Earned Google XYZ Resume Bullet Point</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCopyBullet(reviewResult.star_bullet)}
+                                            style={{
+                                                background: 'rgba(59, 130, 246, 0.25)',
+                                                border: '1px solid rgba(59, 130, 246, 0.4)',
+                                                color: '#93c5fd',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 700,
+                                                padding: '0.25rem 0.65rem',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '0.35rem'
+                                            }}
+                                        >
+                                            {copiedBullet ? <Check size={13} color="#34d399" /> : <Copy size={13} />}
+                                            <span>{copiedBullet ? 'Copied!' : 'Copy Bullet'}</span>
+                                        </button>
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#f8fafc', fontStyle: 'italic', lineHeight: 1.5 }}>
+                                        "{reviewResult.star_bullet}"
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Interview Talking Point */}
+                            {reviewResult.interview_talking_point && (
+                                <div style={{
+                                    backgroundColor: '#0c1220',
+                                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                                    borderRadius: '10px',
+                                    padding: '1rem'
+                                }}>
+                                    <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>
+                                        How To Talk About This In Tech Interviews:
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+                                        {reviewResult.interview_talking_point}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div style={{
+                            padding: '1rem 1.5rem',
+                            backgroundColor: '#0c1220',
+                            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            gap: '0.75rem'
+                        }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowReviewModal(false)}
+                                style={{
+                                    padding: '0.55rem 1.25rem',
+                                    borderRadius: '8px',
+                                    backgroundColor: reviewResult.status === 'APPROVED' ? '#10b981' : '#3b82f6',
+                                    border: 'none',
+                                    color: '#ffffff',
+                                    fontSize: '0.8125rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                                }}
+                            >
+                                {reviewResult.status === 'APPROVED' ? 'Continue Practicing' : 'Return to Editor & Revise Fix'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

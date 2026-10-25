@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import threading
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 import logging
@@ -42,6 +43,7 @@ RATES_PER_MILLION_INR = {
 
 class UsageTracker:
     def __init__(self):
+        self._lock = threading.Lock()
         self.total_requests = 0
         self.successful_requests = 0
         self.failed_requests = 0
@@ -75,24 +77,27 @@ class UsageTracker:
             logger.warning(f"Could not load usage cache: {e}")
 
     def _save_to_disk(self):
-        try:
-            data = {
-                "total_requests": self.total_requests,
-                "successful_requests": self.successful_requests,
-                "failed_requests": self.failed_requests,
-                "total_prompt_tokens": self.total_prompt_tokens,
-                "total_completion_tokens": self.total_completion_tokens,
-                "total_tokens": self.total_tokens,
-                "total_cost_inr": round(self.total_cost_inr, 4),
-                "feature_breakdown": self.feature_breakdown,
-                "model_breakdown": self.model_breakdown,
-                "recent_logs": self.recent_logs[-50:],
-                "active_model_override": None
-            }
-            with open(PERSIST_FILE, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
-        except Exception as e:
-            logger.warning(f"Could not save usage cache: {e}")
+        with self._lock:
+            try:
+                data = {
+                    "total_requests": self.total_requests,
+                    "successful_requests": self.successful_requests,
+                    "failed_requests": self.failed_requests,
+                    "total_prompt_tokens": self.total_prompt_tokens,
+                    "total_completion_tokens": self.total_completion_tokens,
+                    "total_tokens": self.total_tokens,
+                    "total_cost_inr": round(self.total_cost_inr, 4),
+                    "feature_breakdown": self.feature_breakdown,
+                    "model_breakdown": self.model_breakdown,
+                    "recent_logs": self.recent_logs[-50:],
+                    "active_model_override": None
+                }
+                temp_file = f"{PERSIST_FILE}.tmp.{os.getpid()}"
+                with open(temp_file, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2)
+                os.replace(temp_file, PERSIST_FILE)
+            except Exception as e:
+                logger.warning(f"Could not save usage cache: {e}")
 
     @staticmethod
     def get_rate_for_model(model: str) -> Dict[str, Any]:

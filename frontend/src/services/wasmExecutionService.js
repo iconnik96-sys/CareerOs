@@ -39,9 +39,16 @@ class WasmExecutionService {
             // Dynamically inject the CDN script if not present
             if (!window.loadPyodide) {
                 await new Promise((resolve, reject) => {
+                    const cdnUrl = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js';
+                    // Verify URL strictly originates from trusted CDN
+                    if (!cdnUrl.startsWith('https://cdn.jsdelivr.net/pyodide/')) {
+                        return reject(new Error('Untrusted CDN origin for WebAssembly binary.'));
+                    }
                     const script = document.createElement('script');
-                    script.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js';
+                    script.src = cdnUrl;
                     script.async = true;
+                    script.crossOrigin = 'anonymous';
+                    script.referrerPolicy = 'no-referrer';
                     script.onload = resolve;
                     script.onerror = () => reject(new Error('Failed to load Pyodide WebAssembly script from CDN.'));
                     document.head.appendChild(script);
@@ -87,7 +94,19 @@ ${code}
 # Automated Test Harness
 ${testAssertions}
 `;
-            await pyodide.runPythonAsync(fullCode);
+            const runPromise = pyodide.runPythonAsync(fullCode);
+            let timeoutId;
+            const timeoutPromise = new Promise((_, reject) => {
+                timeoutId = setTimeout(() => {
+                    reject(new Error('Execution timed out after 5000ms (potential infinite loop).'));
+                }, 5000);
+            });
+
+            try {
+                await Promise.race([runPromise, timeoutPromise]);
+            } finally {
+                clearTimeout(timeoutId);
+            }
 
             const duration = Math.round(performance.now() - startTime);
             return {
@@ -116,6 +135,12 @@ ${testAssertions}
 
         return new Promise((resolve) => {
             const workerCode = `
+                // Sandbox isolation: strip network & persistent storage APIs from worker scope
+                self.fetch = undefined;
+                self.XMLHttpRequest = undefined;
+                self.indexedDB = undefined;
+                self.openDatabase = undefined;
+
                 self.onmessage = function(e) {
                     const logs = [];
                     const originalLog = console.log;

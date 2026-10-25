@@ -7,11 +7,15 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 import uvicorn
-from fastapi import FastAPI
+import logging
+from fastapi import FastAPI, Request, Depends
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger("CareerOSBackend")
 
 # Also load from root directory and local overrides if they exist
 for env_file in [".env", ".env.local"]:
@@ -31,13 +35,24 @@ from routers import (
     admin,
     campus
 )
+from routers.admin import verify_authenticated_student
 from services.llm_engine import llm_engine
 
 app = FastAPI(
     title="CareerOS AI Engine",
     description="Python FastAPI backend powering LLM services for CareerOS (Cover Letters, STAR Bullets, Interview Grader, Career Copilot, Job Matcher, Roadmaps).",
-    version="1.0.0"
+    version="1.0.0",
+    debug=False
 )
+
+# Global unhandled exception handler to strictly prevent stack trace and internal leakages
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred. Please try again later."}
+    )
 
 # Configure secure CORS origins from environment or sensible defaults
 raw_origins = os.getenv("ALLOWED_ORIGINS", os.getenv("CORS_ORIGINS", ""))
@@ -78,49 +93,80 @@ async def add_security_headers(request, call_next):
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none';"
     return response
 
-# Rate Limiting for expensive AI / LLM endpoints (60 req / min per IP)
+# Multi-Tier Rate Limiting for all API endpoints
 import time
 from collections import defaultdict
 from fastapi.responses import JSONResponse
 
 _rate_limit_records = defaultdict(list)
-RATE_LIMIT_WINDOW = 60 # seconds
-RATE_LIMIT_MAX_REQUESTS = 60 # max requests per window
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_AI_MAX = 60  # max AI/LLM requests per window
+RATE_LIMIT_GEN_MAX = 120  # max general API requests per window
+_last_cleanup_time = time.time()
 
 @app.middleware("http")
-async def rate_limit_ai_endpoints(request, call_next):
-    if request.url.path.startswith("/api/ai"):
-        client_ip = request.client.host if request.client else "127.0.0.1"
+async def rate_limit_middleware(request, call_next):
+    global _last_cleanup_time
+    path = request.url.path
+
+    # Only rate-limit API routes, excluding health check probe
+    if path.startswith("/api") and path != "/api/health":
+        # Resolve real client IP behind reverse proxy / CDN if present
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            client_ip = forwarded_for.split(",")[0].strip()
+        elif request.headers.get("cf-connecting-ip"):
+            client_ip = request.headers.get("cf-connecting-ip").strip()
+        else:
+            client_ip = request.client.host if request.client else "127.0.0.1"
         now = time.time()
-        
-        # Clean expired timestamps
-        timestamps = [t for t in _rate_limit_records[client_ip] if now - t < RATE_LIMIT_WINDOW]
-        _rate_limit_records[client_ip] = timestamps
-        
-        if len(timestamps) >= RATE_LIMIT_MAX_REQUESTS:
+
+        # Periodic cleanup of expired IPs every 5 minutes to prevent memory leak
+        if now - _last_cleanup_time > 300:
+            expired_keys = [k for k, ts in _rate_limit_records.items() if not ts or (now - ts[-1] > RATE_LIMIT_WINDOW)]
+            for k in expired_keys:
+                _rate_limit_records.pop(k, None)
+            _last_cleanup_time = now
+
+        # Tiered maximums: AI endpoints are stricter to prevent LLM quota exhaustion
+        is_ai_endpoint = path.startswith("/api/ai")
+        max_requests = RATE_LIMIT_AI_MAX if is_ai_endpoint else RATE_LIMIT_GEN_MAX
+        category = "AI endpoints" if is_ai_endpoint else "API endpoints"
+
+        bucket_key = f"{client_ip}:{'ai' if is_ai_endpoint else 'gen'}"
+        timestamps = [t for t in _rate_limit_records[bucket_key] if now - t < RATE_LIMIT_WINDOW]
+        _rate_limit_records[bucket_key] = timestamps
+
+        if len(timestamps) >= max_requests:
             return JSONResponse(
                 status_code=429,
                 content={
-                    "detail": "Rate limit exceeded for AI endpoints. Please wait a minute before sending more requests."
+                    "detail": f"Rate limit exceeded for {category}. Please wait a minute before sending more requests."
                 },
-                headers={"Retry-After": str(RATE_LIMIT_WINDOW)}
+                headers={
+                    "Retry-After": str(RATE_LIMIT_WINDOW),
+                    "X-RateLimit-Limit": str(max_requests),
+                    "X-RateLimit-Remaining": "0"
+                }
             )
-        
-        _rate_limit_records[client_ip].append(now)
-    
+
+        _rate_limit_records[bucket_key].append(now)
+
     return await call_next(request)
 
-# Include AI routers
-app.include_router(cover_letter.router)
-app.include_router(bullet_enhancer.router)
-app.include_router(interview_evaluator.router)
-app.include_router(career_copilot.router)
-app.include_router(resume_analyzer.router)
-app.include_router(job_matcher.router)
-app.include_router(roadmap_generator.router)
-app.include_router(simulation.router)
+# Include AI routers with student authentication enforcement
+app.include_router(cover_letter.router, dependencies=[Depends(verify_authenticated_student)])
+app.include_router(bullet_enhancer.router, dependencies=[Depends(verify_authenticated_student)])
+app.include_router(interview_evaluator.router, dependencies=[Depends(verify_authenticated_student)])
+app.include_router(career_copilot.router, dependencies=[Depends(verify_authenticated_student)])
+app.include_router(resume_analyzer.router, dependencies=[Depends(verify_authenticated_student)])
+app.include_router(job_matcher.router, dependencies=[Depends(verify_authenticated_student)])
+app.include_router(roadmap_generator.router, dependencies=[Depends(verify_authenticated_student)])
+app.include_router(simulation.router, dependencies=[Depends(verify_authenticated_student)])
 app.include_router(admin.router)
 app.include_router(campus.router)
 

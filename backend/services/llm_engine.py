@@ -62,6 +62,8 @@ FALLBACK_MODELS = PROVIDER_FALLBACKS["groq"]
 class LLMEngine:
     def __init__(self):
         self._groq_client: Optional[Any] = None
+        self._last_env_check: float = 0.0
+        self._root_env_mtime: float = 0.0
 
     @property
     def provider(self) -> str:
@@ -114,10 +116,19 @@ class LLMEngine:
 
     @property
     def model(self) -> str:
-        # Dynamically reload root .env so changes in .env reflect immediately without server restart
-        root_env = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
-        if os.path.exists(root_env):
-            load_dotenv(root_env, override=True)
+        # Throttle .env inspection to once every 60 seconds using mtime caching to eliminate event-loop disk I/O bottlenecks
+        now = time.time()
+        if now - self._last_env_check > 60:
+            self._last_env_check = now
+            root_env = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+            try:
+                if os.path.exists(root_env):
+                    mtime = os.path.getmtime(root_env)
+                    if mtime > self._root_env_mtime:
+                        self._root_env_mtime = mtime
+                        load_dotenv(root_env, override=True)
+            except Exception:
+                pass
 
         generic_model = os.getenv("AI_MODEL", "").strip()
         if generic_model:

@@ -338,41 +338,25 @@ STUDENTS_DB: List[Dict[str, Any]] = [
 
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "").strip()
 
-def extract_email_from_jwt(token: str) -> Optional[str]:
-    """Safely decodes unverified JWT payload without third-party dependencies."""
-    try:
-        parts = token.split(".")
-        if len(parts) == 3:
-            payload = parts[1]
-            rem = len(payload) % 4
-            if rem > 0:
-                payload += "=" * (4 - rem)
-            import json, base64
-            decoded = json.loads(base64.urlsafe_b64decode(payload.encode("utf-8")).decode("utf-8"))
-            return decoded.get("email")
-    except Exception:
-        pass
-    return None
+from routers.admin import decode_and_verify_jwt
 
 def verify_founder_admin(
     x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key"),
-    x_founder_email: Optional[str] = Header(None, alias="X-Founder-Email"),
     authorization: Optional[str] = Header(None, alias="Authorization"),
-    admin_requester_email: Optional[str] = None
 ):
-    """Restricts access to Founder/Super-Admin callers."""
-    if ADMIN_API_KEY and x_admin_key and x_admin_key.strip() == ADMIN_API_KEY:
-        return True
-
-    candidate = (x_founder_email or admin_requester_email or "").strip().lower()
-    if candidate and candidate == FOUNDER_EMAIL:
-        return True
+    """Restricts access strictly to authenticated Founder/Super-Admin callers."""
+    if ADMIN_API_KEY and x_admin_key:
+        if secrets.compare_digest(x_admin_key.strip(), ADMIN_API_KEY):
+            return True
 
     if authorization and authorization.lower().startswith("bearer "):
         token = authorization.split(" ", 1)[1].strip()
-        jwt_email = extract_email_from_jwt(token)
-        if jwt_email and jwt_email.strip().lower() == FOUNDER_EMAIL:
-            return True
+        payload = decode_and_verify_jwt(token)
+        if payload:
+            email = payload.get("email", "").lower().strip()
+            role = (payload.get("app_metadata", {}).get("role") or "").lower().strip()
+            if (FOUNDER_EMAIL and email == FOUNDER_EMAIL) or role in ("founder", "admin"):
+                return True
 
     logger.warning("Unauthorized access to campus founder-admin endpoint.")
     raise HTTPException(
@@ -382,17 +366,17 @@ def verify_founder_admin(
 
 def verify_campus_access(
     x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key"),
-    x_founder_email: Optional[str] = Header(None, alias="X-Founder-Email"),
-    x_tpo_email: Optional[str] = Header(None, alias="X-TPO-Email"),
     authorization: Optional[str] = Header(None, alias="Authorization"),
     auth_token: Optional[str] = Query(None)
 ):
-    """Guards student roster, analytics, and CSV exports for authorized TPO or Founder sessions."""
-    if ADMIN_API_KEY and x_admin_key and x_admin_key.strip() == ADMIN_API_KEY:
-        return True
-
-    if x_founder_email and x_founder_email.strip().lower() == FOUNDER_EMAIL:
-        return True
+    """
+    Guards student roster, analytics, and CSV exports for authorized TPO or Founder sessions.
+    Strictly eliminates header spoofing (X-TPO-Email, X-Founder-Email) and enforces verified claims.
+    """
+    # 1. Admin API key bypass for internal maintenance
+    if ADMIN_API_KEY and x_admin_key:
+        if secrets.compare_digest(x_admin_key.strip(), ADMIN_API_KEY):
+            return True
 
     token = None
     if authorization and authorization.lower().startswith("bearer "):
@@ -400,28 +384,31 @@ def verify_campus_access(
     elif auth_token:
         token = auth_token.strip()
 
+    # 2. Token verification
     if token:
+        # Check active invite session token
         if token in INVITES_DB and INVITES_DB[token].get("status") in ["used", "accepted"]:
             return True
-        jwt_email = extract_email_from_jwt(token)
-        if jwt_email:
-            jwt_email_clean = jwt_email.strip().lower()
-            if jwt_email_clean == FOUNDER_EMAIL:
+
+        # Check cryptographically verified Supabase JWT
+        payload = decode_and_verify_jwt(token)
+        if payload:
+            jwt_email_clean = payload.get("email", "").strip().lower()
+            role = (payload.get("app_metadata", {}).get("role") or "").lower().strip()
+
+            # Founder or platform admin has global campus visibility
+            if (FOUNDER_EMAIL and jwt_email_clean == FOUNDER_EMAIL) or role in ("founder", "admin"):
                 return True
+
+            # Placement Officer: verify contact email or TPO role
+            if role in ("tpo", "college_admin"):
+                return True
+
             for inst in INSTITUTIONS_DB.values():
                 if inst.get("contact_email", "").strip().lower() == jwt_email_clean:
                     return True
-            return True  # Valid authenticated Supabase user session
 
-    if x_tpo_email:
-        tpo_clean = x_tpo_email.strip().lower()
-        if tpo_clean == FOUNDER_EMAIL:
-            return True
-        for inst in INSTITUTIONS_DB.values():
-            if inst.get("contact_email", "").strip().lower() == tpo_clean:
-                return True
-
-    logger.warning("Unauthorized access to campus student/analytics endpoint.")
+    logger.warning("Unauthorized access to campus student/analytics endpoint (invalid or missing credentials).")
     raise HTTPException(
         status_code=401,
         detail="Unauthorized: Valid Placement Officer or Founder credentials required."
@@ -608,10 +595,6 @@ def get_campus_overview(institution_id: Optional[str] = None):
     target_id = institution_id or _SEED_INSTITUTION_ID
     students = [s for s in STUDENTS_DB if s.get("institution_id") == target_id]
 
-    if not students:
-        # Fallback to all mock students if specific ID has none
-        students = STUDENTS_DB
-
     total_students = len(students)
     avg_ats = round(sum(s["ats_score"] for s in students) / total_students, 1) if total_students else 0
     avg_mock = round(sum(s["mock_score"] for s in students) / total_students, 1) if total_students else 0
@@ -748,8 +731,6 @@ def get_campus_students(
     """
     target_id = institution_id or _SEED_INSTITUTION_ID
     filtered = [s for s in STUDENTS_DB if s.get("institution_id") == target_id]
-    if not filtered:
-        filtered = STUDENTS_DB
 
     if branch and branch != "all":
         filtered = [s for s in filtered if s.get("branch", "").upper() == branch.upper()]
@@ -900,8 +881,6 @@ def export_students_csv(
     """
     target_id = institution_id or _SEED_INSTITUTION_ID
     filtered = [s for s in STUDENTS_DB if s.get("institution_id") == target_id]
-    if not filtered:
-        filtered = STUDENTS_DB
 
     if branch and branch != "all":
         filtered = [s for s in filtered if s.get("branch", "").upper() == branch.upper()]

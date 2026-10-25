@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase, isSupabaseConfigured, checkSupabaseHealth } from '../lib/supabase';
 import { profileService } from '../services/profileService';
 
@@ -8,6 +8,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const pendingSignupRef = useRef(false);
 
     const loadProfile = async (userId) => {
         try {
@@ -110,9 +111,11 @@ export const AuthProvider = ({ children }) => {
 
             if (session?.user) {
                 setUser(session.user);
-                loadProfile(session.user.id).catch((err) => {
-                    console.error('Profile loading failed:', err);
-                });
+                if (!pendingSignupRef.current) {
+                    loadProfile(session.user.id).catch((err) => {
+                        console.error('Profile loading failed:', err);
+                    });
+                }
             }
             else {
                 setUser(null);
@@ -163,6 +166,7 @@ export const AuthProvider = ({ children }) => {
             return { error: 'Supabase is not configured. Please verify VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.' };
         }
         try {
+            pendingSignupRef.current = true;
             // Pristine reset of previous profile context
             setProfile(null);
 
@@ -183,8 +187,10 @@ export const AuthProvider = ({ children }) => {
             const { data, error } = await Promise.race([signupPromise, timeoutPromise]);
             clearTimeout(timeoutId);
 
-            if (error)
+            if (error) {
+                pendingSignupRef.current = false;
                 return { error: error.message };
+            }
 
             if (data.user) {
                 if (data.session) {
@@ -202,13 +208,19 @@ export const AuthProvider = ({ children }) => {
                     };
                     setProfile(freshProfile);
 
-                    profileService.createProfile(data.user.id, freshProfile).then(() => {
-                        loadProfile(data.user.id).catch(console.error);
-                    }).catch((err) => {
+                    try {
+                        const created = await profileService.createProfile(data.user.id, freshProfile);
+                        if (created) {
+                            setProfile(created);
+                        }
+                    } catch (err) {
                         console.warn('Profile create on signup notice:', err);
-                    });
+                    } finally {
+                        pendingSignupRef.current = false;
+                    }
                     return { success: true };
                 } else {
+                    pendingSignupRef.current = false;
                     // Email verification required by Supabase project config
                     return {
                         success: true,
@@ -217,9 +229,11 @@ export const AuthProvider = ({ children }) => {
                     };
                 }
             }
+            pendingSignupRef.current = false;
             return {};
         }
         catch (err) {
+            pendingSignupRef.current = false;
             return { error: err?.message || 'Signup failed' };
         }
     };

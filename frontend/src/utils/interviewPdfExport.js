@@ -27,6 +27,19 @@ const formatTime = () => {
 };
 
 /**
+ * Robust HTML entity escaper to prevent DOM XSS when mounting report HTML
+ */
+export const escapeHtml = (str) => {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+};
+
+/**
  * Builds the standalone HTML document for the Interview Assessment Report
  * with explicit page boundaries and unbroken question containers.
  */
@@ -39,12 +52,18 @@ export const buildInterviewReportHtml = ({
     questions = [],
     questionAttempts = []
 }) => {
+    const safeCandidateName = escapeHtml(candidateName);
+    const safeTargetRole = escapeHtml(targetRole);
+    const safeModeTitle = escapeHtml(modeTitle);
+    const safeDifficulty = escapeHtml(difficulty);
+
     const score = evaluation?.overall_score ?? 0;
     const grade = evaluation?.grade || (
         score >= 80 ? 'Strong Hire' :
         score >= 65 ? 'Hire / Competent' :
         score >= 50 ? 'Needs Practice' : 'Strong No Hire'
     );
+    const safeGrade = escapeHtml(grade);
 
     // Color theming based on score
     const primaryColor = score >= 80 ? '#059669' : score >= 65 ? '#2563eb' : score >= 50 ? '#d97706' : '#dc2626';
@@ -136,7 +155,7 @@ export const buildInterviewReportHtml = ({
                         Candidate
                     </div>
                     <div style="font-size: 12px; font-weight: 700; color: #0f172a;">
-                        ${candidateName}
+                        ${safeCandidateName}
                     </div>
                 </div>
                 <div>
@@ -144,7 +163,7 @@ export const buildInterviewReportHtml = ({
                         Target Role
                     </div>
                     <div style="font-size: 12px; font-weight: 700; color: #4f46e5;">
-                        ${targetRole}
+                        ${safeTargetRole}
                     </div>
                 </div>
                 <div>
@@ -152,7 +171,7 @@ export const buildInterviewReportHtml = ({
                         Interview Track
                     </div>
                     <div style="font-size: 12px; font-weight: 700; color: #0f172a;">
-                        ${modeTitle}
+                        ${safeModeTitle}
                     </div>
                 </div>
                 <div>
@@ -160,7 +179,7 @@ export const buildInterviewReportHtml = ({
                         Difficulty / Format
                     </div>
                     <div style="font-size: 12px; font-weight: 700; color: #0f172a;">
-                        ${difficulty} • Live Voice
+                        ${safeDifficulty} • Live Voice
                     </div>
                 </div>
             </div>
@@ -214,14 +233,14 @@ export const buildInterviewReportHtml = ({
                                 letter-spacing: 0.05em;
                                 text-transform: uppercase;
                             ">
-                                ${grade}
+                                ${safeGrade}
                             </span>
                             <span style="font-size: 10.5px; color: #64748b; font-weight: 600;">
                                 Hiring Recommendation
                             </span>
                         </div>
                         <div style="font-size: 12px; color: #1e293b; line-height: 1.4; max-width: 440px;">
-                            ${evaluation?.summary_verdict || (score === 0 
+                            ${escapeHtml(evaluation?.summary_verdict) || (score === 0 
                                 ? 'Candidate skipped all interview questions. Zero technical competencies demonstrated.' 
                                 : 'Candidate completed the live AI technical interview evaluation round.')}
                         </div>
@@ -303,7 +322,7 @@ export const buildInterviewReportHtml = ({
                             ${evaluation.strengths.map(s => `
                                 <div style="display: flex; align-items: flex-start; gap: 5px; font-size: 11px; color: #166534; line-height: 1.35;">
                                     <span style="font-weight: 800;">✓</span>
-                                    <span>${s}</span>
+                                    <span>${escapeHtml(s)}</span>
                                 </div>
                             `).join('')}
                         </div>
@@ -332,7 +351,7 @@ export const buildInterviewReportHtml = ({
                             ${evaluation.missing_points.map(m => `
                                 <div style="display: flex; align-items: flex-start; gap: 5px; font-size: 11px; color: #92400e; line-height: 1.35;">
                                     <span style="font-weight: 800;">•</span>
-                                    <span>${m}</span>
+                                    <span>${escapeHtml(m)}</span>
                                 </div>
                             `).join('')}
                         </div>
@@ -381,7 +400,7 @@ export const buildInterviewReportHtml = ({
                     </span>
                     <span style="color: #cbd5e1;">|</span>
                     <span style="font-size: 11px; color: #64748b;">
-                        Candidate: <strong style="color: #0f172a;">${candidateName}</strong> (${targetRole})
+                        Candidate: <strong style="color: #0f172a;">${safeCandidateName}</strong> (${safeTargetRole})
                     </span>
                 </div>
                 <div style="font-size: 10px; color: #94a3b8;">
@@ -418,7 +437,7 @@ export const buildInterviewReportHtml = ({
                                 <div style="display: flex; align-items: center; gap: 6px;">
                                     <span style="font-size: 11.5px; font-weight: 800; color: #0f172a;">Question #${idx + 1}</span>
                                     <span style="font-size: 9.5px; font-weight: 700; background-color: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #475569;">
-                                        ${q.topic || modeTitle}
+                                        ${escapeHtml(q.topic || safeModeTitle)}
                                     </span>
                                 </div>
                                 <span style="
@@ -436,7 +455,7 @@ export const buildInterviewReportHtml = ({
 
                             <!-- Question Prompt -->
                             <div style="font-size: 11.5px; font-weight: 700; color: #0f172a; margin-bottom: 6px; line-height: 1.35;">
-                                ${q.question}
+                                ${escapeHtml(q.question)}
                             </div>
 
                             <!-- Candidate Answer -->
@@ -464,14 +483,14 @@ export const buildInterviewReportHtml = ({
                                     margin-bottom: 6px;
                                 ">
                                     <strong style="color: #0f172a;">Candidate's Spoken Answer:</strong><br/>
-                                    "${q.candidate_answer || '(No verbal answer transcribed)'}"
+                                    "${escapeHtml(q.candidate_answer || '(No verbal answer transcribed)')}"
                                 </div>
                             `}
 
                             <!-- Evaluator Feedback -->
                             ${q.feedback ? `
                                 <div style="font-size: 10.5px; color: #475569; line-height: 1.35; border-left: 2.5px solid #6366f1; padding-left: 8px;">
-                                    <strong style="color: #4f46e5;">Interviewer Analysis:</strong> ${q.feedback}
+                                    <strong style="color: #4f46e5;">Interviewer Analysis:</strong> ${escapeHtml(q.feedback)}
                                 </div>
                             ` : ''}
                         </div>
@@ -501,7 +520,7 @@ export const buildInterviewReportHtml = ({
                             💡 Exemplary Staff-Level Response Structure
                         </div>
                         <div style="font-size: 10.5px; color: #334155; line-height: 1.45;">
-                            ${evaluation.model_improved_answer}
+                            ${escapeHtml(evaluation.model_improved_answer)}
                         </div>
                     </div>
                 ` : ''}
@@ -517,7 +536,7 @@ export const buildInterviewReportHtml = ({
                             🔭 Recommended Deep-Dive Follow-Up Topic
                         </div>
                         <div style="font-size: 10.5px; color: #334155; line-height: 1.45;">
-                            ${evaluation.interviewer_follow_up}
+                            ${escapeHtml(evaluation.interviewer_follow_up)}
                         </div>
                     </div>
                 ` : ''}

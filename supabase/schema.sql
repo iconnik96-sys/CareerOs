@@ -244,11 +244,27 @@ FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 CREATE OR REPLACE FUNCTION public.delete_user_account()
 RETURNS void AS $$
+DECLARE
+    v_user_id UUID;
 BEGIN
-    -- Deletes user from auth.users (cascades to all user tables)
-    DELETE FROM auth.users WHERE id = auth.uid();
+    v_user_id := auth.uid();
+    IF v_user_id IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    -- Explicitly purge application records
+    DELETE FROM public.applications WHERE user_id = v_user_id;
+    DELETE FROM public.analyses WHERE user_id = v_user_id;
+    DELETE FROM public.resumes WHERE user_id = v_user_id;
+    DELETE FROM public.user_skills WHERE user_id = v_user_id;
+    DELETE FROM public.projects WHERE user_id = v_user_id;
+    DELETE FROM public.roadmaps WHERE user_id = v_user_id;
+    DELETE FROM public.profiles WHERE user_id = v_user_id;
+
+    -- Deletes user from auth.users (cascades any remaining auth associations)
+    DELETE FROM auth.users WHERE id = v_user_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, pg_temp;
 
 GRANT EXECUTE ON FUNCTION public.delete_user_account() TO authenticated;
 
@@ -278,8 +294,15 @@ CREATE POLICY "Founder and admins can view all profiles"
     ON public.profiles FOR SELECT 
     USING (
         (auth.jwt() ->> 'email') = 'nikhil@gmail.com'
-        OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('founder', 'admin')
-        OR (auth.jwt() -> 'user_metadata' ->> 'role') = 'tpo'
+        OR (auth.jwt() -> 'app_metadata' ->> 'role') IN ('founder', 'admin')
+    );
+
+CREATE POLICY "TPOs can view their college student profiles"
+    ON public.profiles FOR SELECT
+    USING (
+        (auth.jwt() -> 'app_metadata' ->> 'role') = 'tpo'
+        AND profiles.institution_id IS NOT NULL
+        AND profiles.institution_id::text = (auth.jwt() -> 'app_metadata' ->> 'institution_id')
     );
 
 CREATE POLICY "Service role can manage all profiles" 
@@ -294,7 +317,39 @@ CREATE POLICY "Users can update own profile"
 
 CREATE POLICY "Users can insert own profile" 
     ON public.profiles FOR INSERT 
-    WITH CHECK (auth.uid() = user_id);
+    WITH CHECK (
+        auth.uid() = user_id 
+        AND (role IS NULL OR role = 'student')
+        AND institution_id IS NULL
+    );
+
+-- Enforce Profile Role Immutability (Prevents Client-Side Vertical Privilege Escalation)
+CREATE OR REPLACE FUNCTION public.prevent_profile_role_tampering()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        -- Prevent unprivileged clients from inserting elevated roles or institutions
+        IF (auth.role() IS NULL OR auth.role() != 'service_role') THEN
+            IF NEW.role IS NOT NULL AND NEW.role != 'student' THEN
+                RAISE EXCEPTION 'Unauthorized: Newly registered profiles can only default to student role.';
+            END IF;
+            IF NEW.institution_id IS NOT NULL THEN
+                RAISE EXCEPTION 'Unauthorized: Direct institution assignment is prohibited during registration.';
+            END IF;
+        END IF;
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF (NEW.role IS DISTINCT FROM OLD.role OR NEW.institution_id IS DISTINCT FROM OLD.institution_id)
+           AND (auth.role() IS NULL OR auth.role() != 'service_role') THEN
+            RAISE EXCEPTION 'Unauthorized: Users cannot modify their own role or institution assignment.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER enforce_profile_role_immutability
+BEFORE INSERT OR UPDATE ON public.profiles
+FOR EACH ROW EXECUTE FUNCTION public.prevent_profile_role_tampering();
 
 -- 2. Skills RLS (Public read, authenticated insert)
 CREATE POLICY "Anyone can view skills" 
@@ -354,7 +409,7 @@ CREATE POLICY "Founder can view all applications for platform stats"
     ON public.applications FOR SELECT 
     USING (
         (auth.jwt() ->> 'email') = 'nikhil@gmail.com'
-        OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('founder', 'admin')
+        OR (auth.jwt() -> 'app_metadata' ->> 'role') IN ('founder', 'admin')
     );
 
 CREATE POLICY "Users can manage own applications" 
@@ -370,7 +425,7 @@ CREATE POLICY "Founder can view all analyses for platform stats"
     ON public.analyses FOR SELECT 
     USING (
         (auth.jwt() ->> 'email') = 'nikhil@gmail.com'
-        OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('founder', 'admin')
+        OR (auth.jwt() -> 'app_metadata' ->> 'role') IN ('founder', 'admin')
     );
 
 CREATE POLICY "Users can manage own analyses" 
@@ -512,11 +567,70 @@ ADD COLUMN IF NOT EXISTS placement_status TEXT DEFAULT 'seeking';
 ALTER TABLE public.institutions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.institution_invites ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Anyone can view institutions"
+CREATE POLICY "Anyone can view active institutions"
     ON public.institutions FOR SELECT
-    USING (true);
+    USING (is_active = true);
 
-CREATE POLICY "Public token lookup for valid invites"
+-- Secure RPC to verify an institution batch invite code without exposing the full roster of invite codes:
+CREATE OR REPLACE FUNCTION public.verify_college_invite_code(p_code text)
+RETURNS TABLE (
+    institution_id UUID,
+    name TEXT,
+    slug TEXT
+) SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT i.id, i.name, i.slug
+    FROM public.institutions i
+    WHERE i.invite_code = TRIM(p_code)
+      AND i.is_active = true
+    LIMIT 1;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Institution Invites: Restricted to Admins & Service Role (Prevents Token & PII Enumeration)
+CREATE POLICY "Admins can view institution invites"
     ON public.institution_invites FOR SELECT
-    USING (true);
+    TO authenticated
+    USING (
+        (auth.jwt() ->> 'email') = 'nikhil@gmail.com'
+        OR (auth.jwt() -> 'app_metadata' ->> 'role') IN ('founder', 'admin')
+    );
+
+CREATE POLICY "Service role can manage institution invites"
+    ON public.institution_invites FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+-- Secure RPC for single-token verification (Zero-enumeration design)
+CREATE OR REPLACE FUNCTION public.check_invite_token(p_token text)
+RETURNS TABLE (
+    institution_id UUID,
+    email TEXT,
+    full_name TEXT,
+    role TEXT,
+    status TEXT,
+    expires_at TIMESTAMPTZ
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        i.institution_id,
+        i.email,
+        i.full_name,
+        i.role,
+        i.status,
+        i.expires_at
+    FROM public.institution_invites i
+    WHERE i.token = p_token
+      AND i.status = 'pending'
+      AND i.expires_at > NOW();
+END;
+$$;
 

@@ -59,6 +59,22 @@ CREATE INDEX IF NOT EXISTS idx_profiles_institution_id ON public.profiles(instit
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
 CREATE INDEX IF NOT EXISTS idx_profiles_branch ON public.profiles(branch);
 
+-- Enforce Profile Role & Institution Immutability (Prevents Client-Side Privilege Escalation)
+CREATE OR REPLACE FUNCTION public.prevent_profile_role_tampering()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (NEW.role IS DISTINCT FROM OLD.role OR NEW.institution_id IS DISTINCT FROM OLD.institution_id)
+       AND (auth.role() IS NULL OR auth.role() != 'service_role') THEN
+        RAISE EXCEPTION 'Unauthorized: Users cannot modify their own role or institution assignment.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER enforce_profile_role_immutability
+BEFORE UPDATE ON public.profiles
+FOR EACH ROW EXECUTE FUNCTION public.prevent_profile_role_tampering();
+
 -- 4. Enable RLS on New Tables
 ALTER TABLE public.institutions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.institution_invites ENABLE ROW LEVEL SECURITY;
@@ -82,10 +98,46 @@ CREATE POLICY "Admins can manage institutions"
         )
     );
 
--- Institution Invites: Invitees can view their pending token
-CREATE POLICY "Public token lookup for valid invites"
+-- Institution Invites: Restricted to Admins (Prevents Token & PII Enumeration)
+CREATE POLICY "Admins can view institution invites"
     ON public.institution_invites FOR SELECT
-    USING (true);
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles 
+            WHERE profiles.user_id = auth.uid() 
+            AND (profiles.role = 'admin' OR profiles.role = 'founder')
+        )
+    );
+
+-- Secure RPC for single-token verification (Zero-enumeration design)
+CREATE OR REPLACE FUNCTION public.check_invite_token(p_token text)
+RETURNS TABLE (
+    institution_id UUID,
+    email TEXT,
+    full_name TEXT,
+    role TEXT,
+    status TEXT,
+    expires_at TIMESTAMPTZ
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        i.institution_id,
+        i.email,
+        i.full_name,
+        i.role,
+        i.status,
+        i.expires_at
+    FROM public.institution_invites i
+    WHERE i.token = p_token
+      AND i.status = 'pending'
+      AND i.expires_at > NOW();
+END;
+$$;
 
 -- Institution Invites: Admins can create and revoke invites
 CREATE POLICY "Admins can manage institution invites"

@@ -189,22 +189,21 @@ export const profileService = {
         if (!userId)
             return false;
         try {
-            // 1. Attempt to execute stored procedure to delete from auth.users (cascades to all user tables)
+            // 1. Execute atomic stored procedure to delete from auth.users (cascades to all user tables transactionally)
             const { error: rpcError } = await supabase.rpc('delete_user_account');
             if (rpcError) {
-                console.warn('RPC delete_user_account notice:', rpcError);
+                console.warn('RPC delete_user_account notice, falling back to direct table purge:', rpcError);
+                // Fallback client-side multi-table wipe if RPC is unavailable
+                await Promise.allSettled([
+                    supabase.from('profiles').delete().eq('user_id', userId),
+                    supabase.from('user_skills').delete().eq('user_id', userId),
+                    supabase.from('applications').delete().eq('user_id', userId),
+                    supabase.from('resumes').delete().eq('user_id', userId),
+                    supabase.from('analyses').delete().eq('user_id', userId),
+                    supabase.from('projects').delete().eq('user_id', userId),
+                    supabase.from('roadmaps').delete().eq('user_id', userId)
+                ]);
             }
-
-            // 2. Explicitly wipe profile and all user records from database tables
-            await Promise.allSettled([
-                supabase.from('profiles').delete().eq('user_id', userId),
-                supabase.from('user_skills').delete().eq('user_id', userId),
-                supabase.from('applications').delete().eq('user_id', userId),
-                supabase.from('resumes').delete().eq('user_id', userId),
-                supabase.from('analyses').delete().eq('user_id', userId),
-                supabase.from('projects').delete().eq('user_id', userId),
-                supabase.from('roadmaps').delete().eq('user_id', userId)
-            ]);
 
             return true;
         } catch (err) {

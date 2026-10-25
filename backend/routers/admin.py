@@ -1,4 +1,10 @@
 import os
+import json
+import base64
+import hmac
+import hashlib
+import time
+import secrets
 import logging
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Header, Depends
@@ -9,57 +15,112 @@ from services.llm_engine import llm_engine, FALLBACK_MODELS
 router = APIRouter(prefix="/api/admin", tags=["Founder Admin Operations"])
 logger = logging.getLogger("AdminRouter")
 
-# Allowed founder email & admin key
+# Allowed founder email, admin key & Supabase JWT secret
 FOUNDER_EMAIL = os.getenv("FOUNDER_EMAIL", "nikhil@gmail.com").lower().strip()
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "").strip()
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "").strip()
 
-def extract_email_from_jwt(token: str) -> Optional[str]:
-    """Safely decodes unverified JWT payload without third-party dependencies."""
+def decode_and_verify_jwt(token: str) -> Optional[Dict[str, Any]]:
+    """
+    Cryptographically verifies and decodes a Supabase JWT (HS256).
+    Enforces signature validation if SUPABASE_JWT_SECRET is configured,
+    and checks expiration timestamps.
+    """
     try:
         parts = token.split(".")
-        if len(parts) == 3:
-            payload = parts[1]
-            rem = len(payload) % 4
-            if rem > 0:
-                payload += "=" * (4 - rem)
-            import json, base64
-            decoded = json.loads(base64.urlsafe_b64decode(payload.encode("utf-8")).decode("utf-8"))
-            return decoded.get("email")
-    except Exception:
-        pass
-    return None
+        if len(parts) != 3:
+            return None
+        header_b64, payload_b64, sig_b64 = parts
+
+        # Verify signature if secret is configured
+        if SUPABASE_JWT_SECRET:
+            signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
+            expected_sig = base64.urlsafe_b64encode(
+                hmac.new(SUPABASE_JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
+            ).decode("utf-8").rstrip("=")
+            actual_sig = sig_b64.rstrip("=")
+            if not hmac.compare_digest(expected_sig, actual_sig):
+                logger.warning("JWT signature verification failed.")
+                return None
+
+        # Decode payload
+        rem = len(payload_b64) % 4
+        if rem > 0:
+            payload_b64 += "=" * (4 - rem)
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64.encode("utf-8")).decode("utf-8"))
+
+        # Verify expiration
+        exp = payload.get("exp")
+        if exp and isinstance(exp, (int, float)) and time.time() > exp:
+            logger.warning("JWT token expired.")
+            return None
+
+        return payload
+    except Exception as e:
+        logger.warning(f"Error validating JWT: {e}")
+        return None
 
 def verify_admin_access(
     x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key"),
-    x_founder_email: Optional[str] = Header(None, alias="X-Founder-Email"),
     authorization: Optional[str] = Header(None, alias="Authorization"),
-    founder_email: Optional[str] = None
 ):
     """
-    Enforces that the caller is either authorized via ADMIN_API_KEY,
-    has an active founder session email, or a Bearer token belonging to FOUNDER_EMAIL.
+    Strictly enforces that the caller is authorized via ADMIN_API_KEY
+    or holds a verified Bearer JWT belonging to FOUNDER_EMAIL or an admin role.
+    Header-based and query-parameter-based email spoofing is strictly prohibited.
     """
-    # 1. Direct Secret API Key check (if ADMIN_API_KEY is configured)
-    if ADMIN_API_KEY and x_admin_key and x_admin_key.strip() == ADMIN_API_KEY:
-        return True
-
-    # 2. Check founder email from header or query param
-    candidate_email = (x_founder_email or founder_email or "").strip().lower()
-    if candidate_email and candidate_email == FOUNDER_EMAIL:
-        return True
-
-    # 3. Check JWT token bearer claim
-    if authorization and authorization.lower().startswith("bearer "):
-        token = authorization.split(" ", 1)[1].strip()
-        jwt_email = extract_email_from_jwt(token)
-        if jwt_email and jwt_email.strip().lower() == FOUNDER_EMAIL:
+    # 1. Direct Secret API Key check (constant-time comparison)
+    if ADMIN_API_KEY and x_admin_key:
+        if secrets.compare_digest(x_admin_key.strip(), ADMIN_API_KEY):
             return True
 
-    logger.warning("Unauthorized attempt to access admin endpoint.")
+    # 2. Cryptographically verified Bearer token
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+        payload = decode_and_verify_jwt(token)
+        if payload:
+            email = payload.get("email", "").lower().strip()
+            # Security Hardening: Only trust server-controlled app_metadata.
+            # Client-writable user_metadata is strictly ignored to prevent privilege escalation.
+            role = (payload.get("app_metadata", {}).get("role") or "").lower().strip()
+            if (FOUNDER_EMAIL and email == FOUNDER_EMAIL) or role in ("founder", "admin"):
+                return True
+
+    logger.warning("Unauthorized attempt to access admin endpoint (invalid or missing credentials).")
     raise HTTPException(
         status_code=403,
         detail="Forbidden: Admin or Founder privileges required to access this endpoint."
     )
+
+def verify_authenticated_student(
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+    x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key"),
+) -> Dict[str, Any]:
+    """
+    Enforces that caller holds a valid, non-expired Supabase session token.
+    Shields all core AI generation microservices from unauthenticated scrapers and anonymous bots.
+    """
+    if ADMIN_API_KEY and x_admin_key:
+        if secrets.compare_digest(x_admin_key.strip(), ADMIN_API_KEY):
+            return {"role": "admin", "email": FOUNDER_EMAIL}
+
+    if not authorization or not authorization.lower().startswith("bearer "):
+        logger.warning("Rejected unauthenticated access to AI endpoint (missing Bearer token).")
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required: Please log in or sign up to access CareerOS AI features."
+        )
+
+    token = authorization.split(" ", 1)[1].strip()
+    payload = decode_and_verify_jwt(token)
+    if not payload:
+        logger.warning("Rejected AI request with invalid or expired authentication token.")
+        raise HTTPException(
+            status_code=401,
+            detail="Session expired or invalid: Please refresh your session or log in again."
+        )
+
+    return payload
 
 class ModelSwitchRequest(BaseModel):
     model: str

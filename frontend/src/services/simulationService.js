@@ -11,6 +11,19 @@ const client = axios.create({
     }
 });
 
+// Automatically inject session token for authenticated simulation requests
+client.interceptors.request.use(async (config) => {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+            config.headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+    } catch {
+        // Fallback gracefully if Supabase is offline
+    }
+    return config;
+});
+
 function formatApiError(err) {
     if (axios.isAxiosError(err)) {
         if (err.response?.status === 503) {

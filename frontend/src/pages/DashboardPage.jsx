@@ -5,9 +5,10 @@ import { applicationService } from '../services/applicationService';
 import { jobService } from '../services/jobService';
 import { profileService } from '../services/profileService';
 import { projectService } from '../services/projectService';
+import { habitTrackerService } from '../services/habitTrackerService';
 import { calculateCareerReadiness, calculateCareerReadinessBreakdown, getSkillGapsForRole, getRecommendedActionsForRole, getRoleDisplayName } from '../utils/careerRoles';
 import { getActiveAtsScore } from '../utils/atsResumeChecker';
-import { Layers, Users, Award, TrendingUp, ArrowRight, Briefcase, CheckCircle2, AlertCircle, Calendar, Sparkles, CheckCircle } from 'lucide-react';
+import { Layers, Users, Award, TrendingUp, ArrowRight, Briefcase, CheckCircle2, AlertCircle, Calendar, Sparkles, CheckCircle, Flame, Zap, Clock, Trophy, ChevronRight, ShieldCheck } from 'lucide-react';
 import { CircularProgress } from '../components/common/CircularProgress';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { Badge } from '../components/common/Badge';
@@ -15,16 +16,37 @@ import { Button } from '../components/common/Button';
 
 export const DashboardPage = () => {
     const { user, profile } = useAuth();
-    const [jobs, setJobs] = useState([]);
-    const [applications, setApplications] = useState([]);
-    const [userSkills, setUserSkills] = useState([]);
-    const [projects, setProjects] = useState([]);
+
+    // Instant SWR cache to eliminate the 1-second flash when switching pages
+    const getCached = (key, fallback) => {
+        try {
+            const raw = sessionStorage.getItem(`careeros_dash_${user?.id || 'anon'}_${key}`);
+            return raw ? JSON.parse(raw) : fallback;
+        } catch {
+            return fallback;
+        }
+    };
+
+    const setCached = (key, val) => {
+        try {
+            sessionStorage.setItem(`careeros_dash_${user?.id || 'anon'}_${key}`, JSON.stringify(val));
+        } catch {}
+    };
+
+    const [jobs, setJobs] = useState(() => getCached('jobs', []));
+    const [applications, setApplications] = useState(() => getCached('apps', []));
+    const [userSkills, setUserSkills] = useState(() => getCached('skills', []));
+    const [projects, setProjects] = useState(() => getCached('projects', []));
+    const [dataReady, setDataReady] = useState(() => {
+        return getCached('skills', null) !== null;
+    });
 
     const targetRole = profile?.target_role || 'Backend Developer';
     const roleDisplayName = getRoleDisplayName(targetRole);
     const firstName = profile?.full_name?.split(' ')[0] || user?.user_metadata?.full_name?.split(' ')[0] || 'Student';
 
     useEffect(() => {
+        let isMounted = true;
         const loadDashboardData = async () => {
             const [fetchedJobs, fetchedApps, fetchedSkills, fetchedProjects] = await Promise.all([
                 jobService.getJobs({ role: targetRole }),
@@ -32,12 +54,28 @@ export const DashboardPage = () => {
                 user?.id ? profileService.getUserSkills(user.id) : Promise.resolve([]),
                 user?.id ? projectService.getProjects(user.id) : Promise.resolve([])
             ]);
-            setJobs((fetchedJobs || []).slice(0, 3));
-            setApplications(fetchedApps || []);
-            setUserSkills(fetchedSkills || []);
-            setProjects(fetchedProjects || []);
+
+            if (!isMounted) return;
+
+            const topJobs = (fetchedJobs || []).slice(0, 3);
+            const appsList = fetchedApps || [];
+            const skillsList = fetchedSkills || [];
+            const projsList = fetchedProjects || [];
+
+            setJobs(topJobs);
+            setApplications(appsList);
+            setUserSkills(skillsList);
+            setProjects(projsList);
+            setDataReady(true);
+
+            // Save to session cache so future page navigations load in 0ms
+            setCached('jobs', topJobs);
+            setCached('apps', appsList);
+            setCached('skills', skillsList);
+            setCached('projects', projsList);
         };
         loadDashboardData();
+        return () => { isMounted = false; };
     }, [user?.id, targetRole]);
 
     const stats = applicationService.getStats(applications);
@@ -52,15 +90,18 @@ export const DashboardPage = () => {
         atsScore: activeAtsScore
     });
 
-    const calculatedReadiness = readinessBreakdown.overallScore;
+    // Guard against computing with empty skills array on first cold visit
+    const calculatedReadiness = (dataReady || userSkills.length > 0)
+        ? readinessBreakdown.overallScore
+        : (profile?.career_readiness || 0);
     const readiness = calculatedReadiness > 0 ? calculatedReadiness : (profile?.career_readiness || 0);
 
     // Persist dynamic readiness to profile table in Supabase so Founder Admin reflects it
     useEffect(() => {
-        if (user?.id && calculatedReadiness > 0 && profile && calculatedReadiness !== profile.career_readiness) {
+        if (user?.id && dataReady && calculatedReadiness > 0 && profile && calculatedReadiness !== profile.career_readiness) {
             profileService.updateProfile(user.id, { career_readiness: calculatedReadiness });
         }
-    }, [user?.id, calculatedReadiness, profile?.career_readiness]);
+    }, [user?.id, dataReady, calculatedReadiness, profile?.career_readiness]);
 
     // Dynamic cohort classification
     const getCohortInfo = (score) => {
@@ -88,9 +129,91 @@ export const DashboardPage = () => {
         }
     };
 
+    // Dynamic determination of Today's Priority Mission based on weakest pillar
+    const getPriorityMission = () => {
+        if (!readinessBreakdown?.pillars) {
+            return {
+                title: 'Complete Your Career Profile',
+                desc: 'Add your target role, degree, and top 5 technical skills to unlock calibrated readiness scores.',
+                actionText: 'Update Profile',
+                link: '/profile',
+                boost: '+10% Readiness',
+                time: '5 mins',
+                tag: 'Profile Setup'
+            };
+        }
+
+        const lowestPillar = [...readinessBreakdown.pillars].sort((a, b) => a.percentage - b.percentage)[0];
+
+        switch (lowestPillar?.id) {
+            case 'skills': {
+                const topSkillGapName = skillGaps[0]?.name || (typeof skillGaps[0] === 'string' ? skillGaps[0] : 'Core Technical Skills');
+                return {
+                    title: `Master ${topSkillGapName}`,
+                    desc: `Bridge your top identified technical gap (${topSkillGapName}) for ${roleDisplayName} to unlock higher placement match scores.`,
+                    actionText: 'View Roadmap',
+                    link: '/roadmap',
+                    boost: '+8% Readiness',
+                    time: '20 mins',
+                    tag: 'Skill Gap'
+                };
+            }
+            case 'ats':
+                return {
+                    title: 'Optimize ATS Resume to 85+',
+                    desc: 'Enhance your bullet points with the Google XYZ formula and keyword match against target job descriptions.',
+                    actionText: 'Open AI Career Studio',
+                    link: '/ai-studio',
+                    boost: '+6% Readiness',
+                    time: '15 mins',
+                    tag: 'ATS Quality'
+                };
+            case 'interview':
+                return {
+                    title: 'Practice 1 AI Voice Mock Round',
+                    desc: 'Complete an interactive voice interview drill with live 4-vector telemetry feedback on STAR structure and technical depth.',
+                    actionText: 'Start Voice Interview',
+                    link: '/interview-prep',
+                    boost: '+7% Readiness',
+                    time: '12 mins',
+                    tag: 'Interview Prep'
+                };
+            case 'simulation':
+                return {
+                    title: 'Solve FinPulse Virtual Internship Ticket',
+                    desc: 'Fix boundary validation and submit a Pull Request in the interactive developer simulation lab.',
+                    actionText: 'Open Simulation Lab',
+                    link: '/simulations',
+                    boost: '+8% Readiness',
+                    time: '25 mins',
+                    tag: 'Workplace Sim'
+                };
+            default:
+                return {
+                    title: 'Apply to 3 Matched Positions',
+                    desc: 'Submit tailored applications to companies with 85%+ alignment with your verified skill profile.',
+                    actionText: 'Explore Jobs',
+                    link: '/jobs',
+                    boost: '+5% Readiness',
+                    time: '10 mins',
+                    tag: 'Hiring Pipeline'
+                };
+        }
+    };
+
+    const priorityMission = getPriorityMission();
+
+    // Real dynamic placement habit & streak tracking
+    const habitStatus = habitTrackerService.getWeeklyHabitStatus(user?.id, {
+        applications,
+        userSkills
+    });
+    const streakDays = habitStatus.streak;
+    const weekDays = habitStatus.weekDays;
+
     return (<div className="page-container">
-      {/* Welcome Banner */}
-      <div className="page-header">
+      {/* Welcome Banner with Habit Streak & Peer Standing */}
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
         <div>
           <h1 className="page-title">
             Good morning, {firstName} 👋
@@ -98,6 +221,205 @@ export const DashboardPage = () => {
           <p className="page-subtitle">
             Here's your career readiness and hiring pipeline for <strong style={{ color: 'var(--text-primary)' }}>{roleDisplayName}</strong>.
           </p>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {/* Flame Streak Pill */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '0.45rem 0.95rem',
+            backgroundColor: 'rgba(245, 158, 11, 0.12)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            borderRadius: 'var(--radius-full)',
+            boxShadow: '0 0 16px -2px rgba(245, 158, 11, 0.25)'
+          }}>
+            <Flame size={18} style={{ color: '#f59e0b', filter: 'drop-shadow(0 0 4px #f59e0b)' }} />
+            <span style={{ fontWeight: 800, fontSize: '0.875rem', color: '#f8fafc' }}>
+              {streakDays}-Day Streak
+            </span>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+            <span style={{ fontSize: '0.75rem', color: '#fde68a', fontWeight: 600 }}>Active</span>
+          </div>
+
+          {/* Peer Benchmark Pill */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '0.45rem 0.95rem',
+            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+            border: '1px solid rgba(99, 102, 241, 0.25)',
+            borderRadius: 'var(--radius-full)'
+          }}>
+            <Trophy size={15} style={{ color: 'var(--primary)' }} />
+            <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Top 12% Peer Benchmark
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Gamification Hero Grid: Priority Mission Quest + 7-Day Habit Tracker */}
+      <div className="grid grid-cols-12" style={{ gap: '1.25rem', marginBottom: '1.5rem' }}>
+        {/* Today's Priority Mission Quest Card (7 cols) */}
+        <div className="col-span-7 card" style={{
+          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%)',
+          border: '1px solid rgba(99, 102, 241, 0.3)',
+          borderTop: '1px solid rgba(99, 102, 241, 0.5)',
+          padding: '1.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.35)'
+        }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  boxShadow: '0 0 12px rgba(99, 102, 241, 0.5)'
+                }}>
+                  <Zap size={16} />
+                </div>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-primary)' }}>
+                  Today's Priority Mission
+                </span>
+                <span className="badge badge-purple" style={{ fontSize: '0.6875rem', padding: '0.15rem 0.5rem' }}>
+                  {priorityMission.tag}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <Clock size={13} /> {priorityMission.time}
+                </span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--success)', padding: '0.2rem 0.5rem', backgroundColor: 'rgba(16, 185, 129, 0.12)', borderRadius: '9999px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                  {priorityMission.boost}
+                </span>
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', marginBottom: '0.5rem', letterSpacing: '-0.01em' }}>
+              {priorityMission.title}
+            </h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+              {priorityMission.desc}
+            </p>
+          </div>
+
+          <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <span className="text-body text-xs" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
+              <ShieldCheck size={14} className="text-success" />
+              Calibrated for your {roleDisplayName} readiness
+            </span>
+
+            <Link to={priorityMission.link}>
+              <Button
+                variant="primary"
+                size="sm"
+                rightIcon={<ArrowRight size={15} />}
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+                  borderColor: 'transparent',
+                  color: '#fff',
+                  fontWeight: 700,
+                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
+                }}
+              >
+                {priorityMission.actionText}
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* 7-Day Placement Habit Tracker Card (5 cols) */}
+        <div className="col-span-5 card" style={{
+          padding: '1.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between'
+        }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Flame size={18} style={{ color: '#f59e0b' }} />
+                <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Placement Habit Tracker
+                </span>
+              </div>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.12)', padding: '0.2rem 0.55rem', borderRadius: '9999px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                {streakDays}-Day Active
+              </span>
+            </div>
+            <p className="text-body text-xs" style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>
+              Complete 1 question, PR review, or resume audit daily to protect your streak.
+            </p>
+
+            {/* 7-Day Dot Matrix */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(7, 1fr)',
+              gap: '6px',
+              padding: '0.85rem',
+              backgroundColor: 'var(--bg-tertiary)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-color)',
+              textAlign: 'center'
+            }}>
+              {weekDays.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.6875rem', color: item.today ? '#f59e0b' : 'var(--text-muted)', fontWeight: item.today ? 800 : 600 }}>
+                    {item.day}
+                  </span>
+                  <div style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: item.completed
+                      ? 'rgba(16, 185, 129, 0.18)'
+                      : item.today
+                      ? 'rgba(245, 158, 11, 0.18)'
+                      : 'rgba(255, 255, 255, 0.04)',
+                    border: item.completed
+                      ? '1px solid #10b981'
+                      : item.today
+                      ? '2px solid #f59e0b'
+                      : '1px solid var(--border-color)',
+                    color: item.completed ? '#10b981' : item.today ? '#f59e0b' : 'var(--text-muted)',
+                    boxShadow: item.today ? '0 0 10px rgba(245, 158, 11, 0.4)' : 'none'
+                  }}>
+                    {item.completed ? (
+                      <CheckCircle2 size={15} />
+                    ) : item.today ? (
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+                    ) : (
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                    )}
+                  </div>
+                  <span style={{ fontSize: '0.625rem', color: item.completed ? 'var(--success)' : item.today ? '#f59e0b' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {item.completed ? 'Done' : item.today ? 'Today' : '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginTop: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            <span style={{ color: 'var(--text-muted)' }}>Level 2 Candidate</span>
+            <span style={{ fontWeight: 600, color: '#f59e0b' }}>Next Milestone: {streakDays + 1} Days 🔥</span>
+          </div>
         </div>
       </div>
 

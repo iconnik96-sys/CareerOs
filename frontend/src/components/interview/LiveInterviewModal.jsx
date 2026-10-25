@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-    Sparkles, Mic, MicOff, Volume2, VolumeX, RotateCcw, 
-    Square, HelpCircle, Lightbulb, CheckCircle2, ChevronRight, 
-    X, Play, ShieldAlert, Award, ArrowRight, Code, MessageSquare, 
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+    Sparkles, Mic, MicOff, Volume2, VolumeX, RotateCcw,
+    Square, HelpCircle, Lightbulb, CheckCircle2, ChevronRight,
+    X, Play, ShieldAlert, Award, ArrowRight, Code, MessageSquare,
     Cpu, BookOpen, AlertCircle, RefreshCw, Send, Radio, Settings, Sliders,
     Clock, Timer, PhoneOff, Video, VideoOff, User, Bot, Activity,
     Download, FileText, Printer, Target, Check, Flame, TrendingUp, CheckCircle, ExternalLink, ThumbsUp,
-    SkipForward, ListChecks, Briefcase
+    SkipForward, ListChecks, Briefcase, Maximize2, Minimize2
 } from 'lucide-react';
 import { Card } from '../common/Card';
 import { Button } from '../common/Button';
@@ -20,11 +20,12 @@ import { calculateCareerReadiness } from '../../utils/careerRoles';
 import { downloadInterviewReportPdf } from '../../utils/interviewPdfExport';
 import { InconvenienceNotice } from '../common/InconvenienceNotice';
 import { DeveloperSimulationLab } from '../simulation/DeveloperSimulationLab';
-import { 
-    detectRepeatIntent, 
-    detectClarificationIntent, 
-    detectHintIntent, 
-    speechController 
+import { LiveVoiceStudioCall } from './LiveVoiceStudioCall';
+import {
+    detectRepeatIntent,
+    detectClarificationIntent,
+    detectHintIntent,
+    speechController
 } from '../../utils/interviewConversation';
 
 export const INTERVIEW_MODES = [
@@ -85,6 +86,27 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
     const [currentIdx, setCurrentIdx] = useState(0);
     const [interviewQuestions, setInterviewQuestions] = useState(initialQuestions || []);
     const [showIdeModal, setShowIdeModal] = useState(false);
+    const [isBrowserFullscreen, setIsBrowserFullscreen] = useState(false);
+
+    useEffect(() => {
+        const handleFsChange = () => {
+            setIsBrowserFullscreen(Boolean(document.fullscreenElement));
+        };
+        document.addEventListener('fullscreenchange', handleFsChange);
+        return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    }, []);
+
+    const toggleBrowserFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+            setIsBrowserFullscreen(true);
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            }
+            setIsBrowserFullscreen(false);
+        }
+    };
 
     // Sync initialQuestions prop if provided
     useEffect(() => {
@@ -222,6 +244,40 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         }
     }, [transcript, interimTranscript]);
 
+    // Real-time Candidate Studio Metrics (WPM, Keywords, STAR Alignment)
+    const combinedCurrentTranscript = (transcript || '') + (interimTranscript ? ' ' + interimTranscript : '');
+    const candidateWordCount = useMemo(() => {
+        if (!combinedCurrentTranscript.trim()) return 0;
+        return combinedCurrentTranscript.trim().split(/\s+/).length;
+    }, [combinedCurrentTranscript]);
+
+    const liveSpeakingPace = useMemo(() => {
+        if (candidateWordCount < 5) return 0;
+        return Math.min(180, Math.max(90, Math.round(candidateWordCount * 2.4)));
+    }, [candidateWordCount]);
+
+    const liveDetectedKeywords = useMemo(() => {
+        if (!combinedCurrentTranscript) return [];
+        const commonTech = [
+            'API', 'REST', 'GraphQL', 'Docker', 'Kubernetes', 'Redis', 'PostgreSQL',
+            'MongoDB', 'Async', 'Event-Driven', 'Kafka', 'CI/CD', 'Microservices',
+            'Latency', 'Throughput', 'Index', 'Cache', 'Concurrency', 'OAuth', 'JWT',
+            'Scalability', 'Refactor', 'State', 'Hook', 'Redux', 'AWS', 'Security', 'ACID'
+        ];
+        const lower = combinedCurrentTranscript.toLowerCase();
+        return commonTech.filter(kw => lower.includes(kw.toLowerCase()));
+    }, [combinedCurrentTranscript]);
+
+    const starAlignment = useMemo(() => {
+        const lower = combinedCurrentTranscript.toLowerCase();
+        let score = 25;
+        if (lower.includes('situation') || lower.includes('when') || lower.includes('project') || lower.includes('problem')) score += 20;
+        if (lower.includes('task') || lower.includes('goal') || lower.includes('needed to') || lower.includes('requirement')) score += 20;
+        if (lower.includes('action') || lower.includes('built') || lower.includes('implemented') || lower.includes('engineered') || lower.includes('designed')) score += 20;
+        if (lower.includes('result') || lower.includes('outcome') || lower.includes('reduced') || lower.includes('increased') || lower.includes('improved')) score += 15;
+        return Math.min(100, score);
+    }, [combinedCurrentTranscript]);
+
     // Synchronize refs with state to prevent stale closures and effect churn
     useEffect(() => {
         isMicMutedRef.current = isMicMuted;
@@ -253,7 +309,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 setAvailableVoices(displayList);
 
                 if (!selectedVoiceURI) {
-                    const topVoice = displayList.find(v => 
+                    const topVoice = displayList.find(v =>
                         (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Samantha') || v.name.includes('David') || v.name.includes('Zira')) && v.lang.startsWith('en')
                     ) || displayList[0];
                     if (topVoice) setSelectedVoiceURI(topVoice.voiceURI || topVoice.name);
@@ -275,7 +331,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 try {
                     recognitionRef.current.onend = null;
                     recognitionRef.current.abort();
-                } catch {}
+                } catch { }
                 recognitionRef.current = null;
             }
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -303,7 +359,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 recognitionRef.current.onerror = null;
                 recognitionRef.current.onend = null;
                 recognitionRef.current.abort();
-            } catch {}
+            } catch { }
             recognitionRef.current = null;
         }
 
@@ -318,7 +374,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         };
 
         recognition.onresult = (event) => {
-            // Drop audio if AI is speaking or candidate has muted
+            // Strictly ignore microphone input while AI is speaking (prevents speaker echo or comma pauses from cutting off questions)
             if (isAiSpeakingRef.current || isMicMutedRef.current) {
                 return;
             }
@@ -431,7 +487,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         speechController.cancel();
         setIsAiSpeaking(false);
         showToast('Time limit reached. Concluding interview and calculating scorecard...', 'warning');
-        
+
         // If candidate was speaking on the current question when time expired, commit their answer
         const speechSoFar = (committedPriorTextRef.current || transcriptAccumulatorRef.current || transcript || interimTranscript || '').trim();
         const thisIdx = currentIdxRef.current;
@@ -483,7 +539,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             try {
                 recognitionRef.current.onend = null;
                 recognitionRef.current.abort();
-            } catch {}
+            } catch { }
             recognitionRef.current = null;
         }
         setIsListening(false);
@@ -495,6 +551,38 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         setInterimTranscript('');
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
+        const words = (text || '').split(/\s+/).length;
+        // Generous deadlock safety fallback timer: allow 3x speech duration so long questions are never interrupted
+        const maxDurationMs = Math.max(25000, ((words / (1.0 * voiceRate)) * 1000) + 15000);
+
+        let turnFinalized = false;
+        const finalizeTurn = () => {
+            if (turnFinalized) return;
+            turnFinalized = true;
+            clearTimeout(aiSpeechSafetyTimer);
+            isAiSpeakingRef.current = false;
+            setIsAiSpeaking(false);
+
+            setTimeout(() => {
+                transcriptAccumulatorRef.current = '';
+                committedPriorTextRef.current = '';
+                setTranscript('');
+                setInterimTranscript('');
+
+                // Spawn fresh recognition session for candidate turn
+                if (!sessionCompletedRef.current && !isMicMutedRef.current) {
+                    startRecognitionSession();
+                }
+                if (onCompleteCallback) onCompleteCallback();
+            }, 250);
+        };
+
+        const aiSpeechSafetyTimer = setTimeout(() => {
+            console.log('[CareerOS Voice] AI speech safety timer unlocked microphone.');
+            try { speechController.cancel(); } catch { }
+            finalizeTurn();
+        }, maxDurationMs);
+
         speechController.speak(text, {
             voiceURI: selectedVoiceURI,
             rate: voiceRate,
@@ -504,31 +592,10 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 setIsListening(false);
             },
             onEnd: () => {
-                isAiSpeakingRef.current = false;
-                setIsAiSpeaking(false);
-                // 300ms guard buffer to allow room speaker echo to dissipate before starting mic
-                setTimeout(() => {
-                    transcriptAccumulatorRef.current = '';
-                    committedPriorTextRef.current = '';
-                    setTranscript('');
-                    setInterimTranscript('');
-
-                    // Spawn fresh recognition session for candidate turn
-                    if (!sessionCompletedRef.current && !isMicMutedRef.current) {
-                        startRecognitionSession();
-                    }
-                    if (onCompleteCallback) onCompleteCallback();
-                }, 300);
+                finalizeTurn();
             },
             onError: () => {
-                isAiSpeakingRef.current = false;
-                setIsAiSpeaking(false);
-                setTimeout(() => {
-                    if (!sessionCompletedRef.current && !isMicMutedRef.current) {
-                        startRecognitionSession();
-                    }
-                    if (onCompleteCallback) onCompleteCallback();
-                }, 300);
+                finalizeTurn();
             }
         });
     };
@@ -539,7 +606,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
 
         const textToSpeak = `Question ${targetIdx + 1}: ${questionObj.question}`;
         setLatestAiSpeech(questionObj.question);
-        
+
         setConversationLog(prev => [
             ...prev,
             { role: 'interviewer', content: questionObj.question, timestamp: new Date().toLocaleTimeString() }
@@ -560,7 +627,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             if (!questionAttemptsRef.current[idx] || questionAttemptsRef.current[idx].status !== 'ANSWERED') {
                 questionAttemptsRef.current[idx] = {
                     questionIdx: idx,
-                    id: q.id || `q_${idx+1}`,
+                    id: q.id || `q_${idx + 1}`,
                     question: q.question,
                     topic: q.topic || selectedMode,
                     difficulty: q.difficulty || selectedDifficulty,
@@ -576,7 +643,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             const attempt = questionAttemptsRef.current[idx];
             const isAnswered = attempt?.status === 'ANSWERED' && attempt?.candidate_answer?.trim()?.length >= 10;
             return {
-                id: q.id || `q_${idx+1}`,
+                id: q.id || `q_${idx + 1}`,
                 question: q.question,
                 topic: q.topic || selectedMode,
                 difficulty: q.difficulty || selectedDifficulty,
@@ -770,7 +837,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
 
         try {
             const turnHistory = conversationLog.map(l => ({ role: l.role, content: l.content }));
-            
+
             const response = await aiFastApiService.executeVoiceTurn({
                 target_role: defaultRole,
                 interview_mode: selectedMode,
@@ -797,7 +864,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
 
                 const nextQ = interviewQuestions[nextIdx];
                 const transitionAndNextQuestion = `${aiSpeech} Let's proceed to Question ${nextIdx + 1}: ${nextQ.question}`;
-                
+
                 setLatestAiSpeech(nextQ.question);
                 setConversationLog(prev => [
                     ...prev,
@@ -890,7 +957,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 setInterviewQuestions(shuffledFetched);
                 const initAttempts = shuffledFetched.map((q, idx) => ({
                     questionIdx: idx,
-                    id: q.id || `q_${idx+1}`,
+                    id: q.id || `q_${idx + 1}`,
                     question: q.question,
                     topic: q.topic || selectedMode,
                     difficulty: q.difficulty || selectedDifficulty,
@@ -910,7 +977,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 setInterviewQuestions(shuffledFallback);
                 const initAttempts = shuffledFallback.map((q, idx) => ({
                     questionIdx: idx,
-                    id: q.id || `q_${idx+1}`,
+                    id: q.id || `q_${idx + 1}`,
                     question: q.question,
                     topic: q.topic || selectedMode,
                     difficulty: q.difficulty || selectedDifficulty,
@@ -931,7 +998,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 setInterviewQuestions(shuffledFallback);
                 const initAttempts = shuffledFallback.map((q, idx) => ({
                     questionIdx: idx,
-                    id: q.id || `q_${idx+1}`,
+                    id: q.id || `q_${idx + 1}`,
                     question: q.question,
                     topic: q.topic || selectedMode,
                     difficulty: q.difficulty || selectedDifficulty,
@@ -998,7 +1065,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             });
             setClarificationText(res.clarification);
             setLatestAiSpeech(res.clarification);
-            
+
             speakAiTurn(`Clarification: ${res.clarification}`);
         } catch (err) {
             console.error('Clarification error:', err);
@@ -1021,7 +1088,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         const evalToUse = currentEvaluation || {
             overall_score: answeredCount > 0 ? 60 : 0,
             grade: answeredCount > 0 ? 'Needs Practice' : 'Strong No Hire',
-            summary_verdict: answeredCount > 0 
+            summary_verdict: answeredCount > 0
                 ? `Candidate completed ${answeredCount} of ${totalQ} questions during this technical interview session.`
                 : 'Candidate skipped all interview questions. No technical competencies demonstrated.',
             dimension_scores: [
@@ -1067,7 +1134,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         const answeredCount = currentEvaluation?.answered_count ?? questionAttempts.filter(q => q.status === 'ANSWERED').length;
         const skippedCount = currentEvaluation?.skipped_count ?? questionAttempts.filter(q => q.status === 'SKIPPED').length;
         const totalQ = currentEvaluation?.total_questions ?? interviewQuestions.length;
-        
+
         let md = `# 🎙️ CareerOS — AI Technical Interview Hiring Assessment\n\n`;
         md += `**Role:** ${defaultRole} | **Track:** ${modeTitle} | **Difficulty:** ${selectedDifficulty}\n`;
         md += `**Date:** ${new Date().toLocaleDateString('en-IN', { dateStyle: 'full' })} at ${new Date().toLocaleTimeString()}\n\n`;
@@ -1076,7 +1143,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         md += `**Hiring Verdict:** ${grade}\n`;
         md += `**Questions Attempted:** ${answeredCount} / ${totalQ} (${skippedCount} Skipped — 0 marks each)\n\n`;
         md += `> **Executive Summary:**\n> ${currentEvaluation?.summary_verdict || (score === 0 ? "Candidate skipped all interview questions. No technical competencies demonstrated (0/100)." : "Candidate completed the live AI voice interview round.")}\n\n`;
-        
+
         md += `## 📊 4-Dimension Competency Matrix\n\n`;
         currentEvaluation?.dimension_scores?.forEach(dim => {
             md += `### • ${dim.name} — ${dim.score}/100\n`;
@@ -1142,8 +1209,9 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         setIsMicMuted(false);
         isMicMutedRef.current = false;
         if (isAiSpeakingRef.current) {
-            showToast('Interviewer is speaking. Mic will activate automatically when she finishes.', 'info');
-            return;
+            try { speechController.cancel(); } catch { }
+            isAiSpeakingRef.current = false;
+            setIsAiSpeaking(false);
         }
         startRecognitionSession();
     };
@@ -1157,7 +1225,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             try {
                 recognitionRef.current.onend = null;
                 recognitionRef.current.abort();
-            } catch {}
+            } catch { }
             recognitionRef.current = null;
         }
     };
@@ -1193,34 +1261,32 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             position: 'fixed',
             inset: 0,
             zIndex: 9999,
-            backgroundColor: 'rgba(5, 8, 22, 0.94)',
-            backdropFilter: 'blur(12px)',
+            backgroundColor: 'var(--bg-secondary)',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '1rem',
-            animation: 'fadeIn 0.2s ease'
+            flexDirection: 'column',
+            width: '100vw',
+            height: '100vh',
+            padding: 0,
+            animation: 'fadeIn 0.2s ease',
+            overflow: 'hidden'
         }}>
             <div style={{
                 width: '100%',
-                maxWidth: '1050px',
-                height: '92vh',
+                height: '100%',
                 backgroundColor: 'var(--bg-secondary)',
-                borderRadius: 'var(--radius-xl)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 30px 60px -15px rgba(0, 0, 0, 0.8)',
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden'
             }}>
-                {/* Google Meet Style Header Bar */}
+                {/* Full-Screen Studio Header Bar */}
                 <div style={{
-                    padding: '1rem 1.5rem',
+                    padding: '0.85rem 2.25rem',
                     borderBottom: '1px solid var(--border-color)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    backgroundColor: 'var(--bg-tertiary)'
+                    backgroundColor: 'var(--bg-tertiary)',
+                    flexShrink: 0
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <div style={{
@@ -1288,13 +1354,23 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                         <Button
                             variant="outline"
                             size="sm"
+                            onClick={toggleBrowserFullscreen}
+                            leftIcon={isBrowserFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                            title={isBrowserFullscreen ? "Exit full browser screen" : "Expand to full browser screen"}
+                        >
+                            {isBrowserFullscreen ? 'Windowed' : 'Fullscreen'}
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => setShowVoiceSettings(prev => !prev)}
                             leftIcon={<Settings size={14} />}
                         >
                             Sound
                         </Button>
 
-                        <button 
+                        <button
                             onClick={onClose}
                             style={{
                                 background: 'none',
@@ -1328,9 +1404,9 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 <label className="form-label" style={{ marginBottom: '4px', fontSize: '0.75rem' }}>
                                     AI Interviewer Voice (Sound)
                                 </label>
-                                <select 
-                                    className="form-input" 
-                                    value={selectedVoiceURI} 
+                                <select
+                                    className="form-input"
+                                    value={selectedVoiceURI}
                                     onChange={e => {
                                         setSelectedVoiceURI(e.target.value);
                                         handlePreviewVoice(e.target.value, voiceRate);
@@ -1386,13 +1462,23 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 )}
 
                 {/* Call Body Area */}
-                <div style={{ flex: 1, padding: sessionCompleted ? '1.25rem 1.5rem 1rem 1.5rem' : '1.25rem', overflowY: sessionCompleted ? 'hidden' : 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div style={{
+                    flex: 1,
+                    padding: sessionCompleted ? '1.5rem 2.5rem' : '1.25rem 2.5rem 1rem 2.5rem',
+                    overflowY: sessionCompleted ? 'hidden' : 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    minHeight: 0,
+                    width: '100%',
+                    maxWidth: '1680px',
+                    margin: '0 auto'
+                }}>
                     {!isStarted ? (
                         /* STEP 1: PRE-CALL LOBBY */
                         <div style={{ margin: 'auto 0' }}>
                             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                                 <span className="badge badge-purple" style={{ marginBottom: '0.5rem' }}>
-                                    <Sparkles size={12}/> INTERVIEW ROUND SETUP
+                                    <Sparkles size={12} /> INTERVIEW ROUND SETUP
                                 </span>
                                 <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0.25rem 0' }}>
                                     Select Interview Track
@@ -1411,7 +1497,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 {INTERVIEW_MODES.map(mode => {
                                     const isSelected = selectedMode === mode.id;
                                     return (
-                                        <div 
+                                        <div
                                             key={mode.id}
                                             onClick={() => setSelectedMode(mode.id)}
                                             style={{
@@ -1479,7 +1565,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                             )}
                                         </div>
                                         <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', margin: '0.2rem 0 0 0' }}>
-                                            {hasResume 
+                                            {hasResume
                                                 ? "Sarah Chen will directly probe your listed projects, architecture choices, and claimed tech stack."
                                                 : "Create or import your resume in the Resume Builder to enable project defense questions."}
                                         </p>
@@ -1487,7 +1573,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 </div>
 
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: hasResume ? 'pointer' : 'not-allowed', opacity: hasResume ? 1 : 0.6 }}>
-                                    <input 
+                                    <input
                                         type="checkbox"
                                         checked={hasResume && (groundInResume || selectedMode === 'RESUME_PROJECTS')}
                                         disabled={!hasResume || selectedMode === 'RESUME_PROJECTS'}
@@ -1511,12 +1597,12 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                             )}
 
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                <Button 
-                                    variant="primary" 
+                                <Button
+                                    variant="primary"
                                     size="lg"
-                                    onClick={handleStartInterview} 
-                                    isLoading={loadingQuestions} 
-                                    leftIcon={<Play size={18}/>}
+                                    onClick={handleStartInterview}
+                                    isLoading={loadingQuestions}
+                                    leftIcon={<Play size={18} />}
                                     style={{ padding: '0.85rem 2.25rem', fontSize: '1rem', fontWeight: 800 }}
                                 >
                                     Join Live Voice Room
@@ -1541,7 +1627,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 border: '4px solid var(--border-color)',
                                 borderTopColor: 'var(--primary)',
                                 animation: 'spin 1s linear infinite'
-                            }}/>
+                            }} />
                             <div>
                                 <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>
                                     Evaluating Your Interview Performance...
@@ -1565,741 +1651,443 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                                 />
                             </div>
                         ) : (
-                        /* STEP 3: STATE-OF-THE-ART HIRING ASSESSMENT DASHBOARD */
-                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '0.85rem' }}>
-                            {/* Executive Hero Banner */}
-                            <div style={{
-                                padding: '1.25rem 1.5rem',
-                                borderRadius: 'var(--radius-xl)',
-                                backgroundColor: 'var(--bg-tertiary)',
-                                border: '1px solid var(--border-color)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                flexWrap: 'wrap',
-                                gap: '1.25rem',
-                                boxShadow: '0 8px 25px rgba(0,0,0,0.25)',
-                                position: 'relative',
-                                overflow: 'hidden',
-                                flexShrink: 0
-                            }}>
-                                {/* Ambient Background Glow */}
+                            /* STEP 3: STATE-OF-THE-ART HIRING ASSESSMENT DASHBOARD */
+                            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '0.85rem' }}>
+                                {/* Executive Hero Banner */}
                                 <div style={{
-                                    position: 'absolute',
-                                    top: '-40px',
-                                    left: '20px',
-                                    width: '180px',
-                                    height: '180px',
-                                    borderRadius: '50%',
-                                    backgroundColor: (currentEvaluation?.overall_score ?? 0) >= 80 ? 'rgba(16, 185, 129, 0.12)' : (currentEvaluation?.overall_score ?? 0) >= 65 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                                    filter: 'blur(40px)',
-                                    pointerEvents: 'none'
-                                }}/>
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', zIndex: 1, flex: '1 1 320px' }}>
-                                    {/* Circular Glowing Score Gauge */}
-                                    <div style={{
-                                        width: 84,
-                                        height: 84,
-                                        borderRadius: '50%',
-                                        backgroundColor: 'var(--bg-secondary)',
-                                        border: `4px solid ${(currentEvaluation?.overall_score ?? 0) >= 80 ? 'var(--success)' : (currentEvaluation?.overall_score ?? 0) >= 65 ? 'var(--warning)' : 'var(--danger)'}`,
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        boxShadow: `0 0 20px ${(currentEvaluation?.overall_score ?? 0) >= 80 ? 'rgba(16, 185, 129, 0.3)' : (currentEvaluation?.overall_score ?? 0) >= 65 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-                                        flexShrink: 0
-                                    }}>
-                                        <span style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1 }}>
-                                            {currentEvaluation?.overall_score ?? 0}
-                                        </span>
-                                        <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                            out of 100
-                                        </span>
-                                    </div>
-
-                                    <div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
-                                            <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
-                                                Hiring Assessment Scorecard
-                                            </h3>
-                                            <span className={`badge ${(currentEvaluation?.overall_score ?? 0) >= 80 ? 'badge-success' : (currentEvaluation?.overall_score ?? 0) >= 65 ? 'badge-warning' : 'badge-danger'}`} style={{ fontSize: '0.75rem', fontWeight: 800 }}>
-                                                {currentEvaluation?.grade || ((currentEvaluation?.overall_score ?? 0) >= 80 ? "Strong Hire" : (currentEvaluation?.overall_score ?? 0) >= 65 ? "Hire / Competent" : (currentEvaluation?.overall_score ?? 0) >= 50 ? "Needs Practice" : "Strong No Hire")}
-                                            </span>
-                                        </div>
-                                        <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: 0, maxWidth: '560px', lineHeight: 1.4 }}>
-                                            {currentEvaluation?.summary_verdict || ((currentEvaluation?.overall_score ?? 0) === 0 ? "Candidate skipped all interview questions. No technical competencies demonstrated (0/100)." : "Candidate completed the live AI voice interview round.")}
-                                        </p>
-                                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
-                                            <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                                                📝 Attempted: <strong style={{ color: 'var(--text-primary)' }}>{currentEvaluation?.answered_count ?? questionAttempts.filter(q => q.status === 'ANSWERED').length}</strong> / {currentEvaluation?.total_questions ?? interviewQuestions.length}
-                                            </span>
-                                            {(currentEvaluation?.skipped_count ?? questionAttempts.filter(q => q.status === 'SKIPPED').length) > 0 && (
-                                                <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--danger)', fontWeight: 800 }}>
-                                                    ⚠️ Skipped: {currentEvaluation?.skipped_count ?? questionAttempts.filter(q => q.status === 'SKIPPED').length} (0 marks awarded)
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                            </div>
-
-                            {/* Interactive Tab Navigation */}
-                            <div 
-                                className="no-scrollbar"
-                                style={{
+                                    padding: '1.25rem 1.5rem',
+                                    borderRadius: 'var(--radius-xl)',
+                                    backgroundColor: 'var(--bg-tertiary)',
+                                    border: '1px solid var(--border-color)',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.4rem',
-                                    borderBottom: '1px solid var(--border-color)',
-                                    paddingBottom: '0.4rem',
-                                    overflowX: 'auto',
-                                    overflowY: 'hidden',
-                                    scrollbarWidth: 'none',
-                                    msOverflowStyle: 'none',
+                                    justifyContent: 'space-between',
+                                    flexWrap: 'wrap',
+                                    gap: '1.25rem',
+                                    boxShadow: '0 8px 25px rgba(0,0,0,0.25)',
+                                    position: 'relative',
+                                    overflow: 'hidden',
                                     flexShrink: 0
-                                }}
-                            >
-                                {[
-                                    { id: 'overview', label: 'Competency Matrix (4 Vectors)', icon: <Activity size={14}/> },
-                                    { id: 'questions', label: `Question Breakdown (${currentEvaluation?.answered_count ?? questionAttempts.filter(q => q.status === 'ANSWERED').length}/${currentEvaluation?.total_questions ?? interviewQuestions.length})`, icon: <ListChecks size={14}/> },
-                                    { id: 'tips', label: 'Actionable Tips & Gaps', icon: <Target size={14}/> }
-                                ].map(tab => {
-                                    const isActive = scorecardTab === tab.id;
-                                    return (
-                                        <button
-                                            key={tab.id}
-                                            onClick={() => setScorecardTab(tab.id)}
-                                            style={{
-                                                padding: '0.45rem 1rem',
-                                                borderRadius: 'var(--radius-md)',
-                                                border: 'none',
-                                                backgroundColor: isActive ? 'var(--primary)' : 'transparent',
-                                                color: isActive ? '#fff' : 'var(--text-secondary)',
-                                                cursor: 'pointer',
-                                                fontSize: '0.825rem',
-                                                fontWeight: 700,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.45rem',
-                                                transition: 'all 0.2s ease',
-                                                whiteSpace: 'nowrap',
-                                                flexShrink: 0
-                                            }}
-                                        >
-                                            {tab.icon}
-                                            <span>{tab.label}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Active Tab Content Scrollable Viewport */}
-                            <div style={{
-                                flex: 1,
-                                minHeight: 0,
-                                overflowY: 'auto',
-                                paddingRight: '0.25rem',
-                                display: 'flex',
-                                flexDirection: 'column'
-                            }}>
-                                {/* Tab 1: 4-Dimension Scores Matrix */}
-                                {scorecardTab === 'overview' && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '0.85rem' }}>
-                                        {(currentEvaluation?.dimension_scores || [
-                                            { name: 'Technical Accuracy', score: currentEvaluation?.overall_score ?? 0, feedback: 'Technical correctness and concept mastery.' },
-                                            { name: 'Structural Flow & STAR', score: currentEvaluation?.overall_score ?? 0, feedback: 'Logical flow and response structure.' },
-                                            { name: 'Depth & Edge Cases', score: currentEvaluation?.overall_score ?? 0, feedback: 'Proactive exploration of limits and trade-offs.' },
-                                            { name: 'Communication Clarity', score: currentEvaluation?.overall_score ?? 0, feedback: 'Articulation, concise terminology, and delivery.' }
-                                        ]).map((dim, dIdx) => {
-                                            const scoreColor = dim.score >= 80 ? 'var(--success)' : dim.score >= 65 ? 'var(--warning)' : 'var(--danger)';
-                                            return (
-                                                <div 
-                                                    key={dIdx}
-                                                    style={{
-                                                        padding: '1.15rem',
-                                                        backgroundColor: 'var(--bg-tertiary)',
-                                                        borderRadius: 'var(--radius-lg)',
-                                                        border: '1px solid var(--border-color)',
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        justifyContent: 'space-between',
-                                                        transition: 'all 0.2s ease',
-                                                        boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
-                                                    }}
-                                                >
-                                                    <div>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                                                                {dim.name}
-                                                            </span>
-                                                            <span style={{ fontSize: '0.875rem', fontWeight: 900, color: scoreColor }}>
-                                                                {dim.score}/100
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Progress bar */}
-                                                        <div style={{
-                                                            width: '100%',
-                                                            height: '6px',
-                                                            backgroundColor: 'var(--bg-secondary)',
-                                                            borderRadius: 'var(--radius-full)',
-                                                            overflow: 'hidden',
-                                                            marginBottom: '0.75rem'
-                                                        }}>
-                                                            <div style={{
-                                                                width: `${dim.score}%`,
-                                                                height: '100%',
-                                                                backgroundColor: scoreColor,
-                                                                borderRadius: 'var(--radius-full)',
-                                                                transition: 'width 0.6s ease'
-                                                            }}/>
-                                                        </div>
-
-                                                        <p style={{ fontSize: '0.785rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
-                                                            {dim.feedback}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-
-                                {/* Tab 2: Question-by-Question Breakdown (Strict marks & skipped tracking) */}
-                                {scorecardTab === 'questions' && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                        {(currentEvaluation?.per_question_results || questionAttemptsRef.current).map((q, qIdx) => {
-                                            const isSkip = q.status === 'SKIPPED';
-                                            const qScore = isSkip ? 0 : (q.score ?? 0);
-                                            const scoreBadgeColor = isSkip ? 'badge-danger' : qScore >= 80 ? 'badge-success' : qScore >= 65 ? 'badge-warning' : 'badge-danger';
-                                            const scoreTextColor = isSkip ? 'var(--danger)' : qScore >= 80 ? 'var(--success)' : qScore >= 65 ? 'var(--warning)' : 'var(--danger)';
-                                            
-                                            return (
-                                                <div 
-                                                    key={qIdx}
-                                                    style={{
-                                                        padding: '1.1rem 1.25rem',
-                                                        backgroundColor: 'var(--bg-tertiary)',
-                                                        borderRadius: 'var(--radius-lg)',
-                                                        border: `1px solid ${isSkip ? 'rgba(239, 68, 68, 0.35)' : 'var(--border-color)'}`,
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        gap: '0.65rem',
-                                                        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-                                                    }}
-                                                >
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                                                                Question #{qIdx + 1}
-                                                            </span>
-                                                            <span className={`badge ${scoreBadgeColor}`} style={{ fontSize: '0.7rem', fontWeight: 700 }}>
-                                                                {isSkip ? 'SKIPPED (0 pts)' : 'ANSWERED'}
-                                                            </span>
-                                                            <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
-                                                                {q.topic || selectedMode}
-                                                            </span>
-                                                        </div>
-                                                        <div style={{ fontSize: '1.05rem', fontWeight: 900, color: scoreTextColor }}>
-                                                            {qScore} / 100
-                                                        </div>
-                                                    </div>
-
-                                                    <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>
-                                                        {q.question}
-                                                    </p>
-
-                                                    {isSkip ? (
-                                                        <div style={{
-                                                            fontSize: '0.785rem',
-                                                            color: 'var(--danger)',
-                                                            backgroundColor: 'rgba(239, 68, 68, 0.06)',
-                                                            padding: '0.6rem 0.85rem',
-                                                            borderRadius: 'var(--radius-sm)',
-                                                            border: '1px dashed rgba(239, 68, 68, 0.35)',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.5rem'
-                                                        }}>
-                                                            <span>⚠️</span>
-                                                            <span>Candidate skipped this question without answering. Strictly 0 marks awarded.</span>
-                                                        </div>
-                                                    ) : (
-                                                        <div style={{
-                                                            fontSize: '0.785rem',
-                                                            color: 'var(--text-secondary)',
-                                                            backgroundColor: 'var(--bg-secondary)',
-                                                            padding: '0.6rem 0.85rem',
-                                                            borderRadius: 'var(--radius-sm)',
-                                                            border: '1px solid var(--border-color)',
-                                                            lineHeight: 1.4
-                                                        }}>
-                                                            <strong style={{ color: 'var(--text-primary)' }}>Candidate's Answer:</strong> "{q.candidate_answer || '(No verbal answer transcribed)'}"
-                                                        </div>
-                                                    )}
-
-                                                    {q.feedback && (
-                                                        <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
-                                                            <strong style={{ color: 'var(--text-primary)' }}>Interviewer Feedback:</strong> {q.feedback}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-
-                                {/* Tab 2: Actionable Tips & Gaps */}
-                                {scorecardTab === 'tips' && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
-                                        {/* Strengths Card */}
-                                        <div style={{
-                                            padding: '1.15rem',
-                                            backgroundColor: 'rgba(16, 185, 129, 0.04)',
-                                            borderRadius: 'var(--radius-lg)',
-                                            border: '1px solid rgba(16, 185, 129, 0.2)'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem', color: 'var(--success)' }}>
-                                                <CheckCircle2 size={18} />
-                                                <h4 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                                                    Key Strengths Demonstrated
-                                                </h4>
-                                            </div>
-                                            {currentEvaluation?.strengths && currentEvaluation.strengths.length > 0 ? (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                                                    {currentEvaluation.strengths.map((str, sIdx) => (
-                                                        <div key={sIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
-                                                            <span style={{ color: 'var(--success)', fontWeight: 800, lineHeight: 1.2 }}>✓</span>
-                                                            <span>{str}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Solid attempt on core technical definitions and fundamental logic.</p>
-                                            )}
-                                        </div>
-
-                                        {/* Improvement Tips Card */}
-                                        <div style={{
-                                            padding: '1.15rem',
-                                            backgroundColor: 'rgba(245, 158, 11, 0.04)',
-                                            borderRadius: 'var(--radius-lg)',
-                                            border: '1px solid rgba(245, 158, 11, 0.2)'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem', color: 'var(--warning)' }}>
-                                                <Target size={18} />
-                                                <h4 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                                                    What to Improve for Next Round
-                                                </h4>
-                                            </div>
-                                            {currentEvaluation?.missing_points && currentEvaluation.missing_points.length > 0 ? (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                                                    {currentEvaluation.missing_points.map((miss, mIdx) => (
-                                                        <div key={mIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
-                                                            <span style={{ color: 'var(--warning)', fontWeight: 800, lineHeight: 1.2 }}>•</span>
-                                                            <span>{miss}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Practice articulating edge cases, write amplification, and memory complexity proactively.</p>
-                                            )}
-                                        </div>
-
-                                        {/* Recommended Follow-Up / Study Guide */}
-                                        {currentEvaluation?.interviewer_follow_up && (
-                                            <div style={{
-                                                gridColumn: '1 / -1',
-                                                padding: '1.15rem',
-                                                backgroundColor: 'var(--bg-tertiary)',
-                                                borderRadius: 'var(--radius-lg)',
-                                                border: '1px solid var(--border-color)'
-                                            }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.45rem', color: 'var(--primary)' }}>
-                                                    <BookOpen size={16} />
-                                                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                                                        Interviewer's Recommended Deep-Dive Topic
-                                                    </h4>
-                                                </div>
-                                                <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
-                                                    {currentEvaluation.interviewer_follow_up}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Scorecard Bottom Action Bar */}
-                            <div style={{
-                                flexShrink: 0,
-                                paddingTop: '0.75rem',
-                                borderTop: '1px solid var(--border-color)',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                flexWrap: 'wrap',
-                                gap: '0.75rem'
-                            }}>
-                                <Button 
-                                    variant="primary" 
-                                    onClick={handleDownloadPdfReport} 
-                                    isLoading={downloadingPdf}
-                                    leftIcon={<Download size={15}/>}
-                                    style={{ fontWeight: 700 }}
-                                >
-                                    Download Full Scorecard (PDF)
-                                </Button>
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <Button variant="outline" onClick={handleRestart} leftIcon={<RefreshCw size={15}/>}>
-                                        Try Another Interview Track
-                                    </Button>
-                                    <Button variant="primary" onClick={onClose} leftIcon={<CheckCircle2 size={15}/>}>
-                                        Done & Return to Prep
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                        )
-                    ) : (
-                        /* STEP 2: GOOGLE MEET / ZOOM FULL-DUPLEX CALL STAGE */
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, justifyContent: 'space-between' }}>
-                            {/* Two Video / Call Tiles */}
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 1fr',
-                                gap: '1.25rem',
-                                flex: 1,
-                                minHeight: 0,
-                                marginBottom: '1rem'
-                            }}>
-                                {/* Tile 1: AI Senior Interviewer */}
-                                <div style={{
-                                    backgroundColor: 'var(--bg-tertiary)',
-                                    borderRadius: 'var(--radius-xl)',
-                                    border: `2px solid ${isAiSpeaking ? 'var(--primary)' : 'var(--border-color)'}`,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'space-between',
-                                    padding: '1.5rem',
-                                    position: 'relative',
-                                    boxShadow: isAiSpeaking ? '0 0 25px rgba(99, 102, 241, 0.25)' : 'none',
-                                    transition: 'all 0.3s ease',
-                                    minHeight: 0,
-                                    overflow: 'hidden'
                                 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span className="badge badge-purple" style={{ fontSize: '0.75rem' }}>
-                                                Question {currentIdx + 1} of {interviewQuestions.length}
-                                            </span>
-                                            <Badge variant="neutral">{currentQuestion?.difficulty || 'Medium'}</Badge>
-                                        </div>
-
-                                        <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.4rem',
-                                            fontSize: '0.75rem',
-                                            fontWeight: 700,
-                                            color: isAiSpeaking ? 'var(--primary)' : 'var(--text-muted)'
-                                        }}>
-                                            <Volume2 size={15} className={isAiSpeaking ? 'animate-pulse' : ''} />
-                                            {isAiSpeaking ? 'Speaking...' : isAiThinking ? 'Analyzing response...' : 'Listening...'}
-                                        </div>
-                                    </div>
-
-                                    {/* Center AI Avatar with Audio Pulse */}
-                                    <div style={{ textAlign: 'center', margin: 'auto 0', flexShrink: 0 }}>
-                                        <div style={{
-                                            width: 90,
-                                            height: 90,
-                                            borderRadius: '50%',
-                                            backgroundColor: isAiSpeaking ? 'rgba(99, 102, 241, 0.2)' : 'var(--bg-secondary)',
-                                            border: `3px solid ${isAiSpeaking ? 'var(--primary)' : 'var(--border-color)'}`,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            margin: '0 auto 1rem auto',
-                                            color: 'var(--primary)',
-                                            boxShadow: isAiSpeaking ? '0 0 30px rgba(99, 102, 241, 0.5)' : 'none',
-                                            transition: 'all 0.2s ease'
-                                        }}>
-                                            <Bot size={44} />
-                                        </div>
-                                        <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.25rem 0' }}>
-                                            Sarah Chen
-                                        </h4>
-                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                                            Staff Technical Interviewer
-                                        </p>
-                                    </div>
-
-                                    {/* Live Spoken Subtitle Box */}
+                                    {/* Ambient Background Glow */}
                                     <div style={{
-                                        backgroundColor: 'rgba(15, 23, 42, 0.85)',
-                                        padding: '0.85rem 1rem',
-                                        borderRadius: 'var(--radius-md)',
-                                        border: '1px solid var(--border-subtle)',
-                                        fontSize: '0.825rem',
-                                        color: 'var(--text-primary)',
-                                        lineHeight: 1.4,
-                                        minHeight: '52px',
-                                        maxHeight: '140px',
-                                        overflowY: 'auto',
-                                        wordBreak: 'break-word',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        flexShrink: 0
-                                    }}>
-                                        <em>"{latestAiSpeech || currentQuestion?.question}"</em>
-                                    </div>
-                                </div>
+                                        position: 'absolute',
+                                        top: '-40px',
+                                        left: '20px',
+                                        width: '180px',
+                                        height: '180px',
+                                        borderRadius: '50%',
+                                        backgroundColor: (currentEvaluation?.overall_score ?? 0) >= 80 ? 'rgba(16, 185, 129, 0.12)' : (currentEvaluation?.overall_score ?? 0) >= 65 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                                        filter: 'blur(40px)',
+                                        pointerEvents: 'none'
+                                    }} />
 
-                                {/* Tile 2: Candidate (You) */}
-                                <div style={{
-                                    backgroundColor: 'var(--bg-tertiary)',
-                                    borderRadius: 'var(--radius-xl)',
-                                    border: `2px solid ${isListening && !isMicMuted ? 'var(--success)' : 'var(--border-color)'}`,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'space-between',
-                                    padding: '1.5rem',
-                                    position: 'relative',
-                                    boxShadow: isListening && !isMicMuted ? '0 0 25px rgba(16, 185, 129, 0.2)' : 'none',
-                                    transition: 'all 0.3s ease',
-                                    minHeight: 0,
-                                    overflow: 'hidden'
-                                }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span className="badge badge-neutral" style={{ fontSize: '0.75rem' }}>
-                                            Candidate Audio Stream
-                                        </span>
-
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', zIndex: 1, flex: '1 1 320px' }}>
+                                        {/* Circular Glowing Score Gauge */}
                                         <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.4rem',
-                                            fontSize: '0.75rem',
-                                            fontWeight: 700,
-                                            color: isAiSpeaking 
-                                                ? 'var(--text-muted)' 
-                                                : isMicMuted 
-                                                    ? 'var(--danger)' 
-                                                    : isListening 
-                                                        ? 'var(--success)' 
-                                                        : 'var(--text-muted)'
-                                        }}>
-                                            {isAiSpeaking ? (
-                                                <>
-                                                    <Volume2 size={14} className="text-primary animate-pulse"/>
-                                                    <span>Listening to Interviewer (Mic Standby)</span>
-                                                </>
-                                            ) : isMicMuted ? (
-                                                <>
-                                                    <MicOff size={14}/>
-                                                    <span>Mic Muted</span>
-                                                </>
-                                            ) : isListening ? (
-                                                <>
-                                                    <Mic size={14} className="animate-pulse"/>
-                                                    <span>Your Turn — Mic Active (Speak)</span>
-                                                </>
-                                            ) : (
-                                                <span>Standby</span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Candidate Center Avatar */}
-                                    <div style={{ textAlign: 'center', margin: 'auto 0', flexShrink: 0 }}>
-                                        <div style={{
-                                            width: 90,
-                                            height: 90,
+                                            width: 84,
+                                            height: 84,
                                             borderRadius: '50%',
-                                            backgroundColor: !isAiSpeaking && isListening && !isMicMuted ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-secondary)',
-                                            border: `3px solid ${!isAiSpeaking && isListening && !isMicMuted ? 'var(--success)' : 'var(--border-color)'}`,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            margin: '0 auto 1rem auto',
-                                            color: 'var(--text-primary)',
-                                            boxShadow: !isAiSpeaking && isListening && !isMicMuted ? '0 0 25px rgba(16, 185, 129, 0.4)' : 'none'
-                                        }}>
-                                            <User size={44} />
-                                        </div>
-                                        <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.25rem 0' }}>
-                                            You (Candidate)
-                                        </h4>
-                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                                            {isAiSpeaking ? 'Interviewer Speaking...' : 'Your Turn to Answer'}
-                                        </p>
-                                    </div>
-
-                                    {/* Live Candidate Speech Caption */}
-                                    <div 
-                                        ref={transcriptContainerRef}
-                                        style={{
-                                            backgroundColor: 'rgba(15, 23, 42, 0.85)',
-                                            padding: '0.85rem 1rem',
-                                            borderRadius: 'var(--radius-md)',
-                                            border: '1px solid var(--border-subtle)',
-                                            fontSize: '0.825rem',
-                                            color: transcript || interimTranscript ? 'var(--success)' : 'var(--text-muted)',
-                                            lineHeight: 1.45,
-                                            minHeight: '52px',
-                                            maxHeight: '140px',
-                                            overflowY: 'auto',
-                                            wordBreak: 'break-word',
+                                            backgroundColor: 'var(--bg-secondary)',
+                                            border: `4px solid ${(currentEvaluation?.overall_score ?? 0) >= 80 ? 'var(--success)' : (currentEvaluation?.overall_score ?? 0) >= 65 ? 'var(--warning)' : 'var(--danger)'}`,
                                             display: 'flex',
                                             flexDirection: 'column',
-                                            justifyContent: transcript || interimTranscript ? 'flex-start' : 'center',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            boxShadow: `0 0 20px ${(currentEvaluation?.overall_score ?? 0) >= 80 ? 'rgba(16, 185, 129, 0.3)' : (currentEvaluation?.overall_score ?? 0) >= 65 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
                                             flexShrink: 0
                                         }}>
-                                        {isAiSpeaking ? (
-                                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                                Listening to Sarah Chen... Your mic will automatically activate when she finishes speaking.
+                                            <span style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1 }}>
+                                                {currentEvaluation?.overall_score ?? 0}
                                             </span>
-                                        ) : transcript || interimTranscript ? (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                                                <span style={{ whiteSpace: 'pre-wrap' }}>
-                                                    {transcript} {interimTranscript ? `(${interimTranscript}...)` : ''}
-                                                </span>
-                                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.25rem', marginTop: '0.25rem' }}>
-                                                    🎙️ Continuous listening active (take your time). Click "Done Speaking" below when finished.
+                                            <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                out of 100
+                                            </span>
+                                        </div>
+
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+                                                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
+                                                    Hiring Assessment Scorecard
+                                                </h3>
+                                                <span className={`badge ${(currentEvaluation?.overall_score ?? 0) >= 80 ? 'badge-success' : (currentEvaluation?.overall_score ?? 0) >= 65 ? 'badge-warning' : 'badge-danger'}`} style={{ fontSize: '0.75rem', fontWeight: 800 }}>
+                                                    {currentEvaluation?.grade || ((currentEvaluation?.overall_score ?? 0) >= 80 ? "Strong Hire" : (currentEvaluation?.overall_score ?? 0) >= 65 ? "Hire / Competent" : (currentEvaluation?.overall_score ?? 0) >= 50 ? "Needs Practice" : "Strong No Hire")}
                                                 </span>
                                             </div>
-                                        ) : (
-                                            <span>Speak your technical explanation at your own pace... Click <strong>"Done Speaking"</strong> below when finished.</span>
-                                        )}
+                                            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: 0, maxWidth: '560px', lineHeight: 1.4 }}>
+                                                {currentEvaluation?.summary_verdict || ((currentEvaluation?.overall_score ?? 0) === 0 ? "Candidate skipped all interview questions. No technical competencies demonstrated (0/100)." : "Candidate completed the live AI voice interview round.")}
+                                            </p>
+                                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
+                                                <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                                    📝 Attempted: <strong style={{ color: 'var(--text-primary)' }}>{currentEvaluation?.answered_count ?? questionAttempts.filter(q => q.status === 'ANSWERED').length}</strong> / {currentEvaluation?.total_questions ?? interviewQuestions.length}
+                                                </span>
+                                                {(currentEvaluation?.skipped_count ?? questionAttempts.filter(q => q.status === 'SKIPPED').length) > 0 && (
+                                                    <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--danger)', fontWeight: 800 }}>
+                                                        ⚠️ Skipped: {currentEvaluation?.skipped_count ?? questionAttempts.filter(q => q.status === 'SKIPPED').length} (0 marks awarded)
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                {/* Interactive Tab Navigation */}
+                                <div
+                                    className="no-scrollbar"
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.4rem',
+                                        borderBottom: '1px solid var(--border-color)',
+                                        paddingBottom: '0.4rem',
+                                        overflowX: 'auto',
+                                        overflowY: 'hidden',
+                                        scrollbarWidth: 'none',
+                                        msOverflowStyle: 'none',
+                                        flexShrink: 0
+                                    }}
+                                >
+                                    {[
+                                        { id: 'overview', label: 'Competency Matrix (4 Vectors)', icon: <Activity size={14} /> },
+                                        { id: 'questions', label: `Question Breakdown (${currentEvaluation?.answered_count ?? questionAttempts.filter(q => q.status === 'ANSWERED').length}/${currentEvaluation?.total_questions ?? interviewQuestions.length})`, icon: <ListChecks size={14} /> },
+                                        { id: 'tips', label: 'Actionable Tips & Gaps', icon: <Target size={14} /> }
+                                    ].map(tab => {
+                                        const isActive = scorecardTab === tab.id;
+                                        return (
+                                            <button
+                                                key={tab.id}
+                                                onClick={() => setScorecardTab(tab.id)}
+                                                style={{
+                                                    padding: '0.45rem 1rem',
+                                                    borderRadius: 'var(--radius-md)',
+                                                    border: 'none',
+                                                    backgroundColor: isActive ? 'var(--primary)' : 'transparent',
+                                                    color: isActive ? '#fff' : 'var(--text-secondary)',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.825rem',
+                                                    fontWeight: 700,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.45rem',
+                                                    transition: 'all 0.2s ease',
+                                                    whiteSpace: 'nowrap',
+                                                    flexShrink: 0
+                                                }}
+                                            >
+                                                {tab.icon}
+                                                <span>{tab.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Active Tab Content Scrollable Viewport */}
+                                <div style={{
+                                    flex: 1,
+                                    minHeight: 0,
+                                    overflowY: 'auto',
+                                    paddingRight: '0.25rem',
+                                    display: 'flex',
+                                    flexDirection: 'column'
+                                }}>
+                                    {/* Tab 1: 4-Dimension Scores Matrix */}
+                                    {scorecardTab === 'overview' && (
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '0.85rem' }}>
+                                            {(currentEvaluation?.dimension_scores || [
+                                                { name: 'Technical Accuracy', score: currentEvaluation?.overall_score ?? 0, feedback: 'Technical correctness and concept mastery.' },
+                                                { name: 'Structural Flow & STAR', score: currentEvaluation?.overall_score ?? 0, feedback: 'Logical flow and response structure.' },
+                                                { name: 'Depth & Edge Cases', score: currentEvaluation?.overall_score ?? 0, feedback: 'Proactive exploration of limits and trade-offs.' },
+                                                { name: 'Communication Clarity', score: currentEvaluation?.overall_score ?? 0, feedback: 'Articulation, concise terminology, and delivery.' }
+                                            ]).map((dim, dIdx) => {
+                                                const scoreColor = dim.score >= 80 ? 'var(--success)' : dim.score >= 65 ? 'var(--warning)' : 'var(--danger)';
+                                                return (
+                                                    <div
+                                                        key={dIdx}
+                                                        style={{
+                                                            padding: '1.15rem',
+                                                            backgroundColor: 'var(--bg-tertiary)',
+                                                            borderRadius: 'var(--radius-lg)',
+                                                            border: '1px solid var(--border-color)',
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            justifyContent: 'space-between',
+                                                            transition: 'all 0.2s ease',
+                                                            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                                                        }}
+                                                    >
+                                                        <div>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                                                    {dim.name}
+                                                                </span>
+                                                                <span style={{ fontSize: '0.875rem', fontWeight: 900, color: scoreColor }}>
+                                                                    {dim.score}/100
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Progress bar */}
+                                                            <div style={{
+                                                                width: '100%',
+                                                                height: '6px',
+                                                                backgroundColor: 'var(--bg-secondary)',
+                                                                borderRadius: 'var(--radius-full)',
+                                                                overflow: 'hidden',
+                                                                marginBottom: '0.75rem'
+                                                            }}>
+                                                                <div style={{
+                                                                    width: `${dim.score}%`,
+                                                                    height: '100%',
+                                                                    backgroundColor: scoreColor,
+                                                                    borderRadius: 'var(--radius-full)',
+                                                                    transition: 'width 0.6s ease'
+                                                                }} />
+                                                            </div>
+
+                                                            <p style={{ fontSize: '0.785rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                                                                {dim.feedback}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {/* Tab 2: Question-by-Question Breakdown (Strict marks & skipped tracking) */}
+                                    {scorecardTab === 'questions' && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                            {(currentEvaluation?.per_question_results || questionAttemptsRef.current).map((q, qIdx) => {
+                                                const isSkip = q.status === 'SKIPPED';
+                                                const qScore = isSkip ? 0 : (q.score ?? 0);
+                                                const scoreBadgeColor = isSkip ? 'badge-danger' : qScore >= 80 ? 'badge-success' : qScore >= 65 ? 'badge-warning' : 'badge-danger';
+                                                const scoreTextColor = isSkip ? 'var(--danger)' : qScore >= 80 ? 'var(--success)' : qScore >= 65 ? 'var(--warning)' : 'var(--danger)';
+
+                                                return (
+                                                    <div
+                                                        key={qIdx}
+                                                        style={{
+                                                            padding: '1.1rem 1.25rem',
+                                                            backgroundColor: 'var(--bg-tertiary)',
+                                                            borderRadius: 'var(--radius-lg)',
+                                                            border: `1px solid ${isSkip ? 'rgba(239, 68, 68, 0.35)' : 'var(--border-color)'}`,
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            gap: '0.65rem',
+                                                            boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+                                                        }}
+                                                    >
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                                                    Question #{qIdx + 1}
+                                                                </span>
+                                                                <span className={`badge ${scoreBadgeColor}`} style={{ fontSize: '0.7rem', fontWeight: 700 }}>
+                                                                    {isSkip ? 'SKIPPED (0 pts)' : 'ANSWERED'}
+                                                                </span>
+                                                                <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
+                                                                    {q.topic || selectedMode}
+                                                                </span>
+                                                            </div>
+                                                            <div style={{ fontSize: '1.05rem', fontWeight: 900, color: scoreTextColor }}>
+                                                                {qScore} / 100
+                                                            </div>
+                                                        </div>
+
+                                                        <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>
+                                                            {q.question}
+                                                        </p>
+
+                                                        {isSkip ? (
+                                                            <div style={{
+                                                                fontSize: '0.785rem',
+                                                                color: 'var(--danger)',
+                                                                backgroundColor: 'rgba(239, 68, 68, 0.06)',
+                                                                padding: '0.6rem 0.85rem',
+                                                                borderRadius: 'var(--radius-sm)',
+                                                                border: '1px dashed rgba(239, 68, 68, 0.35)',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.5rem'
+                                                            }}>
+                                                                <span>⚠️</span>
+                                                                <span>Candidate skipped this question without answering. Strictly 0 marks awarded.</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div style={{
+                                                                fontSize: '0.785rem',
+                                                                color: 'var(--text-secondary)',
+                                                                backgroundColor: 'var(--bg-secondary)',
+                                                                padding: '0.6rem 0.85rem',
+                                                                borderRadius: 'var(--radius-sm)',
+                                                                border: '1px solid var(--border-color)',
+                                                                lineHeight: 1.4
+                                                            }}>
+                                                                <strong style={{ color: 'var(--text-primary)' }}>Candidate's Answer:</strong> "{q.candidate_answer || '(No verbal answer transcribed)'}"
+                                                            </div>
+                                                        )}
+
+                                                        {q.feedback && (
+                                                            <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                                                                <strong style={{ color: 'var(--text-primary)' }}>Interviewer Feedback:</strong> {q.feedback}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {/* Tab 2: Actionable Tips & Gaps */}
+                                    {scorecardTab === 'tips' && (
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+                                            {/* Strengths Card */}
+                                            <div style={{
+                                                padding: '1.15rem',
+                                                backgroundColor: 'rgba(16, 185, 129, 0.04)',
+                                                borderRadius: 'var(--radius-lg)',
+                                                border: '1px solid rgba(16, 185, 129, 0.2)'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem', color: 'var(--success)' }}>
+                                                    <CheckCircle2 size={18} />
+                                                    <h4 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                                                        Key Strengths Demonstrated
+                                                    </h4>
+                                                </div>
+                                                {currentEvaluation?.strengths && currentEvaluation.strengths.length > 0 ? (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                                                        {currentEvaluation.strengths.map((str, sIdx) => (
+                                                            <div key={sIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                                                                <span style={{ color: 'var(--success)', fontWeight: 800, lineHeight: 1.2 }}>✓</span>
+                                                                <span>{str}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Solid attempt on core technical definitions and fundamental logic.</p>
+                                                )}
+                                            </div>
+
+                                            {/* Improvement Tips Card */}
+                                            <div style={{
+                                                padding: '1.15rem',
+                                                backgroundColor: 'rgba(245, 158, 11, 0.04)',
+                                                borderRadius: 'var(--radius-lg)',
+                                                border: '1px solid rgba(245, 158, 11, 0.2)'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem', color: 'var(--warning)' }}>
+                                                    <Target size={18} />
+                                                    <h4 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                                                        What to Improve for Next Round
+                                                    </h4>
+                                                </div>
+                                                {currentEvaluation?.missing_points && currentEvaluation.missing_points.length > 0 ? (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                                                        {currentEvaluation.missing_points.map((miss, mIdx) => (
+                                                            <div key={mIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                                                                <span style={{ color: 'var(--warning)', fontWeight: 800, lineHeight: 1.2 }}>•</span>
+                                                                <span>{miss}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Practice articulating edge cases, write amplification, and memory complexity proactively.</p>
+                                                )}
+                                            </div>
+
+                                            {/* Recommended Follow-Up / Study Guide */}
+                                            {currentEvaluation?.interviewer_follow_up && (
+                                                <div style={{
+                                                    gridColumn: '1 / -1',
+                                                    padding: '1.15rem',
+                                                    backgroundColor: 'var(--bg-tertiary)',
+                                                    borderRadius: 'var(--radius-lg)',
+                                                    border: '1px solid var(--border-color)'
+                                                }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.45rem', color: 'var(--primary)' }}>
+                                                        <BookOpen size={16} />
+                                                        <h4 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                                                            Interviewer's Recommended Deep-Dive Topic
+                                                        </h4>
+                                                    </div>
+                                                    <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                                                        {currentEvaluation.interviewer_follow_up}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Scorecard Bottom Action Bar */}
+                                <div style={{
+                                    flexShrink: 0,
+                                    paddingTop: '0.75rem',
+                                    borderTop: '1px solid var(--border-color)',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    flexWrap: 'wrap',
+                                    gap: '0.75rem'
+                                }}>
+                                    <Button
+                                        variant="primary"
+                                        onClick={handleDownloadPdfReport}
+                                        isLoading={downloadingPdf}
+                                        leftIcon={<Download size={15} />}
+                                        style={{ fontWeight: 700 }}
+                                    >
+                                        Download Full Scorecard (PDF)
+                                    </Button>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                        <Button variant="outline" onClick={handleRestart} leftIcon={<RefreshCw size={15} />}>
+                                            Try Another Interview Track
+                                        </Button>
+                                        <Button variant="primary" onClick={onClose} leftIcon={<CheckCircle2 size={15} />}>
+                                            Done & Return to Prep
+                                        </Button>
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Google Meet Bottom Floating Call Control Bar */}
-                            <div style={{
-                                padding: '0.85rem 1.5rem',
-                                backgroundColor: 'var(--bg-tertiary)',
-                                borderRadius: 'var(--radius-xl)',
-                                border: '1px solid var(--border-color)',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                flexWrap: 'wrap',
-                                gap: '0.75rem'
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                    <Button 
-                                        variant="secondary" 
-                                        size="sm" 
-                                        onClick={() => handleRepeatQuestion('BUTTON')}
-                                        leftIcon={<RotateCcw size={14}/>}
-                                        title="Replay current question (Zero LLM cost)"
-                                    >
-                                        Repeat Question
-                                    </Button>
-
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={handleRequestClarification}
-                                        isLoading={clarificationLoading}
-                                        leftIcon={<HelpCircle size={14}/>}
-                                    >
-                                        Clarify Wording
-                                    </Button>
-
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={handleSkipCurrentQuestion}
-                                        disabled={isAiThinking}
-                                        leftIcon={<SkipForward size={14}/>}
-                                        style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: 'var(--danger)' }}
-                                        title="Skip current question (Awards strictly 0 marks)"
-                                    >
-                                        Skip Question (0 pts)
-                                    </Button>
-
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={handleAdvanceNextQuestion}
-                                        disabled={isAiThinking}
-                                        rightIcon={<ArrowRight size={14}/>}
-                                        title="Advance to next question"
-                                    >
-                                        Next Question
-                                    </Button>
-                                </div>
-
-                                {/* Center: Instant Submit Button when candidate finishes answering */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <Button 
-                                        variant="primary" 
-                                        size="sm" 
-                                        onClick={handleManualSubmitVoiceAnswer}
-                                        disabled={isAiSpeaking || isAiThinking || (!transcript && !transcriptAccumulatorRef.current && !committedPriorTextRef.current && !interimTranscript)}
-                                        isLoading={isAiThinking}
-                                        leftIcon={<Send size={14}/>}
-                                        style={{
-                                            backgroundColor: 'var(--success)',
-                                            borderColor: 'var(--success)',
-                                            color: '#fff',
-                                            fontWeight: 700,
-                                            boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
-                                        }}
-                                    >
-                                        {isAiThinking ? 'AI Thinking...' : 'Done Speaking (Submit Now)'}
-                                    </Button>
-                                </div>
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <button
-                                        onClick={() => {
-                                            if (isMicMuted) {
-                                                startListening();
-                                                showToast('Microphone unmuted', 'info');
-                                            } else {
-                                                stopListening();
-                                                showToast('Microphone muted', 'info');
-                                            }
-                                        }}
-                                        style={{
-                                            width: 44,
-                                            height: 44,
-                                            borderRadius: '50%',
-                                            backgroundColor: isMicMuted ? 'var(--danger)' : 'var(--bg-secondary)',
-                                            border: '1px solid var(--border-color)',
-                                            color: '#fff',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            transition: 'all 0.2s ease'
-                                        }}
-                                        title={isMicMuted ? "Unmute Microphone" : "Mute Microphone"}
-                                    >
-                                        {isMicMuted ? <MicOff size={18}/> : <Mic size={18}/>}
-                                    </button>
-
-                                    {/* Red End Call Button */}
-                                    <Button 
-                                        variant="danger" 
-                                        onClick={handleEndInterviewAndGrade}
-                                        isLoading={evaluating}
-                                        leftIcon={<PhoneOff size={16}/>}
-                                        style={{ fontWeight: 800, padding: '0.6rem 1.25rem' }}
-                                    >
-                                        End Call & Grade
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
+                        )
+                    ) : (
+                        /* EXECUTIVE AUDIO STUDIO INTERVIEW STAGE */
+                        <LiveVoiceStudioCall
+                            isAiSpeaking={isAiSpeaking}
+                            isAiThinking={isAiThinking}
+                            isMicMuted={isMicMuted}
+                            isListening={isListening}
+                            latestAiSpeech={latestAiSpeech}
+                            currentQuestion={currentQuestion}
+                            currentIdx={currentIdx}
+                            totalQuestions={interviewQuestions.length}
+                            candidateName={candidateName}
+                            combinedCurrentTranscript={combinedCurrentTranscript}
+                            interimTranscript={interimTranscript}
+                            candidateWordCount={candidateWordCount}
+                            liveSpeakingPace={liveSpeakingPace}
+                            liveDetectedKeywords={liveDetectedKeywords}
+                            starAlignment={starAlignment}
+                            transcriptContainerRef={transcriptContainerRef}
+                            onRepeatQuestion={handleRepeatQuestion}
+                            onRequestClarification={handleRequestClarification}
+                            clarificationLoading={clarificationLoading}
+                            onSkipQuestion={handleSkipCurrentQuestion}
+                            onAdvanceQuestion={handleAdvanceNextQuestion}
+                            onToggleMic={() => {
+                                if (isMicMuted) {
+                                    startListening();
+                                    showToast('Studio Microphone Active', 'info');
+                                } else {
+                                    stopListening();
+                                    showToast('Microphone Muted', 'info');
+                                }
+                            }}
+                            onSubmitAnswer={handleManualSubmitVoiceAnswer}
+                            onEndCall={handleEndInterviewAndGrade}
+                            evaluating={evaluating}
+                        />
                     )}
                 </div>
             </div>

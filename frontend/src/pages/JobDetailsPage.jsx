@@ -5,22 +5,26 @@ import { useToast } from '../contexts/ToastContext';
 import { jobService } from '../services/jobService';
 import { applicationService } from '../services/applicationService';
 import { profileService } from '../services/profileService';
+import { projectService } from '../services/projectService';
 import { parseJobSkills, getRoleDisplayName } from '../utils/careerRoles';
-import { Briefcase, MapPin, ExternalLink, Bookmark, BookmarkCheck, CheckCircle2, XCircle, ArrowLeft, DollarSign, Layers, Lightbulb, ArrowRight } from 'lucide-react';
+import { Briefcase, MapPin, ExternalLink, Bookmark, BookmarkCheck, CheckCircle2, XCircle, ArrowLeft, DollarSign, Layers, Lightbulb, ArrowRight, Sparkles } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { CircularProgress } from '../components/common/CircularProgress';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { JobCoverLetterModal } from '../components/jobs/JobCoverLetterModal';
 
 export const JobDetailsPage = () => {
     const { id } = useParams();
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const { showToast } = useToast();
     const navigate = useNavigate();
     const [job, setJob] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isSaved, setIsSaved] = useState(false);
     const [matchingData, setMatchingData] = useState({ score: 0, matching: [], missing: [], requiredSkills: [] });
+    const [showCoverLetterModal, setShowCoverLetterModal] = useState(false);
+    const [userProjects, setUserProjects] = useState([]);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -37,6 +41,10 @@ export const JobDetailsPage = () => {
 
                 const match = jobService.calculateSkillMatch(userSkillNames, data.skills, data);
                 setMatchingData(match);
+
+                if (user?.id) {
+                    projectService.getProjects(user.id).then(p => setUserProjects(p || [])).catch(() => {});
+                }
             }
             setLoading(false);
         };
@@ -186,7 +194,21 @@ export const JobDetailsPage = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <Button
+              variant="primary"
+              onClick={() => setShowCoverLetterModal(true)}
+              leftIcon={<Sparkles size={16} />}
+              style={{
+                background: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
+                borderColor: 'transparent',
+                color: '#fff',
+                fontWeight: 700,
+                boxShadow: '0 4px 14px rgba(79, 70, 229, 0.35)'
+              }}
+            >
+              Generate Cover Letter
+            </Button>
             <Button variant="outline" onClick={handleToggleSave} leftIcon={isSaved ? <BookmarkCheck size={16} className="text-primary"/> : <Bookmark size={16}/>}>
               {isSaved ? 'Saved' : 'Save Job'}
             </Button>
@@ -332,7 +354,53 @@ export const JobDetailsPage = () => {
                 </p>
               </div>)}
           </Card>
+
+          {/* AI Cover Letter & Cold Pitch Card */}
+          <Card style={{
+            background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(6, 182, 212, 0.08) 100%)',
+            border: '1px solid rgba(79, 70, 229, 0.25)',
+            padding: '1.25rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <div style={{ width: 32, height: 32, borderRadius: '8px', background: 'linear-gradient(135deg, #4f46e5, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 }}>
+                <Sparkles size={16} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>1-Click Tailored Outreach</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Cover letter, LinkedIn pitch & talking points</div>
+              </div>
+            </div>
+            <p className="text-body text-xs" style={{ marginBottom: '1rem', lineHeight: 1.5 }}>
+              Generate a recruiter-ready cover letter and personalized outreach note tailored specifically to <strong>{job.company}</strong> and your verified profile skills.
+            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              fullWidth
+              onClick={() => setShowCoverLetterModal(true)}
+              leftIcon={<Sparkles size={14} />}
+              style={{
+                background: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
+                borderColor: 'transparent',
+                color: '#fff',
+                fontWeight: 600
+              }}
+            >
+              Generate for {job.company}
+            </Button>
+          </Card>
         </div>
       </div>
+
+      {showCoverLetterModal && (
+        <JobCoverLetterModal
+          isOpen={showCoverLetterModal}
+          onClose={() => setShowCoverLetterModal(false)}
+          job={job}
+          userProfile={profile}
+          userSkills={matchingData.matching}
+          userProjects={userProjects}
+        />
+      )}
     </div>);
 };

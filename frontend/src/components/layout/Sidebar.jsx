@@ -20,7 +20,6 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
     { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
     { to: '/profile', label: 'Career Profile', icon: <User size={18} /> },
     { to: '/ai-studio', label: 'AI Career Studio', icon: <Sparkles size={18} />, badge: 'FastAPI' },
-    { to: '/resume', label: 'Resume', icon: <FileText size={18} /> },
     { to: '/job-analyzer', label: 'Job Analyzer', icon: <ScanSearch size={18} />, badge: 'AI' },
     { to: '/jobs', label: 'Jobs', icon: <Briefcase size={18} /> },
     { to: '/applications', label: 'Applications', icon: <Layers size={18} /> },

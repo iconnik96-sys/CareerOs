@@ -153,9 +153,14 @@ export const speechController = {
         }
 
         let completed = false;
+        let keepAliveTimer = null;
+        let safetyTimer = null;
+
         const handleComplete = () => {
             if (completed) return;
             completed = true;
+            if (safetyTimer) clearTimeout(safetyTimer);
+            if (keepAliveTimer) clearInterval(keepAliveTimer);
             activeUtterance = null;
             if (onEnd) onEnd();
         };
@@ -163,6 +168,8 @@ export const speechController = {
         const handleError = (e) => {
             if (completed) return;
             completed = true;
+            if (safetyTimer) clearTimeout(safetyTimer);
+            if (keepAliveTimer) clearInterval(keepAliveTimer);
             activeUtterance = null;
             if (onError) onError(e);
             else if (onEnd) onEnd();
@@ -174,20 +181,27 @@ export const speechController = {
         utterance.onend = handleComplete;
         utterance.onerror = handleError;
 
-        // Fallback timer in case browser fails to fire onend for long utterances
-        const words = text.split(/\s+/).length;
-        const estimatedDurationMs = Math.max(3000, ((words / (2.5 * rate)) * 1000) + 2000);
-        const safetyTimer = setTimeout(() => {
-            if (!completed && window.speechSynthesis && !window.speechSynthesis.speaking) {
+        // Chromium Keep-Alive Heartbeat: Prevents Chrome/Edge from silently freezing at punctuation (commas/periods) or after 15s
+        keepAliveTimer = setInterval(() => {
+            if (completed) {
+                clearInterval(keepAliveTimer);
+                return;
+            }
+            if (typeof window !== 'undefined' && window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+                window.speechSynthesis.pause();
+                window.speechSynthesis.resume();
+            }
+        }, 5000);
+
+        // Generous deadlock safety fallback timer: only fires if utterance completely hangs for 3x normal duration
+        const words = (text || '').split(/\s+/).length;
+        const estimatedDurationMs = Math.max(25000, ((words / (1.0 * rate)) * 1000) + 15000);
+        safetyTimer = setTimeout(() => {
+            if (!completed) {
+                console.warn('[CareerOS Speech] Utterance deadlocked in browser speech engine. Force completing turn.');
                 handleComplete();
             }
         }, estimatedDurationMs);
-
-        const originalOnEnd = utterance.onend;
-        utterance.onend = (e) => {
-            clearTimeout(safetyTimer);
-            handleComplete();
-        };
 
         // Resume engine if Chrome suspended audio context
         if (window.speechSynthesis.paused) {

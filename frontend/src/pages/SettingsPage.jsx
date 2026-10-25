@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { User, Shield, Bell, Sliders, LogOut, Trash2, Sparkles, CheckCircle2, Database } from 'lucide-react';
+import { User, Shield, Bell, Sliders, LogOut, Trash2, Sparkles, CheckCircle2, Database, Palette, Check } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { Modal } from '../components/common/Modal';
 export const SettingsPage = () => {
     const { user, profile, isSupabaseConnected, logout, deleteAccount, resetPassword } = useAuth();
+    const { theme, setTheme, themes } = useTheme();
     const { showToast } = useToast();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('profile');
@@ -53,6 +55,7 @@ export const SettingsPage = () => {
     };
     const tabs = [
         { id: 'profile', label: 'Profile', icon: <User size={16}/> },
+        { id: 'appearance', label: 'Appearance & Themes', icon: <Palette size={16}/> },
         { id: 'security', label: 'Account & Security', icon: <Shield size={16}/> },
         { id: 'notifications', label: 'Notifications', icon: <Bell size={16}/> },
         { id: 'preferences', label: 'System & Architecture', icon: <Sliders size={16}/> },
@@ -89,6 +92,85 @@ export const SettingsPage = () => {
 
         {/* Settings Panel Content */}
         <div className="col-span-8">
+          {activeTab === 'appearance' && (
+            <Card title="Platform Appearance & Themes">
+              <p className="text-body text-xs" style={{ marginBottom: '1.25rem', color: 'var(--text-secondary)' }}>
+                Customize CareerOS with high-impact developer themes calibrated with ambient glows and sleek contrast.
+              </p>
+
+              <div className="grid grid-cols-2" style={{ gap: '1rem' }}>
+                {themes.map(t => {
+                  const isSelected = theme === t.id;
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => {
+                        setTheme(t.id);
+                        showToast(`Theme updated to ${t.name}`, 'success');
+                      }}
+                      style={{
+                        padding: '1.25rem',
+                        borderRadius: 'var(--radius-lg)',
+                        backgroundColor: t.cardBg,
+                        border: isSelected ? `2px solid ${t.primary}` : '1px solid var(--border-color)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        position: 'relative',
+                        boxShadow: isSelected ? `0 0 24px -4px ${t.glowColor}` : 'none'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '1rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {t.name}
+                            {isSelected && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', backgroundColor: t.primary, color: '#fff' }}>
+                                <Check size={11} />
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: t.secondary, fontWeight: 600 }}>{t.tagline}</div>
+                        </div>
+                        <span style={{
+                          fontSize: '0.6875rem',
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '9999px',
+                          background: t.accentGradient,
+                          color: '#fff',
+                          fontWeight: 700
+                        }}>
+                          {t.badge}
+                        </span>
+                      </div>
+
+                      <p style={{ fontSize: '0.8125rem', color: '#94a3b8', marginBottom: '1rem', minHeight: '38px', lineHeight: 1.4 }}>
+                        {t.description}
+                      </p>
+
+                      {/* Palette preview swatches */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: 22, height: 22, borderRadius: '6px', backgroundColor: t.baseBg, border: '1px solid rgba(255,255,255,0.2)' }} title="Base Background" />
+                        <div style={{ width: 22, height: 22, borderRadius: '6px', backgroundColor: t.cardBg, border: '1px solid rgba(255,255,255,0.2)' }} title="Card Surface" />
+                        <div style={{ width: 22, height: 22, borderRadius: '6px', backgroundColor: t.primary, boxShadow: `0 0 8px ${t.primary}` }} title="Primary Accent" />
+                        <div style={{ width: 22, height: 22, borderRadius: '6px', backgroundColor: t.secondary, boxShadow: `0 0 8px ${t.secondary}` }} title="Secondary Accent" />
+                        
+                        <div style={{ marginLeft: 'auto' }}>
+                          <span style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: isSelected ? t.primary : 'var(--text-muted)'
+                          }}>
+                            {isSelected ? 'Active ✓' : 'Click to Apply'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
           {activeTab === 'profile' && (<Card title="Profile Information">
               <div className="grid grid-cols-2" style={{ gap: '1rem' }}>
                 <Input label="Full Name" value={profile?.full_name || user?.user_metadata?.full_name || 'Student User'} disabled/>

@@ -1,14 +1,26 @@
-import React from 'react';
-import { Menu, Sparkles, ShieldCheck, Sun, Moon } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Menu, Sparkles, ShieldCheck, Palette, Check } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+
 export const Navbar = ({ onOpenMobileSidebar, onToggleCopilot }) => {
     const { isSupabaseConnected, profile } = useAuth();
-    const [theme, setTheme] = React.useState('dark');
-    const toggleTheme = () => {
-        const next = theme === 'dark' ? 'light' : 'dark';
-        setTheme(next);
-        document.documentElement.setAttribute('data-theme', next);
-    };
+    const { theme, setTheme, themes } = useTheme();
+    const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+    const themeMenuRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (themeMenuRef.current && !themeMenuRef.current.contains(e.target)) {
+                setThemeMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const activeThemeObj = themes.find(t => t.id === theme) || themes[0];
+
     return (<header className="top-navbar">
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <button onClick={onOpenMobileSidebar} className="btn-ghost" style={{ display: 'none', padding: '6px' }} id="mobile-menu-toggle">
@@ -53,10 +65,88 @@ export const Navbar = ({ onOpenMobileSidebar, onToggleCopilot }) => {
           </span>
         )}
 
+        {/* Theme Switcher Popover */}
+        <div style={{ position: 'relative' }} ref={themeMenuRef}>
+          <button
+            onClick={() => setThemeMenuOpen(!themeMenuOpen)}
+            className="btn-ghost"
+            style={{
+              padding: '6px 10px',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-tertiary)',
+              fontSize: '0.75rem',
+              fontWeight: 600
+            }}
+            title="Change Visual Theme"
+          >
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: activeThemeObj.primary, boxShadow: `0 0 6px ${activeThemeObj.primary}` }} />
+            <Palette size={15} />
+            <span style={{ display: 'none' }} className="theme-label-desktop">{activeThemeObj.name.split(' ')[0]}</span>
+          </button>
 
-        <button onClick={toggleTheme} className="btn-ghost" style={{ padding: '8px', borderRadius: 'var(--radius-md)', color: 'var(--text-secondary)' }} title="Toggle Theme">
-          {theme === 'dark' ? <Sun size={18}/> : <Moon size={18}/>}
-        </button>
+          {themeMenuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '120%',
+                right: 0,
+                width: 220,
+                backgroundColor: 'var(--bg-card)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-lg)',
+                padding: '6px',
+                zIndex: 100,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px'
+              }}
+            >
+              <div style={{ padding: '4px 8px', fontSize: '0.6875rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Select Color Theme
+              </div>
+              {themes.map(t => {
+                const isSelected = theme === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setTheme(t.id);
+                      setThemeMenuOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: isSelected ? 'var(--bg-tertiary)' : 'transparent',
+                      border: isSelected ? `1px solid ${t.primary}` : '1px solid transparent',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: t.primary, boxShadow: `0 0 6px ${t.primary}` }} />
+                      <div>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>{t.name}</div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{t.tagline.split(' ')[0]}</div>
+                      </div>
+                    </div>
+                    {isSelected && <Check size={14} style={{ color: t.primary }} />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <style>{`

@@ -20,6 +20,8 @@ import {
     MessageSquare, 
     FileText, 
     ChevronRight,
+    ChevronDown,
+    ChevronUp,
     ShieldCheck
 } from 'lucide-react';
 import { simulationService } from '../services/simulationService';
@@ -46,6 +48,8 @@ export const SimulationWorkspacePage = () => {
     const [selectedLanguage, setSelectedLanguage] = useState('python'); // 'python' | 'java' | 'node'
     const [activeTicketIndex, setActiveTicketIndex] = useState(0);
     const [showIdeLab, setShowIdeLab] = useState(searchParams.get('mode') === 'ide');
+    const [showHintAccordion, setShowHintAccordion] = useState(false);
+    const [showArchAccordion, setShowArchAccordion] = useState(false);
     
     // Submission Mode State
     const [submissionMode, setSubmissionMode] = useState('IN_BROWSER'); // 'IN_BROWSER' | 'GITHUB_PR'
@@ -136,17 +140,16 @@ export const SimulationWorkspacePage = () => {
     };
 
     // Run AI Code Review
-    const handleSubmitReview = async () => {
+    const handleSubmitReview = async (overridePayload) => {
         const currentTicket = track?.tickets?.[activeTicketIndex];
         if (!currentTicket) return;
 
-        if (submissionMode === 'IN_BROWSER' && (!editorCode || editorCode.trim().length < 20)) {
-            toast?.error?.('Please write your implementation code before submitting.');
-            return;
-        }
+        const submittedCode = typeof overridePayload === 'string'
+            ? overridePayload
+            : (overridePayload?.submitted_code || editorCode);
 
-        if (submissionMode === 'GITHUB_PR' && (!githubPrUrl || !githubPrUrl.includes('github.com'))) {
-            toast?.error?.('Please enter a valid GitHub Pull Request URL.');
+        if (!submittedCode || submittedCode.trim().length < 10) {
+            toast?.error?.('Please make code changes in the WASM Simulation Lab before submitting.');
             return;
         }
 
@@ -157,9 +160,8 @@ export const SimulationWorkspacePage = () => {
                 ticket_code: currentTicket.ticket_code,
                 ticket_title: currentTicket.title,
                 language: selectedLanguage,
-                submission_mode: submissionMode,
-                submitted_code: editorCode,
-                github_pr_url: submissionMode === 'GITHUB_PR' ? githubPrUrl : null,
+                submission_mode: 'IN_BROWSER',
+                submitted_code: submittedCode,
                 acceptance_criteria: currentTicket.acceptance_criteria || [],
                 attempt_number: attempts
             });
@@ -261,622 +263,480 @@ export const SimulationWorkspacePage = () => {
     const templateRepoUrl = track?.github_templates?.[selectedLanguage] || 'https://github.com/CareerOS-HQ/finpulse-payments-python';
 
     return (
-        <div style={{ maxWidth: 'var(--container-max)', margin: '0 auto', paddingBottom: '3rem' }}>
-            {/* Top Navigation & Company Header */}
-            <div style={{ marginBottom: '1.5rem' }}>
-                <button 
-                    onClick={() => navigate('/simulations')}
-                    className="btn-ghost"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.5rem', marginBottom: '0.75rem', fontSize: '0.8125rem' }}
-                >
-                    <ArrowLeft size={16} />
-                    <span>Back to Simulations Catalog</span>
-                </button>
-
-                <div style={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--radius-lg)',
-                    padding: '1.25rem 1.5rem',
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '1rem',
-                    boxShadow: 'var(--shadow-sm)'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="page-container" style={{ padding: '1.5rem 2.5rem 4rem 2.5rem', maxWidth: 'var(--container-max)', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+            {/* Top Navigation & Stepper Header */}
+            <div style={{ marginBottom: '1.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    {/* Left: Company & Role */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                        <button 
+                            onClick={() => navigate('/simulations')}
+                            className="btn-ghost"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.65rem', fontSize: '0.8125rem' }}
+                            title="Back to Simulations Catalog"
+                        >
+                            <ArrowLeft size={16} />
+                            <span>Catalog</span>
+                        </button>
                         <div style={{
-                            width: '44px',
-                            height: '44px',
+                            width: '38px',
+                            height: '38px',
                             borderRadius: 'var(--radius-md)',
                             background: 'rgba(59, 130, 246, 0.15)',
                             color: 'var(--primary)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            border: '1px solid rgba(59, 130, 246, 0.25)'
+                            border: '1px solid rgba(59, 130, 246, 0.3)'
                         }}>
-                            <Building2 size={24} />
+                            <Building2 size={20} />
                         </div>
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span style={{ fontWeight: 800, fontSize: '1.125rem', color: 'var(--text-primary)' }}>
-                                    {track?.company_name || 'FinPulse Global'}
+                                <span style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                                    {track?.company_name || 'FinPulse Payments'}
                                 </span>
-                                <span className="badge badge-purple" style={{ fontSize: '0.6875rem' }}>
+                                <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>
                                     {track?.role_title || 'Junior Backend Engineer'}
                                 </span>
                             </div>
-                            <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                                Sprint 1 • Core Payments Squad • {track?.tickets?.length || 4} Production Tickets
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                Sprint 1 • Core Payments Squad
                             </div>
                         </div>
                     </div>
 
-                    {/* Progress Indicator */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                                SPRINT COMPLETION
-                            </div>
-                            <div style={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                                {completedTickets.length} of {track?.tickets?.length || 4} Tickets Merged
-                            </div>
-                        </div>
+                    {/* Center: 3-Step Guided Stepper */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        background: 'rgba(15, 23, 42, 0.6)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '9999px',
+                        padding: '0.25rem',
+                        gap: '0.25rem'
+                    }}>
+                        {/* Step 1: Understand Ticket (Active) */}
                         <div style={{
-                            width: '48px',
-                            height: '48px',
-                            borderRadius: '50%',
-                            background: 'conic-gradient(var(--success) ' + ((completedTickets.length / (track?.tickets?.length || 4)) * 360) + 'deg, rgba(255,255,255,0.08) 0deg)',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            gap: '0.4rem',
+                            padding: '0.35rem 0.85rem',
+                            borderRadius: '9999px',
+                            background: 'rgba(59, 130, 246, 0.2)',
+                            border: '1px solid rgba(59, 130, 246, 0.4)',
+                            color: '#93c5fd',
+                            fontSize: '0.75rem',
+                            fontWeight: 700
                         }}>
-                            <div style={{
-                                width: '38px',
-                                height: '38px',
-                                borderRadius: '50%',
-                                background: 'var(--bg-secondary)',
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
+                            <span>1. Understand Ticket</span>
+                        </div>
+
+                        {/* Step 2: Code in IDE */}
+                        <button
+                            onClick={() => setShowIdeLab(true)}
+                            style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'center',
+                                gap: '0.4rem',
+                                padding: '0.35rem 0.85rem',
+                                borderRadius: '9999px',
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-muted)',
                                 fontSize: '0.75rem',
-                                fontWeight: 800
-                            }}>
-                                {Math.round((completedTickets.length / (track?.tickets?.length || 4)) * 100)}%
-                            </div>
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <Terminal size={12} />
+                            <span>2. Code & Test in IDE</span>
+                        </button>
+
+                        {/* Step 3: Staff PR Review */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            padding: '0.35rem 0.85rem',
+                            borderRadius: '9999px',
+                            color: 'var(--text-muted)',
+                            fontSize: '0.75rem',
+                            fontWeight: 600
+                        }}>
+                            <GitPullRequest size={12} />
+                            <span>3. Staff PR Review</span>
+                        </div>
+                    </div>
+
+                    {/* Right: Stack Selector & Progress Pill */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <select
+                            value={selectedLanguage}
+                            onChange={(e) => handleLanguageChange(e.target.value)}
+                            style={{
+                                background: 'var(--bg-card)',
+                                border: '1px solid var(--border-color)',
+                                color: 'var(--text-primary)',
+                                borderRadius: 'var(--radius-sm)',
+                                padding: '0.35rem 0.75rem',
+                                fontWeight: 700,
+                                fontSize: '0.75rem',
+                                outline: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <option value="python">🐍 Python (FastAPI)</option>
+                            <option value="java">☕ Java (Spring Boot)</option>
+                            <option value="node">🟢 Node.js (Express)</option>
+                        </select>
+
+                        <div style={{
+                            padding: '0.35rem 0.75rem',
+                            borderRadius: 'var(--radius-sm)',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            color: '#34d399',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem'
+                        }}>
+                            <CheckCircle2 size={13} />
+                            <span>{completedTickets.length} of {track?.tickets?.length || 4} Merged</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Navigation Tabs (Tickets, Standup, Architecture) */}
-            <div style={{
-                display: 'flex',
-                gap: '0.5rem',
-                borderBottom: '1px solid var(--border-color)',
-                marginBottom: '1.5rem',
-                paddingBottom: '0.25rem'
-            }}>
-                <button
-                    onClick={() => setActiveWorkspaceTab('tickets')}
-                    className={`btn-ghost ${activeWorkspaceTab === 'tickets' ? 'active' : ''}`}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        fontWeight: 600,
-                        borderBottom: activeWorkspaceTab === 'tickets' ? '2px solid var(--primary)' : '2px solid transparent',
-                        borderRadius: 0,
-                        padding: '0.5rem 1rem',
-                        color: activeWorkspaceTab === 'tickets' ? 'var(--primary)' : 'var(--text-secondary)'
-                    }}
-                >
-                    <Code2 size={16} />
-                    <span>Sprint Tickets ({track?.tickets?.length || 4})</span>
-                </button>
-
-
-                <button
-                    onClick={() => setActiveWorkspaceTab('architecture')}
-                    className={`btn-ghost ${activeWorkspaceTab === 'architecture' ? 'active' : ''}`}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        fontWeight: 600,
-                        borderBottom: activeWorkspaceTab === 'architecture' ? '2px solid var(--primary)' : '2px solid transparent',
-                        borderRadius: 0,
-                        padding: '0.5rem 1rem',
-                        color: activeWorkspaceTab === 'architecture' ? 'var(--primary)' : 'var(--text-secondary)'
-                    }}
-                >
-                    <FileText size={16} />
-                    <span>System Architecture Overview</span>
-                </button>
-
-                {/* Launch Developer Simulation Lab (WASM Workstation) */}
-                <button
-                    onClick={() => setShowIdeLab(true)}
-                    style={{
-                        marginLeft: 'auto',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        padding: '0.45rem 1rem',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                        border: '1px solid rgba(59, 130, 246, 0.4)',
-                        color: '#60a5fa',
-                        fontWeight: 700,
-                        fontSize: '0.8125rem',
-                        cursor: 'pointer',
-                        boxShadow: '0 0 15px rgba(59, 130, 246, 0.2)',
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    <Terminal size={15} />
-                    <span>Launch Developer Simulation Lab (WASM IDE)</span>
-                    <span className="badge badge-purple" style={{ fontSize: '0.625rem', padding: '0.1rem 0.4rem' }}>
-                        NEW
-                    </span>
-                </button>
-            </div>
-
-            {/* TAB 1: SPRINT TICKETS WORKSPACE */}
-            {activeWorkspaceTab === 'tickets' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '1.5rem', alignItems: 'flex-start' }}>
-                    {/* Left Sidebar: Tickets List & Language Selector */}
-                    <div>
-                        {/* Tech Stack Dropdown */}
-                        <div style={{
-                            background: 'var(--bg-card)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: 'var(--radius-md)',
-                            padding: '1rem',
-                            marginBottom: '1rem'
-                        }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
-                                Your Selected Stack
-                            </label>
-                            <select
-                                value={selectedLanguage}
-                                onChange={(e) => handleLanguageChange(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    background: 'var(--bg-input)',
-                                    border: '1px solid var(--border-color)',
-                                    color: 'var(--text-primary)',
-                                    borderRadius: 'var(--radius-sm)',
-                                    padding: '0.5rem',
-                                    fontWeight: 600,
-                                    fontSize: '0.875rem'
-                                }}
-                            >
-                                <option value="python">🐍 Python (FastAPI)</option>
-                                <option value="java">☕ Java (Spring Boot)</option>
-                                <option value="node">🟢 Node.js (Express)</option>
-                            </select>
-                            <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.375rem' }}>
-                                Starter code & AI review will adapt to this stack.
-                            </span>
-                        </div>
-
-                        {/* Tickets Navigation */}
-                        <div style={{
-                            background: 'var(--bg-card)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: 'var(--radius-md)',
-                            overflow: 'hidden'
-                        }}>
-                            <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', fontWeight: 700, fontSize: '0.8125rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                                Sprint Backlog
-                            </div>
-                            <div>
-                                {(track?.tickets || []).map((ticket, idx) => {
-                                    const isCurrent = idx === activeTicketIndex;
-                                    const isDone = completedTickets.includes(ticket.ticket_code);
-                                    return (
-                                        <div
-                                            key={ticket.id}
-                                            onClick={() => handleSelectTicket(idx)}
-                                            style={{
-                                                padding: '0.875rem 1rem',
-                                                borderBottom: '1px solid var(--border-subtle)',
-                                                cursor: 'pointer',
-                                                background: isCurrent ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
-                                                borderLeft: isCurrent ? '3px solid var(--primary)' : '3px solid transparent',
-                                                transition: 'var(--transition-fast)'
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                                                    <span style={{ fontWeight: 700, fontSize: '0.75rem', color: isCurrent ? 'var(--primary)' : 'var(--text-muted)' }}>
-                                                        {ticket.ticket_code}
-                                                    </span>
-                                                    {ticket.ticket_type === 'FEATURE_DEV' ? (
-                                                        <span style={{ fontSize: '0.625rem', padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(168, 85, 247, 0.2)', color: '#c084fc', fontWeight: 700 }}>
-                                                            ✨ FEATURE
-                                                        </span>
-                                                    ) : (
-                                                        <span style={{ fontSize: '0.625rem', padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.15)', color: 'var(--primary)', fontWeight: 600 }}>
-                                                            BUG FIX
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {isDone ? (
-                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', color: 'var(--success)', fontWeight: 700 }}>
-                                                        <CheckCircle2 size={12} /> Merged
-                                                    </span>
-                                                ) : (
-                                                    <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                                                        Ticket #{ticket.order_index}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3 }}>
-                                                {ticket.title}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Socratic Helper Card */}
-                        <div style={{
-                            background: 'rgba(99, 102, 241, 0.06)',
-                            border: '1px solid rgba(99, 102, 241, 0.2)',
-                            borderRadius: 'var(--radius-md)',
-                            padding: '1rem',
-                            marginTop: '1rem'
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: '#a5b4fc', fontWeight: 700, fontSize: '0.8125rem', marginBottom: '0.375rem' }}>
-                                <HelpCircle size={15} />
-                                <span>Stuck? Ask Senior Dev</span>
-                            </div>
-                            <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: '0.75rem' }}>
-                                Marcus can provide a Socratic hint without spoiling the solution code.
-                            </p>
-                            <form onSubmit={handleAskMentor}>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. How do I acquire an atomic lock?"
-                                    value={mentorQuestion}
-                                    onChange={(e) => setMentorQuestion(e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        background: 'var(--bg-input)',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: 'var(--radius-sm)',
-                                        padding: '0.4rem 0.5rem',
-                                        fontSize: '0.75rem',
-                                        color: 'var(--text-primary)',
-                                        marginBottom: '0.5rem'
-                                    }}
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={mentorLoading}
-                                    className="btn-secondary"
-                                    style={{ width: '100%', fontSize: '0.75rem', padding: '0.375rem' }}
-                                >
-                                    {mentorLoading ? 'Asking Marcus...' : 'Ask for a Hint'}
-                                </button>
-                            </form>
-
-                            {mentorHint && (
-                                <div style={{ marginTop: '0.75rem', padding: '0.625rem', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', borderLeft: '2px solid #a5b4fc' }}>
-                                    <div style={{ fontWeight: 700, color: '#c7d2fe', marginBottom: '0.25rem' }}>
-                                        💡 Marcus:
-                                    </div>
-                                    <div style={{ color: 'var(--text-primary)', lineHeight: 1.4 }}>
-                                        {mentorHint.hint}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+            {/* Main 2-Column Layout: Sprint Backlog + Active Ticket */}
+            <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '1.5rem', alignItems: 'flex-start' }}>
+                {/* Left Column: Sprint Backlog */}
+                <div style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-lg)',
+                    overflow: 'hidden',
+                    boxShadow: 'var(--shadow-sm)'
+                }}>
+                    <div style={{ 
+                        padding: '1rem 1.25rem', 
+                        borderBottom: '1px solid var(--border-color)', 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center' 
+                    }}>
+                        <span style={{ fontWeight: 800, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                            Sprint Backlog
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                            {track?.tickets?.length || 4} Tickets
+                        </span>
                     </div>
 
-                    {/* Right Column: Active Ticket Details & Dual-Tab Submission */}
-                    <div>
-                        {currentTicket && (
-                            <div style={{
-                                background: 'var(--bg-card)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: 'var(--radius-lg)',
-                                padding: '1.5rem',
-                                boxShadow: 'var(--shadow-md)',
-                                marginBottom: '1.5rem'
-                            }}>
-                                {/* Ticket Header */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                    <div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span className="badge badge-blue" style={{ fontSize: '0.75rem', fontWeight: 800 }}>
-                                                {currentTicket.ticket_code}
+                    <div style={{ padding: '0.5rem' }}>
+                        {(track?.tickets || []).map((ticket, idx) => {
+                            const isCurrent = idx === activeTicketIndex;
+                            const isDone = completedTickets.includes(ticket.ticket_code);
+                            return (
+                                <div
+                                    key={ticket.id || idx}
+                                    onClick={() => handleSelectTicket(idx)}
+                                    style={{
+                                        padding: '0.75rem 0.875rem',
+                                        borderRadius: 'var(--radius-md)',
+                                        marginBottom: '0.25rem',
+                                        cursor: 'pointer',
+                                        background: isCurrent ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
+                                        border: isCurrent ? '1px solid rgba(59, 130, 246, 0.35)' : '1px solid transparent',
+                                        transition: 'all 0.15s ease'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                                        <span style={{ 
+                                            fontWeight: 800, 
+                                            fontSize: '0.75rem', 
+                                            color: isCurrent ? 'var(--primary)' : 'var(--text-muted)' 
+                                        }}>
+                                            {ticket.ticket_code}
+                                        </span>
+                                        {isDone ? (
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', color: 'var(--success)', fontWeight: 700 }}>
+                                                <CheckCircle2 size={13} /> Merged
                                             </span>
-                                            {currentTicket.ticket_type === 'FEATURE_DEV' ? (
-                                                <span className="badge badge-purple" style={{ fontSize: '0.75rem', fontWeight: 800 }}>
-                                                    ✨ Build Feature From Scratch
-                                                </span>
-                                            ) : (
-                                                <span className="badge badge-gray" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                                                    🔧 Production Bug Fix
-                                                </span>
-                                            )}
-                                        </div>
-                                        <h2 style={{ fontSize: '1.375rem', fontWeight: 800, margin: '0.375rem 0 0', color: 'var(--text-primary)' }}>
-                                            {currentTicket.title}
-                                        </h2>
+                                        ) : isCurrent ? (
+                                            <span style={{ fontSize: '0.6875rem', color: '#60a5fa', fontWeight: 700 }}>
+                                                Active
+                                            </span>
+                                        ) : (
+                                            <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                                                Pending
+                                            </span>
+                                        )}
                                     </div>
-                                    {completedTickets.includes(currentTicket.ticket_code) && (
-                                        <span className="badge badge-green" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
-                                            <CheckCircle2 size={14} /> Approved & Merged
+                                    <div style={{ 
+                                        fontSize: '0.8125rem', 
+                                        fontWeight: isCurrent ? 700 : 500, 
+                                        color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                        lineHeight: 1.35
+                                    }}>
+                                        {ticket.title}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Progress Footer */}
+                    <div style={{
+                        padding: '0.75rem 1.25rem',
+                        borderTop: '1px solid var(--border-color)',
+                        background: 'rgba(0, 0, 0, 0.15)'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 600 }}>
+                            <span>SPRINT PROGRESS</span>
+                            <span>{Math.round((completedTickets.length / (track?.tickets?.length || 4)) * 100)}%</span>
+                        </div>
+                        <div style={{
+                            width: '100%',
+                            height: '6px',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            borderRadius: '3px',
+                            overflow: 'hidden'
+                        }}>
+                            <div style={{
+                                width: `${(completedTickets.length / (track?.tickets?.length || 4)) * 100}%`,
+                                height: '100%',
+                                background: 'var(--success)',
+                                transition: 'width 0.3s ease'
+                            }} />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right Column: Active Ticket Briefing */}
+                <div>
+                    {currentTicket && (
+                        <div style={{
+                            background: 'var(--bg-card)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: 'var(--radius-lg)',
+                            padding: '1.75rem',
+                            boxShadow: 'var(--shadow-md)',
+                            marginBottom: '1.5rem'
+                        }}>
+                            {/* Ticket Badges & Title */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span className="badge badge-blue" style={{ fontSize: '0.75rem', fontWeight: 800 }}>
+                                        {currentTicket.ticket_code}
+                                    </span>
+                                    {currentTicket.ticket_type === 'FEATURE_DEV' ? (
+                                        <span className="badge badge-purple" style={{ fontSize: '0.6875rem', fontWeight: 700 }}>
+                                            ✨ Feature Development
+                                        </span>
+                                    ) : (
+                                        <span className="badge badge-gray" style={{ fontSize: '0.6875rem', fontWeight: 600 }}>
+                                            🔧 Production Bug Fix
                                         </span>
                                     )}
                                 </div>
+                                {completedTickets.includes(currentTicket.ticket_code) && (
+                                    <span className="badge badge-green" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}>
+                                        <CheckCircle2 size={14} /> Approved & Merged
+                                    </span>
+                                )}
+                            </div>
 
-                                {currentTicket.ticket_type === 'FEATURE_DEV' && (
-                                    <div style={{
-                                        background: 'rgba(168, 85, 247, 0.08)',
-                                        border: '1px solid rgba(168, 85, 247, 0.25)',
-                                        borderRadius: 'var(--radius-md)',
-                                        padding: '0.875rem 1rem',
-                                        marginBottom: '1.25rem',
+                            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 1.25rem 0', color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                                Ticket {currentTicket.order_index}: {currentTicket.title}
+                            </h1>
+
+                            {/* Mission Summary */}
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+                                    Mission Summary
+                                </div>
+                                <p style={{ margin: 0, fontSize: '0.9375rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                                    {currentTicket.business_context}
+                                </p>
+                            </div>
+
+                            {/* Checklist / Acceptance Criteria */}
+                            <div style={{ marginBottom: '1.75rem' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.65rem' }}>
+                                    Checklist (Definition of Done)
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {(currentTicket.acceptance_criteria || []).map((crit, cIdx) => (
+                                        <div key={cIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                                            <CheckCircle2 size={16} color="#34d399" style={{ flexShrink: 0, marginTop: '2px' }} />
+                                            <span style={{ lineHeight: 1.45 }}>{crit}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Full-Width Hero CTA Button */}
+                            <button
+                                onClick={() => setShowIdeLab(true)}
+                                className="btn-primary"
+                                style={{
+                                    width: '100%',
+                                    padding: '0.95rem 1.5rem',
+                                    borderRadius: 'var(--radius-md)',
+                                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                    color: '#ffffff',
+                                    fontWeight: 800,
+                                    fontSize: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.625rem',
+                                    boxShadow: '0 8px 25px rgba(37, 99, 235, 0.35)',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    marginBottom: '1rem'
+                                }}
+                            >
+                                <Terminal size={18} />
+                                <span>Start Coding in Simulation IDE</span>
+                                <ChevronRight size={18} />
+                            </button>
+
+                            {/* Accordion 1: Stuck? Ask Senior Dev Marcus */}
+                            <div style={{
+                                border: '1px solid var(--border-color)',
+                                borderRadius: 'var(--radius-md)',
+                                overflow: 'hidden',
+                                marginBottom: '0.75rem',
+                                background: 'rgba(0, 0, 0, 0.1)'
+                            }}>
+                                <button
+                                    onClick={() => setShowHintAccordion(prev => !prev)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.75rem 1rem',
+                                        background: 'transparent',
+                                        border: 'none',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '0.75rem'
-                                    }}>
-                                        <Sparkles size={20} color="#c084fc" style={{ flexShrink: 0 }} />
-                                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>
-                                            <strong>Feature Development Challenge:</strong> In this ticket, you are architecting a new API endpoint from scratch. Define the request schema, database lookup against the provided mock fixture, and business rule validations.
-                                        </div>
+                                        justifyContent: 'space-between',
+                                        cursor: 'pointer',
+                                        color: '#cbd5e1',
+                                        fontWeight: 700,
+                                        fontSize: '0.8125rem'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <HelpCircle size={15} color="#818cf8" />
+                                        <span>Stuck? Ask Senior Dev Marcus for a Hint</span>
                                     </div>
-                                )}
+                                    {showHintAccordion ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                                </button>
 
-                                {/* Business Context */}
-                                <div style={{ marginBottom: '1.25rem' }}>
-                                    <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
-                                        Business Context
-                                    </div>
-                                    <p style={{ margin: 0, fontSize: '0.9375rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                                        {currentTicket.business_context}
-                                    </p>
-                                </div>
-
-                                {/* Acceptance Criteria Checklist */}
-                                <div style={{
-                                    background: 'rgba(0,0,0,0.2)',
-                                    border: '1px solid var(--border-subtle)',
-                                    borderRadius: 'var(--radius-md)',
-                                    padding: '1rem',
-                                    marginBottom: '1.5rem'
-                                }}>
-                                    <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#93c5fd', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                                        <CheckCircle2 size={16} />
-                                        <span>Acceptance Criteria (Definition of Done)</span>
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                                        {(currentTicket.acceptance_criteria || []).map((crit, cIdx) => (
-                                            <div key={cIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                                                <span style={{ color: 'var(--primary)', fontWeight: 800 }}>•</span>
-                                                <span style={{ lineHeight: 1.4 }}>{crit}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Dual-Tab Submitter */}
-                                <div style={{
-                                    borderTop: '1px solid var(--border-color)',
-                                    paddingTop: '1.25rem'
-                                }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                        <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                            How would you like to solve and submit this ticket?
-                                        </div>
-                                    </div>
-
-                                    {/* Tabs Toggle */}
-                                    <div style={{
-                                        display: 'inline-flex',
-                                        background: 'var(--bg-secondary)',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: 'var(--radius-md)',
-                                        padding: '0.25rem',
-                                        marginBottom: '1rem'
-                                    }}>
-                                        <button
-                                            onClick={() => setSubmissionMode('IN_BROWSER')}
-                                            style={{
-                                                padding: '0.4rem 0.875rem',
-                                                borderRadius: 'var(--radius-sm)',
-                                                border: 'none',
-                                                background: submissionMode === 'IN_BROWSER' ? 'var(--primary)' : 'transparent',
-                                                color: submissionMode === 'IN_BROWSER' ? '#fff' : 'var(--text-secondary)',
-                                                fontWeight: 700,
-                                                fontSize: '0.8125rem',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.375rem'
-                                            }}
-                                        >
-                                            <Code2 size={14} />
-                                            <span>Tab 1: In-Browser Editor (0 Setup)</span>
-                                        </button>
-
-                                        <button
-                                            onClick={() => setSubmissionMode('GITHUB_PR')}
-                                            style={{
-                                                padding: '0.4rem 0.875rem',
-                                                borderRadius: 'var(--radius-sm)',
-                                                border: 'none',
-                                                background: submissionMode === 'GITHUB_PR' ? 'var(--primary)' : 'transparent',
-                                                color: submissionMode === 'GITHUB_PR' ? '#fff' : 'var(--text-secondary)',
-                                                fontWeight: 700,
-                                                fontSize: '0.8125rem',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.375rem'
-                                            }}
-                                        >
-                                            <GitPullRequest size={14} />
-                                            <span>Tab 2: Real GitHub PR Link</span>
-                                        </button>
-                                    </div>
-
-                                    {/* TAB 1: In-Browser Editor */}
-                                    {submissionMode === 'IN_BROWSER' && (
-                                        <div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                                    Write or edit your implementation code directly in the box below:
-                                                </span>
-                                                <button
-                                                    onClick={handleResetStarterCode}
-                                                    className="btn-ghost"
-                                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                                >
-                                                    <RefreshCw size={12} />
-                                                    <span>Reset Starter Code</span>
-                                                </button>
-                                            </div>
-
-                                            <textarea
-                                                value={editorCode}
-                                                onChange={(e) => setEditorCode(e.target.value)}
-                                                rows={15}
+                                {showHintAccordion && (
+                                    <div style={{ padding: '0 1rem 1rem', borderTop: '1px solid var(--border-subtle)' }}>
+                                        <p style={{ margin: '0.5rem 0 0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                            Marcus can provide a Socratic architectural hint without spoiling the solution code.
+                                        </p>
+                                        <form onSubmit={handleAskMentor} style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. How do I acquire an atomic lock in Redis?"
+                                                value={mentorQuestion}
+                                                onChange={(e) => setMentorQuestion(e.target.value)}
                                                 style={{
-                                                    width: '100%',
-                                                    background: '#0d1117',
-                                                    color: '#e6edf3',
-                                                    fontFamily: 'JetBrains Mono, monospace',
-                                                    fontSize: '0.875rem',
-                                                    padding: '1rem',
-                                                    borderRadius: 'var(--radius-md)',
-                                                    border: '1px solid rgba(255,255,255,0.1)',
-                                                    resize: 'vertical',
-                                                    lineHeight: 1.5,
-                                                    marginBottom: '1rem',
+                                                    flex: 1,
+                                                    background: 'var(--bg-input)',
+                                                    border: '1px solid var(--border-color)',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    padding: '0.5rem 0.75rem',
+                                                    fontSize: '0.8125rem',
+                                                    color: 'var(--text-primary)',
                                                     outline: 'none'
                                                 }}
                                             />
-                                        </div>
-                                    )}
+                                            <button
+                                                type="submit"
+                                                disabled={mentorLoading}
+                                                className="btn-secondary"
+                                                style={{ fontSize: '0.75rem', padding: '0.5rem 0.875rem', flexShrink: 0 }}
+                                            >
+                                                {mentorLoading ? 'Asking...' : 'Get Hint'}
+                                            </button>
+                                        </form>
 
-                                    {/* TAB 2: Real GitHub PR */}
-                                    {submissionMode === 'GITHUB_PR' && (
-                                        <div style={{
-                                            background: 'rgba(0,0,0,0.15)',
-                                            border: '1px solid var(--border-color)',
-                                            borderRadius: 'var(--radius-md)',
-                                            padding: '1.25rem',
-                                            marginBottom: '1rem'
-                                        }}>
-                                            <div style={{ marginBottom: '1rem' }}>
-                                                <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
-                                                    Step 1: Create your private repository from our template
+                                        {mentorHint && (
+                                            <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid #818cf8', fontSize: '0.8125rem' }}>
+                                                <div style={{ fontWeight: 800, color: '#c7d2fe', marginBottom: '0.25rem' }}>
+                                                    💡 Marcus:
                                                 </div>
-                                                <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                                                    Click below to generate a private repository on your personal GitHub account (no classmates can see it):
-                                                </p>
-                                                <a
-                                                    href={`${templateRepoUrl}/generate`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="btn-secondary"
-                                                    style={{
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: '0.375rem',
-                                                        fontSize: '0.8125rem',
-                                                        padding: '0.4rem 0.75rem',
-                                                        color: 'var(--primary)'
-                                                    }}
-                                                >
-                                                    <span>📦 Create Private {selectedLanguage.toUpperCase()} Repo on GitHub</span>
-                                                    <ExternalLink size={13} />
-                                                </a>
-                                            </div>
-
-                                            <div style={{ marginBottom: '1rem' }}>
-                                                <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
-                                                    Step 2: Clone, create a branch, and open a Pull Request
-                                                </div>
-                                                <div style={{
-                                                    background: '#0d1117',
-                                                    padding: '0.625rem',
-                                                    borderRadius: 'var(--radius-sm)',
-                                                    fontFamily: 'JetBrains Mono, monospace',
-                                                    fontSize: '0.75rem',
-                                                    color: '#7ee787'
-                                                }}>
-                                                    git clone &lt;your-private-repo-url&gt;<br />
-                                                    cd finpulse-payments<br />
-                                                    git checkout -b {currentTicket.ticket_code.toLowerCase()}-fix<br />
-                                                    # Make your changes and commit<br />
-                                                    git push origin {currentTicket.ticket_code.toLowerCase()}-fix
+                                                <div style={{ color: 'var(--text-primary)', lineHeight: 1.45 }}>
+                                                    {mentorHint.hint}
                                                 </div>
                                             </div>
-
-                                            <div>
-                                                <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
-                                                    Step 3: Paste your GitHub Pull Request URL
-                                                </div>
-                                                <input
-                                                    type="url"
-                                                    placeholder="https://github.com/your-username/finpulse-payments/pull/1"
-                                                    value={githubPrUrl}
-                                                    onChange={(e) => setGithubPrUrl(e.target.value)}
-                                                    style={{
-                                                        width: '100%',
-                                                        background: 'var(--bg-input)',
-                                                        border: '1px solid var(--border-color)',
-                                                        color: 'var(--text-primary)',
-                                                        borderRadius: 'var(--radius-sm)',
-                                                        padding: '0.625rem',
-                                                        fontSize: '0.875rem',
-                                                        outline: 'none'
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Submit Action Button */}
-                                    <button
-                                        onClick={handleSubmitReview}
-                                        disabled={reviewing}
-                                        className="btn-primary"
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: '0.5rem',
-                                            padding: '0.75rem 1.5rem',
-                                            fontWeight: 800,
-                                            fontSize: '0.9375rem'
-                                        }}
-                                    >
-                                        {reviewing ? (
-                                            <>
-                                                <div className="loading-spinner" style={{ width: 18, height: 18 }} />
-                                                <span>Staff Engineer Marcus is reviewing your PR...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Sparkles size={18} />
-                                                <span>Run Senior Dev Code Review</span>
-                                            </>
                                         )}
-                                    </button>
-                                </div>
+                                    </div>
+                                )}
                             </div>
-                        )}
+
+                            {/* Accordion 2: System Architecture Overview */}
+                            <div style={{
+                                border: '1px solid var(--border-color)',
+                                borderRadius: 'var(--radius-md)',
+                                overflow: 'hidden',
+                                background: 'rgba(0, 0, 0, 0.1)'
+                            }}>
+                                <button
+                                    onClick={() => setShowArchAccordion(prev => !prev)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.75rem 1rem',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        cursor: 'pointer',
+                                        color: '#cbd5e1',
+                                        fontWeight: 700,
+                                        fontSize: '0.8125rem'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <FileText size={15} color="#38bdf8" />
+                                        <span>System Architecture Overview</span>
+                                    </div>
+                                    {showArchAccordion ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                                </button>
+
+                                {showArchAccordion && (
+                                    <div style={{ padding: '0.75rem 1rem 1rem', borderTop: '1px solid var(--border-subtle)' }}>
+                                        <div style={{
+                                            background: '#0d1117',
+                                            padding: '0.875rem',
+                                            borderRadius: 'var(--radius-sm)',
+                                            fontFamily: 'JetBrains Mono, monospace',
+                                            fontSize: '0.75rem',
+                                            color: '#79c0ff',
+                                            lineHeight: 1.6
+                                        }}>
+                                            [Merchant API Client] ➔ [API Gateway / Validation (FIN-101)]<br />
+                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br />
+                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Distributed Redis Lock (FIN-102)]<br />
+                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br />
+                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Core Ledger Service / Card Processor]<br />
+                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br />
+                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Error & Audit Middleware (FIN-103)]
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                         {/* AI REVIEW ERROR NOTICE */}
                         {reviewError && (
@@ -1151,55 +1011,6 @@ export const SimulationWorkspacePage = () => {
                         )}
                     </div>
                 </div>
-            )}
-
-            {/* TAB 2: SYSTEM ARCHITECTURE OVERVIEW */}
-            {activeWorkspaceTab === 'architecture' && (
-                <div style={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--radius-lg)',
-                    padding: '2rem',
-                    boxShadow: 'var(--shadow-md)'
-                }}>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 1rem' }}>
-                        FinPulse Core Architecture Document
-                    </h2>
-                    <div style={{ color: 'var(--text-secondary)', lineHeight: 1.7, fontSize: '0.9375rem' }}>
-                        <p>
-                            FinPulse operates a high-throughput, distributed payment processing cluster. Every transaction must be validated within 15 milliseconds, verified against an idempotency lock to prevent double-spending, and logged with sanitized audit trails.
-                        </p>
-                        
-                        <div style={{
-                            background: '#0d1117',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: 'var(--radius-md)',
-                            padding: '1.25rem',
-                            fontFamily: 'JetBrains Mono, monospace',
-                            fontSize: '0.8125rem',
-                            color: '#79c0ff',
-                            margin: '1.5rem 0'
-                        }}>
-                            [Merchant API Client] ➔ [API Gateway / Currency Validation (FIN-101)]<br />
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br />
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Distributed Redis Idempotency Lock (FIN-102)]<br />
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br />
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Core Ledger Service / Card Processor]<br />
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br />
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Structured Error & Audit Middleware (FIN-103)]
-                        </div>
-
-                        <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', margin: '1.5rem 0 0.5rem' }}>
-                            Engineering Standards at FinPulse:
-                        </h3>
-                        <ul>
-                            <li><strong>Defensive Programming:</strong> Never assume the client sends valid ISO currency codes or positive integers.</li>
-                            <li><strong>Concurrency Safety:</strong> High traffic means two requests can execute within the exact same millisecond. Use atomic distributed locks.</li>
-                            <li><strong>Security & Compliance:</strong> Never log raw credit card numbers or CVVs. Sanitize all exception outputs so database credentials are never revealed to clients.</li>
-                        </ul>
-                    </div>
-                </div>
-            )}
 
             {/* FULL-SCREEN DEVELOPER SIMULATION LAB (WASM WORKSTATION) */}
             {showIdeLab && (

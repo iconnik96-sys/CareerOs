@@ -71,7 +71,187 @@
   --transition-slow: 350ms ease;
 }
 
-/* Light Theme overrides when applied */
+/* ==========================================================================
+   High-Impact Theme Archetypes
+   ========================================================================== */
+
+/* 1. Cosmic Cyber (Default — Linear & Raycast Aesthetic) */
+[data-theme='cosmic'], :root {
+  --bg-primary: #080b11;
+  --bg-secondary: #0d121c;
+  --bg-tertiary: #131b2a;
+  --bg-card: rgba(15, 23, 42, 0.72);
+  --bg-card-hover: rgba(23, 34, 58, 0.85);
+  --bg-input: rgba(13, 18, 28, 0.85);
+  --bg-glass: rgba(13, 18, 28, 0.7);
+
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-focus: #6366f1;
+  --border-card: rgba(255, 255, 255, 0.09);
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #080b11;
+
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-light: rgba(99, 102, 241, 0.15);
+  --primary-glow: rgba(99, 102, 241, 0.35);
+
+  --accent-indigo: #6366f1;
+  --accent-indigo-light: rgba(99, 102, 241, 0.15);
+
+  --success: #10b981;
+  --success-light: rgba(16, 185, 129, 0.15);
+
+  --warning: #f59e0b;
+  --warning-light: rgba(245, 158, 11, 0.15);
+
+  --danger: #ef4444;
+  --danger-light: rgba(239, 68, 68, 0.15);
+
+  --info: #06b6d4;
+  --info-light: rgba(6, 182, 212, 0.15);
+
+  --shadow-glow: 0 0 28px -4px rgba(99, 102, 241, 0.38);
+  --card-highlight: rgba(255, 255, 255, 0.14);
+}
+
+/* 2. Emerald Terminal (Supabase & Matrix Carbon) */
+[data-theme='emerald'] {
+  --bg-primary: #070b09;
+  --bg-secondary: #0b130f;
+  --bg-tertiary: #101c16;
+  --bg-card: rgba(11, 20, 16, 0.78);
+  --bg-card-hover: rgba(16, 30, 24, 0.9);
+  --bg-input: rgba(11, 20, 16, 0.85);
+  --bg-glass: rgba(11, 20, 16, 0.72);
+
+  --border-color: rgba(52, 211, 153, 0.14);
+  --border-subtle: rgba(52, 211, 153, 0.08);
+  --border-focus: #10b981;
+  --border-card: rgba(52, 211, 153, 0.16);
+
+  --text-primary: #f0fdf4;
+  --text-secondary: #9ae6b4;
+  --text-muted: #48bb78;
+  --text-inverse: #070b09;
+
+  --primary: #10b981;
+  --primary-hover: #059669;
+  --primary-light: rgba(16, 185, 129, 0.16);
+  --primary-glow: rgba(16, 185, 129, 0.38);
+
+  --accent-indigo: #06b6d4;
+  --accent-indigo-light: rgba(6, 182, 212, 0.15);
+
+  --success: #10b981;
+  --success-light: rgba(16, 185, 129, 0.15);
+
+  --warning: #f59e0b;
+  --warning-light: rgba(245, 158, 11, 0.15);
+
+  --danger: #f43f5e;
+  --danger-light: rgba(244, 63, 94, 0.15);
+
+  --info: #34d399;
+  --info-light: rgba(52, 211, 153, 0.15);
+
+  --shadow-glow: 0 0 28px -4px rgba(16, 185, 129, 0.4);
+  --card-highlight: rgba(52, 211, 153, 0.22);
+}
+
+/* 3. Midnight Amethyst (Vercel AI & Discord Luxury) */
+[data-theme='amethyst'] {
+  --bg-primary: #090714;
+  --bg-secondary: #0f0b20;
+  --bg-tertiary: #171131;
+  --bg-card: rgba(17, 12, 34, 0.78);
+  --bg-card-hover: rgba(27, 19, 52, 0.9);
+  --bg-input: rgba(17, 12, 34, 0.85);
+  --bg-glass: rgba(17, 12, 34, 0.72);
+
+  --border-color: rgba(168, 85, 247, 0.14);
+  --border-subtle: rgba(168, 85, 247, 0.08);
+  --border-focus: #a855f7;
+  --border-card: rgba(168, 85, 247, 0.16);
+
+  --text-primary: #faf5ff;
+  --text-secondary: #d8b4fe;
+  --text-muted: #a855f7;
+  --text-inverse: #090714;
+
+  --primary: #8b5cf6;
+  --primary-hover: #7c3aed;
+  --primary-light: rgba(139, 92, 246, 0.18);
+  --primary-glow: rgba(139, 92, 246, 0.38);
+
+  --accent-indigo: #ec4899;
+  --accent-indigo-light: rgba(236, 72, 153, 0.15);
+
+  --success: #10b981;
+  --success-light: rgba(16, 185, 129, 0.15);
+
+  --warning: #f59e0b;
+  --warning-light: rgba(245, 158, 11, 0.15);
+
+  --danger: #ef4444;
+  --danger-light: rgba(239, 68, 68, 0.15);
+
+  --info: #c084fc;
+  --info-light: rgba(192, 132, 252, 0.15);
+
+  --shadow-glow: 0 0 28px -4px rgba(139, 92, 246, 0.42);
+  --card-highlight: rgba(192, 132, 252, 0.22);
+}
+
+/* 4. Tokyo Sunset (Stripe Radar & Warm Copilot) */
+[data-theme='sunset'] {
+  --bg-primary: #0d0c10;
+  --bg-secondary: #141219;
+  --bg-tertiary: #1f1b25;
+  --bg-card: rgba(22, 19, 29, 0.82);
+  --bg-card-hover: rgba(32, 27, 41, 0.92);
+  --bg-input: rgba(22, 19, 29, 0.88);
+  --bg-glass: rgba(22, 19, 29, 0.74);
+
+  --border-color: rgba(245, 158, 11, 0.14);
+  --border-subtle: rgba(245, 158, 11, 0.08);
+  --border-focus: #f59e0b;
+  --border-card: rgba(245, 158, 11, 0.16);
+
+  --text-primary: #fffbeb;
+  --text-secondary: #fde68a;
+  --text-muted: #d97706;
+  --text-inverse: #0d0c10;
+
+  --primary: #f59e0b;
+  --primary-hover: #d97706;
+  --primary-light: rgba(245, 158, 11, 0.18);
+  --primary-glow: rgba(245, 158, 11, 0.38);
+
+  --accent-indigo: #f43f5e;
+  --accent-indigo-light: rgba(244, 63, 94, 0.15);
+
+  --success: #10b981;
+  --success-light: rgba(16, 185, 129, 0.15);
+
+  --warning: #f59e0b;
+  --warning-light: rgba(245, 158, 11, 0.15);
+
+  --danger: #f43f5e;
+  --danger-light: rgba(244, 63, 94, 0.15);
+
+  --info: #fb923c;
+  --info-light: rgba(251, 146, 60, 0.15);
+
+  --shadow-glow: 0 0 28px -4px rgba(245, 158, 11, 0.38);
+  --card-highlight: rgba(245, 158, 11, 0.22);
+}
+
+/* Light Theme overrides when explicitly chosen */
 [data-theme='light'] {
   --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
@@ -83,7 +263,7 @@
 
   --border-color: #e2e8f0;
   --border-subtle: #edf2f7;
-  --border-focus: #2563eb;
+  --border-focus: #6366f1;
   --border-card: #e2e8f0;
 
   --text-primary: #0f172a;
@@ -91,10 +271,16 @@
   --text-muted: #94a3b8;
   --text-inverse: #f8fafc;
 
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-light: rgba(99, 102, 241, 0.15);
+  --primary-glow: rgba(99, 102, 241, 0.25);
+
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --shadow-glow: 0 0 20px -5px rgba(59, 130, 246, 0.15);
+  --shadow-glow: 0 0 20px -5px rgba(99, 102, 241, 0.2);
+  --card-highlight: rgba(99, 102, 241, 0.2);
 }
 
 /* Reset & Base */

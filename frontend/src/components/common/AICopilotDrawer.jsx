@@ -67,11 +67,11 @@ export const AICopilotDrawer = ({ isOpen, onClose }) => {
                 setSuggestedPrompts(response.suggested_followups);
             }
         }
-        catch {
+        catch (err) {
             const errorMsg = {
                 id: 'msg-err-' + Date.now(),
                 role: 'assistant',
-                content: "I encountered a minor network issue reaching the AI backend. Please verify that the FastAPI server is running on `http://localhost:8000`.",
+                content: err?.message || "I encountered a network issue reaching the AI backend. If your backend is on Render's free tier, it may be waking up from sleep (~50s cold start). Please wait 30 seconds and retry.",
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
             setMessages(prev => [...prev, errorMsg]);

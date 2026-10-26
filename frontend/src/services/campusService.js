@@ -1,11 +1,11 @@
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
 
-const FASTAPI_BASE_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8000';
+const FASTAPI_BASE_URL = (import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8000').replace(/\/+$/, '');
 
 const client = axios.create({
   baseURL: FASTAPI_BASE_URL,
-  timeout: 15000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json'
   }

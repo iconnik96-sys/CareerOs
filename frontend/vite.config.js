@@ -5,8 +5,9 @@ import path from 'path';
 
 const currentDir = typeof import.meta.dirname !== 'undefined' ? import.meta.dirname : process.cwd();
 
-// Always load environment variables from the single unified project root (.env)
-const envDir = path.resolve(currentDir, '..');
+// Load environment variables from the unified project root (.env) if present, else fallback to current directory
+const parentEnvDir = path.resolve(currentDir, '..');
+const envDir = fs.existsSync(path.resolve(parentEnvDir, '.env')) ? parentEnvDir : currentDir;
 
 // https://vite.dev/config/
 export default defineConfig({

@@ -1,10 +1,10 @@
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
 
-const FASTAPI_BASE_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8000';
+const FASTAPI_BASE_URL = (import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8000').replace(/\/+$/, '');
 const client = axios.create({
     baseURL: FASTAPI_BASE_URL,
-    timeout: 30000,
+    timeout: 60000, // 60s timeout to accommodate Render free tier cold starts (~50s)
     headers: {
         'Content-Type': 'application/json'
     }
@@ -25,18 +25,26 @@ client.interceptors.request.use(async (config) => {
     }
     return config;
 });
+
 function formatApiError(err) {
     if (axios.isAxiosError(err)) {
         if (err.response?.status === 503) {
-            const detail = err.response.data?.detail || 'AI features are not configured yet. Please configure GROQ_API_KEY in backend/.env.';
+            const detail = err.response.data?.detail || 'AI features are not configured yet. Please configure GROQ_API_KEY in Render environment variables.';
             return new Error(detail);
         }
         if (err.response?.status === 500) {
             const detail = err.response.data?.detail || 'AI request failed, please try again.';
             return new Error(detail);
         }
+        if (err.code === 'ECONNABORTED') {
+            return new Error(`AI request timed out. The backend at ${FASTAPI_BASE_URL} may be spinning up from sleep (Render free tier cold start takes ~50s). Please wait a moment and try again.`);
+        }
         if (err.code === 'ECONNREFUSED' || !err.response) {
-            return new Error('AI Backend is unreachable. Please verify that the FastAPI server is running on http://localhost:8000.');
+            const isDeployed = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+            if (isDeployed && FASTAPI_BASE_URL.includes('localhost')) {
+                return new Error('AI Backend is configured as "localhost" on your deployed website. In Netlify Site Settings ➔ Environment Variables, add VITE_AI_BACKEND_URL pointing to your Render backend URL (e.g., https://your-app.onrender.com), then trigger a redeploy.');
+            }
+            return new Error(`AI Backend is unreachable at ${FASTAPI_BASE_URL}. If hosted on Render free tier, the service may be spinning up from sleep (~50s cold start). Please wait 30 seconds and try again.`);
         }
         if (err.response?.data?.detail) {
             return new Error(err.response.data.detail);
@@ -235,8 +243,13 @@ export const aiFastApiService = {
                     };
                 }
             }
+            const isDeployed = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+            let failureMsg = `⚠️ **Unable to connect to AI Backend.**\n\nIf hosted on Render free tier, the service may be spinning up from sleep (~50s cold start). Please wait 30 seconds and retry.`;
+            if (isDeployed && FASTAPI_BASE_URL.includes('localhost')) {
+                failureMsg = `⚠️ **AI Backend is set to localhost on a deployed website.**\n\nPlease add \`VITE_AI_BACKEND_URL\` in your Netlify site settings pointing to your Render backend URL (e.g., \`https://your-app.onrender.com\`), then redeploy.`;
+            }
             return {
-                reply: '⚠️ **Unable to connect to AI Backend.**\n\nPlease ensure the FastAPI server is running on `http://localhost:8000`.',
+                reply: failureMsg,
                 suggested_followups: [],
                 quick_tips: []
             };

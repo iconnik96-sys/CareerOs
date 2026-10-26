@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Terminal,
@@ -6,758 +6,752 @@ import {
     CheckCircle2,
     Clock,
     ArrowRight,
+    ArrowLeft,
     Code2,
     Sparkles,
-    Search,
     ShieldCheck,
     Layers,
     Cpu,
     Briefcase,
-    Zap
+    Zap,
+    Lock,
+    Play,
+    Check,
+    CreditCard,
+    ChevronRight,
+    FileCode,
+    AlertCircle
 } from 'lucide-react';
-import { simulationService } from '../services/simulationService';
-import { InconvenienceNotice } from '../components/common/InconvenienceNotice';
+import { SIMULATION_COMPANIES, getCompanyById, getLevelData } from '../data/simulationCatalog';
+import { DeveloperSimulationLab } from '../components/simulation/DeveloperSimulationLab';
 
 export const SimulationsPage = () => {
     const navigate = useNavigate();
-    const [tracks, setTracks] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [selectedCategory, setSelectedCategory] = useState('all');
-    const [searchQuery, setSearchQuery] = useState('');
 
-    useEffect(() => {
-        loadTracks();
-    }, []);
+    // 3-Step Selection Funnel: 'company' -> 'level' -> 'review'
+    const [currentStep, setCurrentStep] = useState('company'); // 'company' | 'level' | 'review'
+    const [selectedCompanyId, setSelectedCompanyId] = useState('finpulse-payments');
+    const [selectedLevelId, setSelectedLevelId] = useState('beginner'); // 'beginner' | 'intermediate' | 'pro'
+    const [activeReviewTaskIndex, setActiveReviewTaskIndex] = useState(0);
 
-    const loadTracks = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const data = await simulationService.getTracks();
-            setTracks(data || []);
-            if (!data || data.length === 0) {
-                setError('No simulation tracks are currently deployed on the backend.');
-            }
-        } catch (err) {
-            console.error('Failed to load tracks', err);
-            setError(err.message || 'Workplace simulation service is currently unavailable.');
-        } finally {
-            setLoading(false);
-        }
+    // Full-screen Simulation IDE Modal state
+    const [showIdeLab, setShowIdeLab] = useState(false);
+    const [ideInitialTicket, setIdeInitialTicket] = useState(null);
+
+    const selectedCompany = getCompanyById(selectedCompanyId);
+    const selectedLevelData = getLevelData(selectedCompanyId, selectedLevelId);
+
+    const handleSelectCompany = (companyId) => {
+        setSelectedCompanyId(companyId);
+        setCurrentStep('level');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // Filter tracks based on category & search query
-    const filteredTracks = useMemo(() => {
-        return tracks.filter((track) => {
-            const matchesCategory =
-                selectedCategory === 'all' ||
-                (selectedCategory === 'backend' && (track.role_title?.toLowerCase().includes('backend') || track.title?.toLowerCase().includes('gateway') || track.title?.toLowerCase().includes('api'))) ||
-                (selectedCategory === 'fullstack' && track.role_title?.toLowerCase().includes('full')) ||
-                (selectedCategory === 'devops' && track.role_title?.toLowerCase().includes('devops'));
+    const handleSelectLevel = (levelId) => {
+        setSelectedLevelId(levelId);
+        setActiveReviewTaskIndex(0);
+        setCurrentStep('review');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
-            const matchesSearch =
-                !searchQuery.trim() ||
-                track.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                track.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                track.tech_stacks?.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
-
-            return matchesCategory && matchesSearch;
-        });
-    }, [tracks, selectedCategory, searchQuery]);
-
-    const categories = [
-        { id: 'all', label: 'All Tracks' },
-        { id: 'backend', label: 'Backend & APIs' },
-        { id: 'fullstack', label: 'Full-Stack' },
-        { id: 'devops', label: 'DevOps & Cloud' }
-    ];
+    const handleLaunchIde = (ticketCode = null) => {
+        const ticketToOpen = ticketCode || selectedLevelData?.tasks?.[0]?.code || 'FIN-BEG-1';
+        setIdeInitialTicket(ticketToOpen);
+        setShowIdeLab(true);
+    };
 
     return (
         <div className="page-container" style={{ padding: '2rem 2.5rem 5rem 2.5rem', maxWidth: 'var(--container-max)', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-            {/* 1. Modern Hero Section */}
-            <div style={{
-                textAlign: 'center',
-                padding: '2.5rem 1rem 2rem',
-                maxWidth: '780px',
-                margin: '0 auto'
-            }}>
-                <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.35rem 0.85rem',
-                    borderRadius: 'var(--radius-full)',
-                    background: 'rgba(59, 130, 246, 0.12)',
-                    border: '1px solid rgba(59, 130, 246, 0.3)',
-                    color: '#60a5fa',
-                    fontSize: '0.8125rem',
-                    fontWeight: 600,
-                    marginBottom: '1rem'
-                }}>
-                    <Zap size={14} className="text-primary" />
-                    <span>Real-World Engineering Practice</span>
-                </div>
-
-                <h1 style={{
-                    fontSize: '2.4rem',
-                    fontWeight: 800,
-                    margin: '0 0 0.85rem',
-                    letterSpacing: '-0.03em',
-                    lineHeight: 1.15,
-                    background: 'linear-gradient(180deg, #ffffff 30%, #94a3b8 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent'
-                }}>
-                    Virtual Work Simulations
-                </h1>
-
-                <p style={{
-                    margin: 0,
-                    fontSize: '1.05rem',
-                    color: 'var(--text-secondary)',
-                    lineHeight: 1.6
-                }}>
-                    Work inside real production codebases, resolve realistic sprint tickets in your browser, and earn verified resume bullet points reviewed by a Staff Engineer.
-                </p>
-
-                {/* Micro-Trust Highlights */}
-                <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    justifyContent: 'center',
-                    gap: '1.5rem',
-                    marginTop: '1.75rem',
-                    paddingTop: '1.25rem',
-                    borderTop: '1px solid var(--border-color)'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                        <Code2 size={16} color="#38bdf8" />
-                        <span>Multi-File Production Codebases</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                        <Sparkles size={16} color="#a78bfa" />
-                        <span>Strict Staff AI Code Reviews</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                        <ShieldCheck size={16} color="#34d399" />
-                        <span>Google XYZ STAR Resume Bullets</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* 1.5 Progressive Difficulty Ladder for Students & Freshers */}
-            <div style={{
-                margin: '1rem 0 2.5rem',
-                padding: '1.75rem',
-                borderRadius: 'var(--radius-xl)',
-                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.6) 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                boxShadow: 'var(--shadow-lg)'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
-                    <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#38bdf8' }}>
-                                Progressive Skill Ladder
-                            </span>
-                            <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '100px', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 700 }}>
-                                Fresher to Production Ready
-                            </span>
-                        </div>
-                        <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                            Choose Your Simulation Experience Level
-                        </h2>
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '420px', lineHeight: 1.4 }}>
-                        Start with step-by-step guided tickets or dive straight into high-concurrency production outages.
-                    </p>
-                </div>
-
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                    gap: '1.25rem'
-                }}>
-                    {/* Level 1 Card: Ticket FIN-101 */}
-                    <div
-                        onClick={() => {
-                            const target = tracks[0]?.track_key || 'finpulse-payments';
-                            navigate(`/simulations/${target}?mode=guided&ticket=FIN-101`);
-                        }}
-                        style={{
-                            background: 'rgba(16, 185, 129, 0.06)',
-                            border: '1px solid rgba(16, 185, 129, 0.25)',
-                            borderRadius: 'var(--radius-lg)',
-                            padding: '1.25rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            transition: 'all 0.2s ease',
-                            position: 'relative'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.5)';
-                            e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(16, 185, 129, 0.2)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.25)';
-                            e.currentTarget.style.boxShadow = 'none';
-                        }}
-                    >
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                                <span style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.35rem',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 800,
-                                    padding: '0.2rem 0.6rem',
-                                    borderRadius: '100px',
-                                    backgroundColor: 'rgba(16, 185, 129, 0.18)',
-                                    color: '#34d399'
-                                }}>
-                                    🟢 Level 1 • Beginner Friendly
-                                </span>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>~15 mins</span>
-                            </div>
-                            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.4rem', color: '#f8fafc' }}>
-                                FIN-101: Validate Currency & Amounts
-                            </h3>
-                            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
-                                Plain-English mission brief. Implement ISO-4217 uppercase currency and boundary validation in paymentController.ts.
-                            </p>
-                        </div>
-                        <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 600 }}>Guided 2-Pane IDE</span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#34d399' }}>
-                                Start Ticket <ArrowRight size={14} />
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Level 2 Card: Ticket FIN-102 */}
-                    <div
-                        onClick={() => {
-                            const target = tracks[0]?.track_key || 'finpulse-payments';
-                            navigate(`/simulations/${target}?mode=guided&ticket=FIN-102`);
-                        }}
-                        style={{
-                            background: 'rgba(245, 158, 11, 0.06)',
-                            border: '1px solid rgba(245, 158, 11, 0.25)',
-                            borderRadius: 'var(--radius-lg)',
-                            padding: '1.25rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            transition: 'all 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.5)';
-                            e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(245, 158, 11, 0.2)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.25)';
-                            e.currentTarget.style.boxShadow = 'none';
-                        }}
-                    >
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                                <span style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.35rem',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 800,
-                                    padding: '0.2rem 0.6rem',
-                                    borderRadius: '100px',
-                                    backgroundColor: 'rgba(245, 158, 11, 0.18)',
-                                    color: '#fbbf24'
-                                }}>
-                                    🟡 Level 2 • Intermediate
-                                </span>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>~30 mins</span>
-                            </div>
-                            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.4rem', color: '#f8fafc' }}>
-                                FIN-102: Distributed Idempotency Lock
-                            </h3>
-                            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
-                                Prevent duplicate transaction race conditions using atomic Redis distributed locks in idempotencyService.ts.
-                            </p>
-                        </div>
-                        <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: '0.75rem', color: '#fbbf24', fontWeight: 600 }}>Guided 2-Pane IDE</span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#fbbf24' }}>
-                                Start Ticket <ArrowRight size={14} />
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Level 3 Card: Incident #504 */}
-                    <div
-                        onClick={() => {
-                            const target = tracks[0]?.track_key || 'finpulse-payments';
-                            navigate(`/simulations/${target}?mode=pro&ticket=INC-504`);
-                        }}
-                        style={{
-                            background: 'rgba(239, 68, 68, 0.06)',
-                            border: '1px solid rgba(239, 68, 68, 0.25)',
-                            borderRadius: 'var(--radius-lg)',
-                            padding: '1.25rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            transition: 'all 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-                            e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(239, 68, 68, 0.2)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.25)';
-                            e.currentTarget.style.boxShadow = 'none';
-                        }}
-                    >
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                                <span style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.35rem',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 800,
-                                    padding: '0.2rem 0.6rem',
-                                    borderRadius: '100px',
-                                    backgroundColor: 'rgba(239, 68, 68, 0.18)',
-                                    color: '#f87171'
-                                }}>
-                                    🔴 Level 3 • Production Outage
-                                </span>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>~45 mins</span>
-                            </div>
-                            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.4rem', color: '#f8fafc' }}>
-                                Incident #504: Flash Sale Bottleneck
-                            </h3>
-                            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
-                                Live terminal, Docker logs, pool starvation diagnosis, WASM unit tests, and Staff AI review in docker-compose.yml.
-                            </p>
-                        </div>
-                        <div style={{ marginTop: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 600 }}>4-Pane Incident IDE</span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 700, color: '#f87171' }}>
-                                Launch Incident <ArrowRight size={14} />
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* 2. Interactive Filter & Search Controls */}
+            
+            {/* 1. PROGRESS STEPPER BREADCRUMB (Clear & unconfusing for new students) */}
             <div style={{
                 display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'space-between',
                 alignItems: 'center',
-                gap: '1rem',
-                margin: '1.5rem 0 2rem',
-                padding: '0.5rem 0'
+                justifyContent: 'center',
+                gap: '0.75rem',
+                marginBottom: '2.5rem',
+                flexWrap: 'wrap'
             }}>
-                {/* Category Pills */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    {categories.map((cat) => {
-                        const isActive = selectedCategory === cat.id;
-                        return (
-                            <button
-                                key={cat.id}
-                                onClick={() => setSelectedCategory(cat.id)}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    borderRadius: 'var(--radius-full)',
-                                    fontSize: '0.8125rem',
-                                    fontWeight: isActive ? 700 : 500,
-                                    background: isActive
-                                        ? 'linear-gradient(135deg, var(--primary), var(--accent-indigo))'
-                                        : 'rgba(255, 255, 255, 0.05)',
-                                    color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                                    border: isActive ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid var(--border-color)',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: isActive ? 'var(--shadow-glow)' : 'none'
-                                }}
-                            >
-                                {cat.label}
-                            </button>
-                        );
-                    })}
+                {/* Step 1: Company */}
+                <div 
+                    onClick={() => setCurrentStep('company')}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.45rem 0.9rem',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: '0.8125rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        background: currentStep === 'company' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                        border: currentStep === 'company' ? '1px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.08)',
+                        color: currentStep === 'company' ? '#60a5fa' : '#94a3b8',
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    <Building2 size={15} />
+                    <span>1. Select Company</span>
                 </div>
 
-                {/* Search Bar */}
-                <div style={{ position: 'relative', width: '260px' }}>
-                    <Search
-                        size={15}
-                        style={{
-                            position: 'absolute',
-                            left: '0.875rem',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            color: 'var(--text-muted)'
-                        }}
-                    />
-                    <input
-                        type="text"
-                        placeholder="Search stacks (e.g. Python, FastAPI)..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '0.45rem 0.85rem 0.45rem 2.25rem',
-                            fontSize: '0.8125rem',
-                            background: 'var(--bg-input)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: 'var(--radius-full)',
-                            color: 'var(--text-primary)',
-                            outline: 'none'
-                        }}
-                    />
+                <ChevronRight size={16} color="#475569" />
+
+                {/* Step 2: Experience Level */}
+                <div 
+                    onClick={() => {
+                        if (currentStep === 'review') setCurrentStep('level');
+                    }}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.45rem 0.9rem',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: '0.8125rem',
+                        fontWeight: 700,
+                        cursor: currentStep !== 'company' ? 'pointer' : 'default',
+                        background: currentStep === 'level' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                        border: currentStep === 'level' ? '1px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.08)',
+                        color: currentStep === 'level' ? '#60a5fa' : currentStep === 'review' ? '#f8fafc' : '#64748b',
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    <Layers size={15} />
+                    <span>2. Difficulty Level</span>
+                </div>
+
+                <ChevronRight size={16} color="#475569" />
+
+                {/* Step 3: Sprint Review */}
+                <div 
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.45rem 0.9rem',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: '0.8125rem',
+                        fontWeight: 700,
+                        background: currentStep === 'review' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                        border: currentStep === 'review' ? '1px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.08)',
+                        color: currentStep === 'review' ? '#60a5fa' : '#64748b',
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    <CheckCircle2 size={15} />
+                    <span>3. Sprint Task Briefing</span>
+                </div>
+
+                <ChevronRight size={16} color="#475569" />
+
+                {/* Step 4: IDE */}
+                <div 
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.45rem 0.9rem',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: '0.8125rem',
+                        fontWeight: 700,
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        color: '#64748b'
+                    }}
+                >
+                    <Terminal size={15} />
+                    <span>4. Simulation IDE</span>
                 </div>
             </div>
 
-            {/* 3. Main Track Catalog Grid */}
-            <div>
-                {loading ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 1rem' }}>
-                        <div className="loading-spinner" style={{ width: 40, height: 40, marginBottom: '1rem' }} />
-                        <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                            Loading live engineering simulations...
-                        </span>
-                    </div>
-                ) : error || tracks.length === 0 ? (
-                    <InconvenienceNotice
-                        title="Workplace Simulation Unavailable"
-                        message="We are sorry for the inconvenience. Workplace simulation tracks cannot be loaded right now because the backend service is offline. To prevent unverified practice, mock tracks are not displayed."
-                        details={error}
-                        onRetry={loadTracks}
-                        retryText="Retry Loading Tracks"
-                    />
-                ) : filteredTracks.length === 0 ? (
-                    <div style={{
-                        textAlign: 'center',
-                        padding: '3rem 1rem',
-                        background: 'var(--bg-card)',
-                        borderRadius: 'var(--radius-lg)',
-                        border: '1px dashed var(--border-color)'
-                    }}>
-                        <Layers size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem' }} />
-                        <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.5rem' }}>
-                            No simulations match your filter
-                        </h3>
-                        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '0 0 1rem' }}>
-                            Try selecting "All Tracks" or clear your search term.
+            {/* ========================================================================= */}
+            {/* STEP 1: COMPANY SELECTION SCREEN                                          */}
+            {/* ========================================================================= */}
+            {currentStep === 'company' && (
+                <div>
+                    {/* Header */}
+                    <div style={{ textAlign: 'center', maxWidth: '750px', margin: '0 auto 3rem auto' }}>
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.35rem 0.85rem',
+                            borderRadius: 'var(--radius-full)',
+                            background: 'rgba(59, 130, 246, 0.12)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            color: '#60a5fa',
+                            fontSize: '0.8125rem',
+                            fontWeight: 700,
+                            marginBottom: '1rem'
+                        }}>
+                            <Building2 size={15} />
+                            <span>Step 1 of 3 • Select Company Partner</span>
+                        </div>
+                        <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 0.85rem 0', letterSpacing: '-0.02em' }}>
+                            Corporate AI Work Simulation Lab
+                        </h1>
+                        <p style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                            Step into real engineering teams. Experience production codebases, solve high-impact sprint tickets, and prove your engineering readiness to employers.
                         </p>
-                        <button
-                            onClick={() => { setSelectedCategory('all'); setSearchQuery(''); }}
-                            className="btn-outline"
-                            style={{ padding: '0.4rem 1rem', fontSize: '0.8125rem' }}
-                        >
-                            Reset Filters
-                        </button>
                     </div>
-                ) : (
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
-                        gap: '1.75rem'
-                    }}>
-                        {filteredTracks.map((track) => (
-                            <div
-                                key={track.id}
-                                style={{
-                                    background: 'var(--bg-card)',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: 'var(--radius-lg)',
-                                    padding: '1.75rem',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'space-between',
-                                    boxShadow: 'var(--shadow-md)',
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(-3px)';
-                                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
-                                    e.currentTarget.style.boxShadow = '0 12px 28px -6px rgba(0, 0, 0, 0.6), 0 0 15px -3px rgba(59, 130, 246, 0.2)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.borderColor = 'var(--border-color)';
-                                    e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                                }}
-                            >
-                                {/* Card Top Glowing Edge */}
-                                <div style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: '3px',
-                                    background: 'linear-gradient(90deg, #3b82f6, #6366f1, #8b5cf6)'
-                                }} />
 
-                                <div>
-                                    {/* Company Identity & Difficulty */}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                            <div style={{
-                                                width: '42px',
-                                                height: '42px',
-                                                borderRadius: 'var(--radius-md)',
-                                                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.2))',
-                                                border: '1px solid rgba(59, 130, 246, 0.3)',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                color: '#60a5fa'
-                                            }}>
-                                                <Building2 size={22} />
-                                            </div>
-                                            <div>
-                                                <div style={{ fontWeight: 800, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
-                                                    {track.company_name}
-                                                </div>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                                    <Briefcase size={11} />
-                                                    <span>{track.role_title || 'Software Engineer'}</span>
-                                                </div>
-                                            </div>
+                    {/* Company Cards Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '2rem' }}>
+                        {SIMULATION_COMPANIES.map((company) => {
+                            const isAvailable = company.available;
+                            return (
+                                <div
+                                    key={company.id}
+                                    style={{
+                                        background: isAvailable ? 'var(--bg-card)' : 'rgba(255, 255, 255, 0.02)',
+                                        border: isAvailable ? '2px solid rgba(59, 130, 246, 0.6)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                        borderRadius: 'var(--radius-lg)',
+                                        padding: '2rem',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        boxShadow: isAvailable ? '0 12px 35px rgba(59, 130, 246, 0.15)' : 'none',
+                                        opacity: isAvailable ? 1 : 0.65,
+                                        transition: 'all 0.25s ease'
+                                    }}
+                                >
+                                    {/* Top Bar with Badge */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                                        <div style={{
+                                            width: 46,
+                                            height: 46,
+                                            borderRadius: '12px',
+                                            backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: '#60a5fa'
+                                        }}>
+                                            <CreditCard size={24} />
                                         </div>
 
-                                        <span className="badge badge-purple" style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                            {track.difficulty}
+                                        <span style={{
+                                            fontSize: '0.725rem',
+                                            fontWeight: 800,
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.06em',
+                                            padding: '0.25rem 0.65rem',
+                                            borderRadius: 'var(--radius-full)',
+                                            backgroundColor: isAvailable ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                                            color: isAvailable ? '#34d399' : '#94a3b8'
+                                        }}>
+                                            {company.badge}
                                         </span>
                                     </div>
 
-                                    {/* Track Title */}
-                                    <h3 style={{
-                                        fontSize: '1.25rem',
-                                        fontWeight: 800,
-                                        margin: '0 0 0.5rem',
-                                        color: '#ffffff',
-                                        letterSpacing: '-0.01em'
-                                    }}>
-                                        {track.title}
+                                    {/* Company Title & Role */}
+                                    <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.35rem 0' }}>
+                                        {company.name}
                                     </h3>
-
-                                    {/* Tagline / Mission */}
-                                    <p style={{
-                                        fontSize: '0.875rem',
-                                        color: 'var(--text-secondary)',
-                                        lineHeight: 1.5,
-                                        margin: '0 0 1.25rem',
-                                        minHeight: '2.6rem'
-                                    }}>
-                                        {track.company_tagline}
-                                    </p>
-
-                                    {/* Quick Stats Badges */}
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.25rem' }}>
-                                        <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.375rem',
-                                            fontSize: '0.75rem',
-                                            color: 'var(--text-secondary)',
-                                            background: 'rgba(255, 255, 255, 0.04)',
-                                            border: '1px solid rgba(255, 255, 255, 0.06)',
-                                            padding: '0.3rem 0.65rem',
-                                            borderRadius: 'var(--radius-full)'
-                                        }}>
-                                            <Clock size={13} color="#60a5fa" />
-                                            <span>~{track.duration_hours || 4}h Practice</span>
-                                        </div>
-
-                                        <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.375rem',
-                                            fontSize: '0.75rem',
-                                            color: 'var(--text-secondary)',
-                                            background: 'rgba(255, 255, 255, 0.04)',
-                                            border: '1px solid rgba(255, 255, 255, 0.06)',
-                                            padding: '0.3rem 0.65rem',
-                                            borderRadius: 'var(--radius-full)'
-                                        }}>
-                                            <CheckCircle2 size={13} color="var(--success)" />
-                                            <span>3 Production Tickets</span>
-                                        </div>
-
-                                        <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.375rem',
-                                            fontSize: '0.75rem',
-                                            color: 'var(--text-secondary)',
-                                            background: 'rgba(255, 255, 255, 0.04)',
-                                            border: '1px solid rgba(255, 255, 255, 0.06)',
-                                            padding: '0.3rem 0.65rem',
-                                            borderRadius: 'var(--radius-full)'
-                                        }}>
-                                            <Sparkles size={13} color="#f59e0b" />
-                                            <span>Staff PR Review</span>
-                                        </div>
+                                    <div style={{ fontSize: '0.85rem', color: '#60a5fa', fontWeight: 700, marginBottom: '0.85rem' }}>
+                                        Role: {company.role}
                                     </div>
 
-                                    {/* Tech Stacks */}
-                                    <div style={{ marginBottom: '1.5rem' }}>
-                                        <div style={{
-                                            fontSize: '0.6875rem',
-                                            fontWeight: 700,
-                                            color: 'var(--text-muted)',
-                                            marginBottom: '0.45rem',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.06em'
-                                        }}>
-                                            Production Stacks
+                                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: '0 0 1.25rem 0', flex: 1 }}>
+                                        {company.description}
+                                    </p>
+
+                                    {/* Scale Metrics & Tech Stack */}
+                                    <div style={{ marginBottom: '1.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
+                                            Scale & Infrastructure:
                                         </div>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
-                                            {(track.tech_stacks || ['Python', 'FastAPI', 'Redis']).map((tech, idx) => (
-                                                <span
-                                                    key={idx}
-                                                    style={{
-                                                        fontSize: '0.75rem',
-                                                        fontWeight: 600,
-                                                        background: 'rgba(59, 130, 246, 0.1)',
-                                                        border: '1px solid rgba(59, 130, 246, 0.25)',
-                                                        color: '#93c5fd',
-                                                        padding: '0.2rem 0.55rem',
-                                                        borderRadius: 'var(--radius-sm)'
-                                                    }}
-                                                >
+                                        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#f8fafc', marginBottom: '0.85rem' }}>
+                                            ⚡ {company.scaleMetrics}
+                                        </div>
+
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                            {company.stack.map(tech => (
+                                                <span key={tech} style={{
+                                                    fontSize: '0.7rem',
+                                                    padding: '0.2rem 0.5rem',
+                                                    borderRadius: '4px',
+                                                    background: 'rgba(255, 255, 255, 0.06)',
+                                                    color: '#cbd5e1',
+                                                    fontWeight: 600
+                                                }}>
                                                     {tech}
                                                 </span>
                                             ))}
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* High-Conversion Primary Action */}
-                                <button
-                                    onClick={() => navigate(`/simulations/${track.track_key}`)}
-                                    className="btn-primary"
+                                    {/* CTA Button */}
+                                    {isAvailable ? (
+                                        <button
+                                            onClick={() => handleSelectCompany(company.id)}
+                                            style={{
+                                                width: '100%',
+                                                padding: '0.85rem 1.25rem',
+                                                borderRadius: 'var(--radius-md)',
+                                                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                                color: '#ffffff',
+                                                fontWeight: 800,
+                                                fontSize: '0.95rem',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.5rem',
+                                                boxShadow: '0 4px 15px rgba(37, 99, 235, 0.35)'
+                                            }}
+                                        >
+                                            <span>Select Company & Choose Level</span>
+                                            <ArrowRight size={17} />
+                                        </button>
+                                    ) : (
+                                        <button
+                                            disabled
+                                            style={{
+                                                width: '100%',
+                                                padding: '0.85rem 1.25rem',
+                                                borderRadius: 'var(--radius-md)',
+                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                color: '#64748b',
+                                                fontWeight: 700,
+                                                fontSize: '0.9rem',
+                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                cursor: 'not-allowed'
+                                            }}
+                                        >
+                                            In Development (Coming Soon)
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* STEP 2: DIFFICULTY LEVEL SELECTION SCREEN                                  */}
+            {/* ========================================================================= */}
+            {currentStep === 'level' && (
+                <div>
+                    {/* Top Back Action & Company Pill */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                        <button
+                            onClick={() => setCurrentStep('company')}
+                            className="btn-ghost"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                        >
+                            <ArrowLeft size={16} />
+                            <span>Back to Companies</span>
+                        </button>
+
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.35rem 0.85rem',
+                            borderRadius: 'var(--radius-full)',
+                            background: 'rgba(59, 130, 246, 0.12)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            color: '#60a5fa',
+                            fontSize: '0.8125rem',
+                            fontWeight: 700
+                        }}>
+                            <CreditCard size={14} />
+                            <span>Active Company: {selectedCompany.name}</span>
+                        </div>
+                    </div>
+
+                    {/* Header */}
+                    <div style={{ textAlign: 'center', maxWidth: '750px', margin: '0 auto 2.5rem auto' }}>
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.35rem 0.85rem',
+                            borderRadius: 'var(--radius-full)',
+                            background: 'rgba(59, 130, 246, 0.12)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            color: '#60a5fa',
+                            fontSize: '0.8125rem',
+                            fontWeight: 700,
+                            marginBottom: '0.85rem'
+                        }}>
+                            <Layers size={15} />
+                            <span>Step 2 of 3 • Select Difficulty Level</span>
+                        </div>
+                        <h2 style={{ fontSize: '2.25rem', fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 0.75rem 0' }}>
+                            Choose Your Simulation Experience Level
+                        </h2>
+                        <p style={{ margin: 0, fontSize: '1rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                            Each level contains <strong>3 real hands-on sprint tickets</strong>. Start with gentle step-by-step guidance or dive straight into high-concurrency production outages.
+                        </p>
+                    </div>
+
+                    {/* 3 Difficulty Level Cards */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.75rem' }}>
+                        {Object.values(selectedCompany.levels).map((lvl) => {
+                            const isBeginner = lvl.levelId === 'beginner';
+                            const isIntermediate = lvl.levelId === 'intermediate';
+                            const isPro = lvl.levelId === 'pro';
+
+                            const accentBorder = isBeginner
+                                ? 'rgba(16, 185, 129, 0.5)'
+                                : isIntermediate
+                                ? 'rgba(245, 158, 11, 0.5)'
+                                : 'rgba(239, 68, 68, 0.5)';
+
+                            return (
+                                <div
+                                    key={lvl.levelId}
                                     style={{
-                                        width: '100%',
+                                        background: 'var(--bg-card)',
+                                        border: `2px solid ${accentBorder}`,
+                                        borderRadius: 'var(--radius-lg)',
+                                        padding: '2rem',
                                         display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '0.5rem',
-                                        padding: '0.8rem',
-                                        fontWeight: 700,
-                                        fontSize: '0.9375rem',
-                                        borderRadius: 'var(--radius-md)',
-                                        boxShadow: '0 4px 14px 0 rgba(59, 130, 246, 0.35)',
-                                        cursor: 'pointer'
+                                        flexDirection: 'column',
+                                        boxShadow: `0 10px 30px ${lvl.badgeBg}`,
+                                        transition: 'all 0.25s ease'
                                     }}
                                 >
-                                    <span>Enter Company Simulation</span>
-                                    <ArrowRight size={16} />
-                                </button>
-                            </div>
-                        ))}
+                                    {/* Top Level Badge & Duration */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                        <span style={{
+                                            fontSize: '0.75rem',
+                                            fontWeight: 800,
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.06em',
+                                            padding: '0.25rem 0.65rem',
+                                            borderRadius: 'var(--radius-full)',
+                                            backgroundColor: lvl.badgeBg,
+                                            color: lvl.color
+                                        }}>
+                                            {lvl.label}
+                                        </span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                            <Clock size={13} /> {lvl.duration}
+                                        </span>
+                                    </div>
 
-                        {/* Coming Soon Preview Card */}
-                        <div style={{
-                            background: 'rgba(15, 23, 42, 0.4)',
-                            border: '1px dashed rgba(255, 255, 255, 0.15)',
-                            borderRadius: 'var(--radius-lg)',
-                            padding: '1.75rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            opacity: 0.75
-                        }}>
-                            <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                        <div style={{
-                                            width: '42px',
-                                            height: '42px',
+                                    {/* Level Title */}
+                                    <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.35rem 0' }}>
+                                        {lvl.title}
+                                    </h3>
+                                    <div style={{ fontSize: '0.8rem', color: lvl.color, fontWeight: 700, marginBottom: '1rem' }}>
+                                        {lvl.audience}
+                                    </div>
+
+                                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: '0 0 1.25rem 0', flex: 1 }}>
+                                        {lvl.description}
+                                    </p>
+
+                                    {/* The 3 Tasks Checklist Preview */}
+                                    <div style={{ background: 'rgba(0, 0, 0, 0.2)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                        <div style={{ fontSize: '0.725rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>
+                                            3 Sprint Tasks Included:
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                            {lvl.tasks.map((task, tIdx) => (
+                                                <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.785rem', color: '#cbd5e1' }}>
+                                                    <span style={{ fontWeight: 800, color: lvl.color }}>{tIdx + 1}.</span>
+                                                    <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {task.title}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Select Level Button */}
+                                    <button
+                                        onClick={() => handleSelectLevel(lvl.levelId)}
+                                        style={{
+                                            width: '100%',
+                                            padding: '0.85rem 1.25rem',
                                             borderRadius: 'var(--radius-md)',
-                                            background: 'rgba(255, 255, 255, 0.05)',
-                                            border: '1px solid var(--border-color)',
+                                            background: isBeginner
+                                                ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
+                                                : isIntermediate
+                                                ? 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)'
+                                                : 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+                                            color: '#ffffff',
+                                            fontWeight: 800,
+                                            fontSize: '0.95rem',
+                                            border: 'none',
+                                            cursor: 'pointer',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            color: 'var(--text-muted)'
-                                        }}>
-                                            <Cpu size={22} />
-                                        </div>
-                                        <div>
-                                            <div style={{ fontWeight: 800, fontSize: '0.9375rem', color: 'var(--text-secondary)' }}>
-                                                CloudScale Networks
-                                            </div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                                Distributed Systems Engineer
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <span style={{
-                                        fontSize: '0.6875rem',
-                                        fontWeight: 700,
-                                        background: 'rgba(255, 255, 255, 0.08)',
-                                        color: 'var(--text-muted)',
-                                        padding: '0.2rem 0.5rem',
-                                        borderRadius: 'var(--radius-full)'
-                                    }}>
-                                        COMING SOON
-                                    </span>
+                                            gap: '0.5rem',
+                                            boxShadow: `0 4px 15px ${lvl.badgeBg}`
+                                        }}
+                                    >
+                                        <span>Select {lvl.label} & Review Tasks</span>
+                                        <ArrowRight size={17} />
+                                    </button>
                                 </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
-                                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-secondary)', margin: '0 0 0.5rem' }}>
-                                    Distributed Rate Limiter & Token Bucket Pipeline
-                                </h3>
-                                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: '0 0 1.25rem' }}>
-                                    Implement sliding window rate limiting across distributed Redis clusters with sub-millisecond latency requirements.
-                                </p>
+            {/* ========================================================================= */}
+            {/* STEP 3: SPRINT TASK REVIEW BRIEFING PAGE                                  */}
+            {/* ========================================================================= */}
+            {currentStep === 'review' && (
+                <div>
+                    {/* Top Back Action & Level Pill */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                        <button
+                            onClick={() => setCurrentStep('level')}
+                            className="btn-ghost"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                        >
+                            <ArrowLeft size={16} />
+                            <span>Back to Difficulty Selection</span>
+                        </button>
 
-                                <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
-                                    <span className="badge badge-gray" style={{ fontSize: '0.7rem' }}>Go / Golang</span>
-                                    <span className="badge badge-gray" style={{ fontSize: '0.7rem' }}>Redis Cluster</span>
-                                    <span className="badge badge-gray" style={{ fontSize: '0.7rem' }}>gRPC</span>
-                                </div>
-                            </div>
-
-                            <button
-                                disabled
-                                style={{
-                                    marginTop: '1.5rem',
-                                    width: '100%',
-                                    padding: '0.75rem',
-                                    borderRadius: 'var(--radius-md)',
-                                    background: 'rgba(255, 255, 255, 0.04)',
-                                    color: 'var(--text-muted)',
-                                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                                    fontSize: '0.875rem',
-                                    fontWeight: 600,
-                                    cursor: 'not-allowed'
-                                }}
-                            >
-                                In Engineering Review
-                            </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                                Company: <strong>{selectedCompany.name}</strong>
+                            </span>
+                            <span style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: 'var(--radius-full)',
+                                backgroundColor: selectedLevelData.badgeBg,
+                                color: selectedLevelData.color
+                            }}>
+                                {selectedLevelData.label} Level
+                            </span>
                         </div>
                     </div>
-                )}
-            </div>
+
+                    {/* Briefing Header Container */}
+                    <div style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: 'var(--radius-lg)',
+                        padding: '2rem',
+                        marginBottom: '2rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '1.5rem'
+                    }}>
+                        <div style={{ maxWidth: '650px' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>
+                                Pre-Simulation Briefing • {selectedLevelData.label} Sprint
+                            </div>
+                            <h2 style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>
+                                {selectedLevelData.title}
+                            </h2>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                                Review the 3 tasks assigned to your sprint below. In each task, you will make ~3 focused changes to solve enterprise tickets, run in-browser tests, and submit a Pull Request to AI Staff Engineer Marcus.
+                            </p>
+                        </div>
+
+                        {/* Top Start with IDE Hero CTA */}
+                        <button
+                            onClick={() => handleLaunchIde()}
+                            style={{
+                                padding: '1rem 2rem',
+                                borderRadius: 'var(--radius-md)',
+                                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                color: '#ffffff',
+                                fontWeight: 900,
+                                fontSize: '1.05rem',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.65rem',
+                                boxShadow: '0 8px 25px rgba(37, 99, 235, 0.4)',
+                                flexShrink: 0
+                            }}
+                        >
+                            <Terminal size={20} />
+                            <span>Start with IDE</span>
+                            <ArrowRight size={20} />
+                        </button>
+                    </div>
+
+                    {/* The 3 Tasks Breakdown List */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '2.5rem' }}>
+                        {selectedLevelData.tasks.map((task, idx) => {
+                            const isSelected = activeReviewTaskIndex === idx;
+                            return (
+                                <div
+                                    key={task.id}
+                                    style={{
+                                        background: 'var(--bg-card)',
+                                        border: isSelected ? '2px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.08)',
+                                        borderRadius: 'var(--radius-lg)',
+                                        padding: '1.75rem',
+                                        transition: 'all 0.2s ease',
+                                        cursor: 'pointer'
+                                    }}
+                                    onClick={() => setActiveReviewTaskIndex(idx)}
+                                >
+                                    {/* Task Header */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                            <span style={{
+                                                fontSize: '0.8rem',
+                                                fontWeight: 800,
+                                                padding: '0.2rem 0.55rem',
+                                                borderRadius: '6px',
+                                                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                                color: '#60a5fa'
+                                            }}>
+                                                Task {idx + 1}: {task.code}
+                                            </span>
+                                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                <FileCode size={13} color="#10b981" /> Target: <strong style={{ color: '#f8fafc' }}>{task.targetFile}</strong>
+                                            </span>
+                                        </div>
+
+                                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                            <Clock size={13} /> {task.duration}
+                                        </span>
+                                    </div>
+
+                                    {/* Task Title */}
+                                    <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.75rem 0' }}>
+                                        {task.title}
+                                    </h3>
+
+                                    {/* Mission Scenario Context */}
+                                    <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                                        <strong style={{ color: '#f8fafc' }}>Business Scenario:</strong> {task.scenario}
+                                    </p>
+
+                                    {/* The 3 Required Changes Preview Box */}
+                                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: 'var(--radius-md)', padding: '1rem', border: '1px solid rgba(255, 255, 255, 0.05)', marginBottom: '1.25rem' }}>
+                                        <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>
+                                            The 3 Changes Required In Your Code:
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                            {task.the3Changes.map((changeStr, cIdx) => (
+                                                <div key={cIdx} style={{ fontSize: '0.8125rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+                                                    {changeStr}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Acceptance Criteria Checklist */}
+                                    <div>
+                                        <div style={{ fontSize: '0.725rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.4rem', letterSpacing: '0.05em' }}>
+                                            Definition of Done (Acceptance Criteria):
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                            {task.acceptanceCriteria.map((crit, crIdx) => (
+                                                <div key={crIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.8rem', color: '#e2e8f0' }}>
+                                                    <CheckCircle2 size={14} color="#34d399" style={{ flexShrink: 0, marginTop: '2px' }} />
+                                                    <span>{crit}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Quick Launch this Ticket Button */}
+                                    <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)', display: 'flex', justifyContent: 'flex-end' }}>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleLaunchIde(task.code);
+                                            }}
+                                            style={{
+                                                padding: '0.45rem 0.95rem',
+                                                borderRadius: 'var(--radius-sm)',
+                                                background: 'rgba(59, 130, 246, 0.15)',
+                                                border: '1px solid rgba(59, 130, 246, 0.3)',
+                                                color: '#60a5fa',
+                                                fontSize: '0.8rem',
+                                                fontWeight: 700,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.35rem'
+                                            }}
+                                        >
+                                            <Play size={13} />
+                                            <span>Open {task.code} Directly in IDE</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Bottom Sticky Action Banner */}
+                    <div style={{
+                        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%)',
+                        border: '1px solid rgba(59, 130, 246, 0.3)',
+                        borderRadius: 'var(--radius-lg)',
+                        padding: '1.5rem 2rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '1rem',
+                        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)'
+                    }}>
+                        <div>
+                            <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
+                                Ready to write production code?
+                            </h4>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
+                                You will have access to all 3 tasks inside the IDE with real-time test execution and AI Staff Engineer review.
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={() => handleLaunchIde()}
+                            style={{
+                                padding: '0.95rem 1.75rem',
+                                borderRadius: 'var(--radius-md)',
+                                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                color: '#ffffff',
+                                fontWeight: 800,
+                                fontSize: '1rem',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                boxShadow: '0 4px 20px rgba(37, 99, 235, 0.4)'
+                            }}
+                        >
+                            <Terminal size={18} />
+                            <span>Launch Simulation IDE Now</span>
+                            <ArrowRight size={18} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* FULL-SCREEN SIMULATION IDE MODAL                                          */}
+            {/* ========================================================================= */}
+            {showIdeLab && (
+                <DeveloperSimulationLab
+                    companyId={selectedCompanyId}
+                    selectedLevel={selectedLevelId}
+                    initialGuidedMode={selectedLevelId !== 'pro'}
+                    initialTicketCode={ideInitialTicket}
+                    onClose={() => setShowIdeLab(false)}
+                />
+            )}
         </div>
     );
 };

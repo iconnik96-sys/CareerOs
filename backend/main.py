@@ -72,12 +72,12 @@ else:
 # Enable CORS for frontend local development & production deployments
 cors_origin_regex = os.getenv(
     "CORS_ORIGIN_REGEX",
-    r"^https://(careeros|careeros-[a-z0-9\-]+)\.(vercel\.app|netlify\.app)$"
+    r"^https://.*(\.netlify\.app|\.vercel\.app|\.onrender\.com)$"
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=allowed_origins if "*" not in allowed_origins else ["*"],
     allow_origin_regex=cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],

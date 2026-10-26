@@ -10,6 +10,7 @@ import { wasmExecutionService } from '../../services/wasmExecutionService';
 import { simulationService } from '../../services/simulationService';
 import { useToast } from '../../contexts/ToastContext';
 import { getCompanyById, getLevelData } from '../../data/simulationCatalog';
+import { useSubscription } from '../../contexts/SubscriptionContext';
 
 // Original unedited repository baseline
 const STARTER_REPOSITORY_FILES = {
@@ -551,6 +552,11 @@ export const DeveloperSimulationLab = ({
     onSelectTicket = null
 }) => {
     const toast = useToast();
+    const {
+        checkFeatureAccess,
+        triggerUpgradeModal,
+        recordUsage
+    } = useSubscription();
 
     // Pull company and level tasks from simulationCatalog
     const company = getCompanyById(companyId);
@@ -565,8 +571,12 @@ export const DeveloperSimulationLab = ({
 
     const currentTicketData = simulationTasks.find(t => t.code === currentTicketCode) || simulationTasks[0];
 
-    // Guided Mode for Freshers vs Pro Mode for Advanced Students
-    const [isGuidedMode, setIsGuidedMode] = useState(initialGuidedMode);
+    // Guided Mode for Freshers vs Pro Mode for Advanced Students (Guarded by subscription tier)
+    const [isGuidedMode, setIsGuidedMode] = useState(() => {
+        const proAccess = checkFeatureAccess('pro_ide');
+        if (!proAccess.allowed) return true; // Force guided mode if not on Pro plan
+        return initialGuidedMode;
+    });
     const [showGuidedHint, setShowGuidedHint] = useState(false);
 
     // Tests Passing State (Controls Pull Request submission lock!)
@@ -596,6 +606,11 @@ export const DeveloperSimulationLab = ({
     }, [initialTicketCode, activeTicket?.ticket_code, selectedLevel, companyId]);
 
     const handleSwitchTicket = (newCode) => {
+        const access = checkFeatureAccess('simulation', { ticketCode: newCode, levelId: selectedLevel });
+        if (!access.allowed) {
+            triggerUpgradeModal(access);
+            return;
+        }
         setCurrentTicketCode(newCode);
         const t = simulationTasks.find(item => item.code === newCode) || simulationTasks[0];
         setActiveFile(t.targetFile);
@@ -1171,6 +1186,8 @@ export const DeveloperSimulationLab = ({
             };
             setLocalReview(generatedReview);
             setShowReviewModal(true);
+            // Record task completion against user subscription quota
+            recordUsage('simulation', { ticketCode: currentTicketData.code });
         }, 500);
     };
 
@@ -1356,7 +1373,14 @@ export const DeveloperSimulationLab = ({
                             🟢 Guided Mode (Freshers)
                         </button>
                         <button
-                            onClick={() => setIsGuidedMode(false)}
+                            onClick={() => {
+                                const proAccess = checkFeatureAccess('pro_ide');
+                                if (!proAccess.allowed) {
+                                    triggerUpgradeModal(proAccess);
+                                    return;
+                                }
+                                setIsGuidedMode(false);
+                            }}
                             style={{
                                 padding: '0.28rem 0.75rem',
                                 borderRadius: '4px',
@@ -1700,6 +1724,11 @@ export const DeveloperSimulationLab = ({
                                     <button
                                         type="button"
                                         onClick={() => {
+                                            const autoAccess = checkFeatureAccess('guided_autofill');
+                                            if (!autoAccess.allowed) {
+                                                triggerUpgradeModal(autoAccess);
+                                                return;
+                                            }
                                             const solution = currentTicketData.solutionCode || currentTicketData.fixCode;
                                             if (solution) {
                                                 handleFileChange(currentTicketData.targetFile, solution);

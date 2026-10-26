@@ -15,6 +15,7 @@ import {
     serializeResumeToText
 } from '../../utils/atsResumeChecker';
 import { aiFastApiService } from '../../services/aiFastApiService';
+import { useSubscription } from '../../contexts/SubscriptionContext';
 
 const ROLE_OPTIONS = [
     'Java Backend Developer',
@@ -34,6 +35,7 @@ export const LiveAtsChecker = ({
     onTargetRoleChange,
     showToast
 }) => {
+    const { checkFeatureAccess, triggerUpgradeModal, recordUsage } = useSubscription();
     const [selectedRole, setSelectedRole] = useState(targetRole || 'Java Backend Developer');
     const [isExpanded, setIsExpanded] = useState(false);
     const [activeTab, setActiveTab] = useState('all'); // 'all' | 'issues' | 'keywords' | 'ai_deep'
@@ -115,6 +117,12 @@ export const LiveAtsChecker = ({
 
     // Handler to run Deep AI ATS Analysis via FastAPI / Groq
     const handleRunDeepAiAudit = async () => {
+        const access = checkFeatureAccess('resume_scan');
+        if (!access.allowed) {
+            triggerUpgradeModal(access);
+            return;
+        }
+
         const plainText = serializeResumeToText(resumeData);
         if (!plainText || plainText.length < 20) {
             if (showToast) showToast('Resume content is too short for AI analysis.', 'warning');
@@ -133,6 +141,7 @@ export const LiveAtsChecker = ({
                 job_description: `Targeting competitive ${selectedRole} opportunities at top tech organizations.`
             });
             setAiDeepResult(result);
+            recordUsage('resume_scan');
             if (showToast) {
                 showToast(`Deep AI ATS Audit completed! Match score: ${result.match_score}/100`, 'success');
             }

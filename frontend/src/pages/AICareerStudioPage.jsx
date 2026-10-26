@@ -8,7 +8,7 @@ import { runLiveAtsCheck } from '../utils/atsResumeChecker';
 import {
     Sparkles, Wand2, Copy, Check, Download,
     AlertCircle, Activity, Database, Zap, BookmarkCheck,
-    MessageSquare, FileText, Target
+    MessageSquare, FileText, Target, Crown, Lock, Gift
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
@@ -19,6 +19,7 @@ import { projectService } from '../services/projectService';
 import { ResumeBuilder } from '../components/resume/ResumeBuilder';
 import { ResumePreview } from '../components/resume/ResumePreview';
 import { LiveAtsChecker } from '../components/resume/LiveAtsChecker';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 const POPULAR_COMPANIES = [
     'Razorpay', 'Swiggy', 'Postman', 'CRED', 'Zomato',
@@ -180,6 +181,14 @@ const getInitialResumeData = (profile) => {
 export const AICareerStudioPage = () => {
     const { profile, user } = useAuth();
     const { showToast } = useToast();
+    const {
+        currentPlan,
+        usage,
+        checkFeatureAccess,
+        triggerUpgradeModal,
+        recordUsage,
+        setIsReferralModalOpen
+    } = useSubscription();
     const [activeTab, setActiveTab] = useState('resume_builder'); // 'resume_builder' | 'cover_letter' | 'bullet_enhancer'
     const [backendOnline, setBackendOnline] = useState(null);
     const [knownCompanies, setKnownCompanies] = useState([]);
@@ -388,6 +397,11 @@ export const AICareerStudioPage = () => {
 
     const handleGenerateCoverLetter = async (e) => {
         e.preventDefault();
+        const access = checkFeatureAccess('cover_letter');
+        if (!access.allowed) {
+            triggerUpgradeModal(access);
+            return;
+        }
         setClLoading(true);
         try {
             const res = await aiFastApiService.generateRagCompanyOutreach({
@@ -402,6 +416,7 @@ export const AICareerStudioPage = () => {
                 tone: clTone
             });
             setClResult(res);
+            recordUsage('cover_letter');
             showToast(`Generated application package for ${clCompany}!`, 'success');
         } catch {
             showToast('Failed to generate cover letter & outreach', 'error');

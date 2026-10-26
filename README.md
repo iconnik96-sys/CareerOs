@@ -63,33 +63,53 @@ CareerOS/
    - **Tailored Cover Letter Generator**: Generates customized, JD-aligned cover letters highlighting authentic candidate projects.
    - **STAR Resume Bullet Polisher**: Rewrites weak draft bullet points into metric-rich statements following Google's **XYZ Formula** (*"Accomplished [X] as measured by [Y], by doing [Z]"*).
    - **Recruiter & Alumni Cold Outreach**: Generates high-conversion LinkedIn connection notes (<300 chars) and InMail/email referral pitches.
-2. **AI Live Interview Prep & Answer Evaluator (`/interview-prep`)**:
-   - Practice role-specific technical and behavioral questions across difficulty tiers (*Easy, Medium, Hard*).
-   - Instant 0–100 rubric scoring across 4 dimensions: **Technical Accuracy**, **STAR Structure**, **Depth**, and **Communication Clarity**.
+2. **Enterprise AI Work Simulation Lab (`/simulations`)**:
+   - Recreated from scratch with a **4-step progressive funnel**: Company Selection ➔ Difficulty Tier ➔ Sprint Briefing ➔ Interactive Engineering IDE.
+   - **9 Real-World Microservice Tasks** across 3 Difficulty Levels:
+     - 🟢 **Beginner**: ISO-4217 Currency Boundary Check, API Authentication Middleware, RFC-7807 Error Sanitizer.
+     - 🟡 **Intermediate**: Distributed Idempotency Locks (Redis `SET NX`), Sliding Window Rate Limiting, Resilient Webhook HMAC Dispatch.
+     - 🔴 **Pro Outages**: DB Connection Pool Bottlenecks (504 Outage Resolution), Finite State Machine Circuit Breakers, Go Goroutine Memory Leak Elimination.
+   - **Dual Engineering Modes**:
+     - **🟢 Guided Mode (Freshers)**: "The 3 Changes Required In Your Code" box, acceptance criteria checklist, 1-click hints, and auto-apply fix buttons.
+     - **⚡ Pro IDE Mode**: 4-pane workstation (Explorer, tabbed editor with real-time Git Gutter addition/modified annotations, Linux terminal, and Marcus Socratic AI mentor).
+   - **Automated WebAssembly (WASM) In-Browser Test Suite**: Strictly locks PR submission until unit and boundary assertions pass.
+   - **Marcus Staff AI Review Modal**: 0–100 score, acceptance criteria breakdown, and authentic Google XYZ resume bullets.
+3. **AI Voice & Technical Interview Prep (`/interview-prep`)**:
+   - Practice technical and behavioral interviews with real-time speech transcription.
+   - Instant 0–100 rubric scoring across 4 vectors: **Technical Accuracy**, **STAR Structure**, **Depth**, and **Communication Clarity**.
    - Generates upgraded Staff-level model answers with actionable feedback.
-3. **Multi-Vector Resume & ATS Analyzer (`/resume-analysis`)**:
+4. **Multi-Vector Resume & ATS Analyzer (`/resume-analysis`)**:
    - Upload PDF/DOCX or paste resume text for instant scoring across 4 vectors: **Technical Depth**, **Impact Metrics**, **Structure & Formatting**, and **ATS Match Score**.
    - Automatic missing keyword detection with concrete bullet-point improvement suggestions.
-4. **Job Skill Analyzer & Recharts Visualizations (`/job-analyzer`)**:
+5. **Job Skill Analyzer & Recharts Visualizations (`/job-analyzer`)**:
    - Paste any target Job Description (JD) to automatically extract required vs. preferred technologies, calculate percentage match, and generate a step-by-step preparation plan.
-5. **Canonical & Custom Role Roadmaps (`/roadmap`)**:
+6. **Canonical & Custom Role Roadmaps (`/roadmap`)**:
    - Phased role roadmaps (*Foundations ➔ Core Mastery ➔ Production Architecture ➔ Capstone Project*) with interactive progress tracking.
-6. **Application Kanban Pipeline (`/applications`)**:
+7. **Application Kanban Pipeline (`/applications`)**:
    - Drag-and-drop / stage management for job applications (*Saved, Applied, Assessment, Interview, Offer, Rejected*), target salary tracking, and custom interview notes.
-7. **Global AI Career Copilot**:
-   - Multi-turn conversational AI career mentor accessible across the platform for real-time guidance.
-8. **Enterprise-Grade Multi-Tenant Isolation**:
-   - Supabase PostgreSQL with strict **Row Level Security (RLS)** (`auth.uid() = user_id`) and automated profile creation triggers.
+8. **Campus Placement Officer (TPO) Portal (`/campus`)**:
+   - Institutional dashboard for college Training & Placement Officers to track student batch readiness, skill gap heatmaps, and placement eligibility.
+9. **Founder Admin & Analytics Suite (`/founder`)**:
+   - Real-time LLM telemetry, system health, token consumption analytics, model switching, and audit logging.
+10. **Global AI Career Copilot**:
+    - Multi-turn conversational AI career mentor accessible across the platform for real-time guidance.
+11. **Enterprise-Grade Multi-Tenant Isolation**:
+    - Supabase PostgreSQL with strict **Row Level Security (RLS)** (`auth.uid() = user_id`) and automated profile creation triggers.
+12. **3-Tier Monetization & Viral Referral System (`/pricing`)**:
+    - **Tiered Quotas**: Free Starter (1 Simulation, 1 Spoken Interview of 5m, 1 ATS Scan), Student Premium (₹149/mo: 6 Tasks, 5 Voice Interviews, 15 ATS Scans), and Placement Pro (₹299/mo: All 9 Tasks, 12 Spoken Rounds, 40 ATS Scans, Full Pro IDE).
+    - **3-Month Placement Pass**: Quarterly pass offering a 25% discount (₹349 and ₹699) tailored for final-year college placement drives.
+    - **"Give 2, Get 2" Viral Referral Hub**: Generates unique shareable codes (`CAREER-XXXX`) and WhatsApp 1-click invite links, unlocking +2 Free Voice Mock Interviews for both users upon subscription.
+    - **Secure Sandbox Checkout**: Test-mode payment gateway simulating UPI (GPay, PhonePe, Paytm), QR code scanning, and cards with instant provisioning and VIP Demo account bypass.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: React 19, TypeScript, Vite, React Router v7, Recharts, Lucide React
-- **AI Microservice**: Python 3.11+, FastAPI, Uvicorn, Pydantic, Groq SDK (`llama-3.3-70b-versatile`)
+- **Frontend**: React 19, TypeScript, Vite, React Router v7, Recharts, Lucide React, WebAssembly (WASM test runner)
+- **AI Microservice**: Python 3.11+, FastAPI, Uvicorn, Pydantic, Groq SDK (`llama-3.3-70b-versatile` / `gpt-oss-120b`)
 - **Database & BaaS**: Supabase (PostgreSQL 15, GoTrue Auth, Storage Buckets, Row-Level Security, PostgreSQL Triggers)
 - **Styling**: Pure Vanilla CSS Design System (Custom dark SaaS theme tokens, responsive layouts, glassmorphism)
-- **Containerization**: Docker, Docker Compose, Nginx
+- **Hosting & Cloud**: Netlify (Frontend CDN), Render (FastAPI Cloud Container), Docker & Docker Compose
 
 ---
 
@@ -105,7 +125,10 @@ CareerOS/
 | `POST` | `/api/resume/analyze` | Evaluates resume text & computes ATS metrics |
 | `POST` | `/api/jobs/match` | Matches candidate profile against a Job Description |
 | `POST` | `/api/roadmap/generate` | Generates a custom phased learning roadmap |
+| `POST` | `/api/simulation/evaluate` | Evaluates simulation task code submission & issues review |
 | `POST` | `/api/copilot/chat` | Conversational multi-turn AI career copilot |
+| `GET` | `/api/campus/overview` | Institutional placement statistics & readiness metrics |
+| `GET` | `/api/admin/metrics` | Founder platform analytics & token usage metrics |
 
 ---
 

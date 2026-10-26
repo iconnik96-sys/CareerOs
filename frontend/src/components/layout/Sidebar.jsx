@@ -1,15 +1,29 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSubscription } from '../../contexts/SubscriptionContext';
 import {
   LayoutDashboard, User, FileText, ScanSearch, Briefcase, Layers,
   Milestone, HelpCircle, Settings, LogOut, Sparkles, Terminal,
-  ShieldAlert, Building2
+  ShieldAlert, Building2, CreditCard, ArrowRight, Mic
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
   const { user, profile, logout } = useAuth();
+  const { currentPlan, activePlanId, usage, totalVoiceInterviewsAllowed, isVipBypass } = useSubscription();
   const navigate = useNavigate();
+
+  const simsUsed = usage?.simulations_completed?.length || 0;
+  const simsTotal = currentPlan.simulations_allowed || 1;
+  const simsRemaining = isVipBypass ? '∞' : Math.max(0, simsTotal - simsUsed);
+
+  const voiceUsed = usage?.voice_interviews_count || 0;
+  const voiceTotal = totalVoiceInterviewsAllowed || 1;
+  const voiceRemaining = isVipBypass ? '∞' : Math.max(0, voiceTotal - voiceUsed);
+
+  const scansUsed = usage?.resume_scans_count || 0;
+  const scansTotal = currentPlan.resume_scans_allowed || 1;
+  const scansRemaining = isVipBypass ? '∞' : Math.max(0, scansTotal - scansUsed);
 
   const handleLogout = async () => {
     await logout();
@@ -23,6 +37,7 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
     { to: '/simulations', label: 'Workplace Simulation', icon: <Terminal size={18} />, badge: 'Code IDE' },
     { to: '/interview-prep', label: 'Mock Interviews', icon: <HelpCircle size={18} />, badge: 'AI Voice' },
     { to: '/jobs', label: 'Jobs & Pipeline', icon: <Briefcase size={18} />, badge: 'Matches' },
+    { to: '/pricing', label: 'Plans & Upgrades', icon: <CreditCard size={18} />, badge: '₹149' },
   ];
 
   return (<aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}>
@@ -108,6 +123,61 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
         </div>
       )}
     </nav>
+
+    {/* Plan Quotas & Remaining Features Quick Card */}
+    <div style={{
+      margin: '0.5rem 0.75rem 0.35rem',
+      padding: '0.65rem 0.75rem',
+      backgroundColor: 'rgba(255, 255, 255, 0.03)',
+      border: '1px solid rgba(255, 255, 255, 0.08)',
+      borderRadius: '10px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.45rem'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f8fafc' }}>
+          {currentPlan.badge}
+        </span>
+        <NavLink
+          to="/pricing"
+          onClick={onCloseMobile}
+          style={{
+            fontSize: '0.68rem',
+            color: '#818cf8',
+            fontWeight: 700,
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '2px'
+          }}
+        >
+          <span>Upgrade</span>
+          <ArrowRight size={10} />
+        </NavLink>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.7rem', color: '#94a3b8' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>🛠️ Tasks</span>
+          <strong style={{ color: simsRemaining > 0 ? '#38bdf8' : '#ef4444' }}>
+            {isVipBypass ? 'Unlimited' : `${simsRemaining} left`}
+          </strong>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>🎙️ Voice Rounds</span>
+          <strong style={{ color: voiceRemaining > 0 ? '#a78bfa' : '#ef4444' }}>
+            {isVipBypass ? 'Unlimited' : `${voiceRemaining} left`}
+          </strong>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>📄 ATS Scans</span>
+          <strong style={{ color: scansRemaining > 0 ? '#34d399' : '#ef4444' }}>
+            {isVipBypass ? 'Unlimited' : `${scansRemaining} left`}
+          </strong>
+        </div>
+      </div>
+    </div>
 
     {/* Sidebar Footer User Info & Quick Action Icons */}
     <div className="sidebar-footer">

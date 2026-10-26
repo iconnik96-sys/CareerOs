@@ -187,5 +187,6 @@ def health_check():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
-    host = os.getenv("HOST", "0.0.0.0")
+    # Default to localhost to avoid permission issues on Windows
+    host = os.getenv("HOST", "127.0.0.1")
     uvicorn.run("main:app", host=host, port=port, reload=True, app_dir=backend_dir)

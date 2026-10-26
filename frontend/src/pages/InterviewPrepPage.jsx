@@ -11,13 +11,15 @@ import {
   HelpCircle, Plus, Mic, Play, Radio, Filter, SlidersHorizontal, Keyboard,
   X, ChevronDown, ChevronUp, ArrowRight, BookOpen, Cpu, Code, MessageSquare,
   Headphones, CheckCircle, FileText, ChevronLeft, ChevronRight, Download,
-  Award, Activity, ListChecks, Target, RotateCcw, AlertTriangle, Flame
+  Award, Activity, ListChecks, Target, RotateCcw, AlertTriangle, Flame,
+  Gift, Lock
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { LiveInterviewModal, INTERVIEW_MODES } from '../components/interview/LiveInterviewModal';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import { downloadInterviewReportPdf } from '../utils/interviewPdfExport';
 import { InconvenienceNotice } from '../components/common/InconvenienceNotice';
 
@@ -27,6 +29,15 @@ const QUESTION_COUNTS = [5, 10, 15, 20];
 export const InterviewPrepPage = () => {
   const { profile } = useAuth();
   const { showToast } = useToast();
+  const {
+    currentPlan,
+    usage,
+    totalVoiceInterviewsAllowed,
+    checkFeatureAccess,
+    triggerUpgradeModal,
+    recordUsage,
+    setIsReferralModalOpen
+  } = useSubscription();
 
   const targetRole = profile?.target_role || 'Backend Developer';
   const roleSlug = getRoleSlug(targetRole);
@@ -52,6 +63,19 @@ export const InterviewPrepPage = () => {
   const [revealedIds, setRevealedIds] = useState([]);
   const [masteredIds, setMasteredIds] = useState([]);
   const [liveModalOpen, setLiveModalOpen] = useState(false);
+
+  const handleOpenVoiceModal = (trackId = null) => {
+    const access = checkFeatureAccess('voice_interview');
+    if (!access.allowed) {
+      triggerUpgradeModal(access);
+      return;
+    }
+    if (trackId) {
+      setSelectedTrack(trackId);
+    }
+    recordUsage('voice_interview');
+    setLiveModalOpen(true);
+  };
 
   // Sequential Interactive Technical Assessment State
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -510,9 +534,39 @@ export const InterviewPrepPage = () => {
                 <span className="badge badge-success" style={{ fontSize: '0.725rem' }}>
                   Natural Voice Controls
                 </span>
-                <span className="badge badge-neutral" style={{ fontSize: '0.725rem' }}>
-                  15-Minute Mock Round
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '999px',
+                  background: 'rgba(99, 102, 241, 0.2)',
+                  border: '1px solid rgba(99, 102, 241, 0.4)',
+                  color: '#818cf8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  🎙️ Voice Sessions: {(usage?.voice_interviews_count || 0)} / {totalVoiceInterviewsAllowed} Used
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setIsReferralModalOpen(true)}
+                  style={{
+                    background: 'rgba(168, 85, 247, 0.15)',
+                    border: '1px solid rgba(168, 85, 247, 0.35)',
+                    color: '#c084fc',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '999px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Gift size={12} /> +2 Free Sessions with Referral
+                </button>
               </div>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0.25rem 0 0.5rem 0' }}>
                 Practice Live Voice Interview with AI
@@ -525,7 +579,7 @@ export const InterviewPrepPage = () => {
             <Button
               variant="primary"
               size="lg"
-              onClick={() => setLiveModalOpen(true)}
+              onClick={() => handleOpenVoiceModal()}
               leftIcon={<Mic size={20} />}
               style={{
                 padding: '1rem 2rem',
@@ -601,7 +655,7 @@ export const InterviewPrepPage = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setLiveModalOpen(true)}
+                  onClick={() => handleOpenVoiceModal(mode.id)}
                   rightIcon={<ArrowRight size={14} />}
                   style={{ width: '100%', justifyContent: 'center', fontWeight: 600 }}
                 >

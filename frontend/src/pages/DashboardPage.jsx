@@ -8,14 +8,22 @@ import { projectService } from '../services/projectService';
 import { habitTrackerService } from '../services/habitTrackerService';
 import { calculateCareerReadiness, calculateCareerReadinessBreakdown, getSkillGapsForRole, getRecommendedActionsForRole, getRoleDisplayName } from '../utils/careerRoles';
 import { getActiveAtsScore } from '../utils/atsResumeChecker';
-import { Layers, Users, Award, TrendingUp, ArrowRight, Briefcase, CheckCircle2, AlertCircle, Calendar, Sparkles, CheckCircle, Flame, Zap, Clock, Trophy, ChevronRight, ShieldCheck } from 'lucide-react';
+import { Layers, Users, Award, TrendingUp, ArrowRight, Briefcase, CheckCircle2, AlertCircle, Calendar, Sparkles, CheckCircle, Flame, Zap, Clock, Trophy, ChevronRight, ShieldCheck, Gift, Crown, Lock } from 'lucide-react';
 import { CircularProgress } from '../components/common/CircularProgress';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 export const DashboardPage = () => {
     const { user, profile } = useAuth();
+    const {
+        currentPlan,
+        activePlanId,
+        usage,
+        totalVoiceInterviewsAllowed,
+        setIsReferralModalOpen
+    } = useSubscription();
 
     // Instant SWR cache to eliminate the 1-second flash when switching pages
     const getCached = (key, fallback) => {
@@ -244,6 +252,93 @@ export const DashboardPage = () => {
             <Button variant="ghost" size="sm" style={{ color: 'var(--text-secondary)' }}>
               Edit Profile
             </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* TIER 0: Plan Status & Referral Quick Hub */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.6) 100%)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1rem 1.5rem',
+        marginBottom: '1.25rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '1rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>Active Plan:</span>
+            <span style={{
+              fontSize: '0.8rem',
+              fontWeight: 800,
+              padding: '0.2rem 0.6rem',
+              borderRadius: '999px',
+              background: activePlanId === 'pro'
+                ? 'rgba(236, 72, 153, 0.15)'
+                : activePlanId === 'premium'
+                ? 'rgba(99, 102, 241, 0.15)'
+                : 'rgba(255, 255, 255, 0.08)',
+              color: activePlanId === 'pro' ? '#f472b6' : activePlanId === 'premium' ? '#818cf8' : '#cbd5e1',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              {currentPlan.badge}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', fontSize: '0.78rem', color: '#cbd5e1' }}>
+            <span>🛠️ Tasks: <strong>{usage?.simulations_completed?.length || 0}/{currentPlan.simulations_allowed}</strong></span>
+            <span>🎙️ Spoken Rounds: <strong>{usage?.voice_interviews_count || 0}/{totalVoiceInterviewsAllowed}</strong></span>
+            <span>📄 ATS Scans: <strong>{usage?.resume_scans_count || 0}/{currentPlan.resume_scans_allowed}</strong></span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <button
+            type="button"
+            onClick={() => setIsReferralModalOpen(true)}
+            style={{
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              background: 'rgba(168, 85, 247, 0.15)',
+              border: '1px solid rgba(168, 85, 247, 0.35)',
+              color: '#c084fc',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem'
+            }}
+          >
+            <Gift size={14} />
+            <span>Refer (+2 Free)</span>
+          </button>
+
+          <Link to="/pricing" style={{ textDecoration: 'none' }}>
+            <button
+              type="button"
+              style={{
+                padding: '0.45rem 0.95rem',
+                borderRadius: '8px',
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                border: 'none',
+                color: '#fff',
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                boxShadow: '0 2px 10px rgba(99, 102, 241, 0.3)'
+              }}
+            >
+              <span>{activePlanId === 'pro' ? 'Manage Plan' : 'Upgrade Plan (₹149)'}</span>
+              <ArrowRight size={13} />
+            </button>
           </Link>
         </div>
       </div>

@@ -14,6 +14,7 @@ import { Badge } from '../common/Badge';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSubscription } from '../../contexts/SubscriptionContext';
 import { aiFastApiService } from '../../services/aiFastApiService';
 import { profileService } from '../../services/profileService';
 import { calculateCareerReadiness } from '../../utils/careerRoles';
@@ -71,11 +72,13 @@ export const INTERVIEW_MODES = [
     }
 ];
 
-const INTERVIEW_DURATION_SECONDS = 15 * 60; // 15 Minutes (comfortably accommodates deep answers)
+const DEFAULT_FREE_DURATION_SECONDS = 5 * 60; // 5 Minutes for Free tier
 
 export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Developer', initialQuestions = [] }) => {
     const { showToast } = useToast();
     const { profile, user } = useAuth();
+    const { currentPlan, triggerUpgradeModal } = useSubscription();
+    const sessionDurationSeconds = (currentPlan?.voice_duration_minutes || 5) * 60;
     const candidateName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Candidate';
 
     // Setup & Configuration State
@@ -181,8 +184,15 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         };
     };
 
-    // 15-Minute Countdown Timer State
-    const [secondsLeft, setSecondsLeft] = useState(INTERVIEW_DURATION_SECONDS);
+    // Plan-Aware Countdown Timer State (5 min Free, 20 min Premium, 30 min Pro)
+    const [secondsLeft, setSecondsLeft] = useState(sessionDurationSeconds);
+
+    // Sync seconds left when plan changes or modal opens
+    useEffect(() => {
+        if (!isStarted) {
+            setSecondsLeft(sessionDurationSeconds);
+        }
+    }, [sessionDurationSeconds, isStarted]);
 
     // Voice & Turn-taking State (Full-Duplex Hands-Free Voice)
     const [isListening, setIsListening] = useState(false);
@@ -486,7 +496,11 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         stopListening();
         speechController.cancel();
         setIsAiSpeaking(false);
-        showToast('Time limit reached. Concluding interview and calculating scorecard...', 'warning');
+        if (currentPlan?.id === 'free') {
+            showToast('Your 5-minute Free Tier interview round has ended. Upgrade to Premium for 20-min rounds!', 'warning');
+        } else {
+            showToast('Time limit reached. Concluding interview and calculating scorecard...', 'warning');
+        }
 
         // If candidate was speaking on the current question when time expired, commit their answer
         const speechSoFar = (committedPriorTextRef.current || transcriptAccumulatorRef.current || transcript || interimTranscript || '').trim();
@@ -929,7 +943,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         setTranscript('');
         transcriptAccumulatorRef.current = '';
         committedPriorTextRef.current = '';
-        setSecondsLeft(INTERVIEW_DURATION_SECONDS);
+        setSecondsLeft(sessionDurationSeconds);
 
         const modeObj = INTERVIEW_MODES.find(m => m.id === selectedMode);
 
@@ -1249,7 +1263,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         setConversationLog([]);
         transcriptAccumulatorRef.current = '';
         setCurrentEvaluation(null);
-        setSecondsLeft(INTERVIEW_DURATION_SECONDS);
+        setSecondsLeft(sessionDurationSeconds);
         speechController.cancel();
         stopListening();
     };

@@ -32,6 +32,8 @@ import { FounderAdminPage } from './pages/FounderAdminPage';
 import { CampusDashboard } from './pages/CampusDashboard';
 import { AcceptCampusInvitePage } from './pages/AcceptCampusInvitePage';
 import { StudentJoinBatchPage } from './pages/StudentJoinBatchPage';
+import { PricingPage } from './pages/PricingPage';
+import { SubscriptionProvider } from './contexts/SubscriptionContext';
 
 // Guard component that requires authenticated session
 const ProtectedRoute = ({ children }) => {
@@ -100,47 +102,50 @@ export const App = () => {
             <AuthProvider>
                 <ThemeProvider>
                     <ToastProvider>
-                        <Router>
-                            <Routes>
-                                {/* Public Landing & Auth */}
-                                <Route path="/" element={<LandingPage />} />
-                                <Route path="/login" element={<LoginPage />} />
-                                <Route path="/register" element={<RegisterPage />} />
-                                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                                <Route path="/campus/accept-invite" element={<AcceptCampusInvitePage />} />
-                                <Route path="/join/:code" element={<StudentJoinBatchPage />} />
-                                <Route path="/join" element={<StudentJoinBatchPage />} />
-                                <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-                                <Route path="/cosmic-demo" element={<DemoOne />} />
+                        <SubscriptionProvider>
+                            <Router>
+                                <Routes>
+                                    {/* Public Landing & Auth */}
+                                    <Route path="/" element={<LandingPage />} />
+                                    <Route path="/login" element={<LoginPage />} />
+                                    <Route path="/register" element={<RegisterPage />} />
+                                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                                    <Route path="/campus/accept-invite" element={<AcceptCampusInvitePage />} />
+                                    <Route path="/join/:code" element={<StudentJoinBatchPage />} />
+                                    <Route path="/join" element={<StudentJoinBatchPage />} />
+                                    <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+                                    <Route path="/cosmic-demo" element={<DemoOne />} />
 
-                                {/* Protected App Routes with AppLayout Shell */}
-                                <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                                    <Route path="/dashboard" element={<DashboardPage />} />
-                                    <Route path="/campus" element={<CampusRoute><CampusDashboard /></CampusRoute>} />
-                                    <Route path="/campus-dashboard" element={<CampusRoute><CampusDashboard /></CampusRoute>} />
-                                    <Route path="/tpo" element={<CampusRoute><CampusDashboard /></CampusRoute>} />
-                                    <Route path="/profile" element={<CareerProfilePage />} />
-                                    <Route path="/ai-studio" element={<AICareerStudioPage />} />
-                                    <Route path="/ai-career-studio" element={<AICareerStudioPage />} />
-                                    <Route path="/resume" element={<Navigate to="/ai-studio" replace />} />
-                                    <Route path="/resume-analysis" element={<Navigate to="/ai-studio" replace />} />
-                                    <Route path="/job-analyzer" element={<JobAnalyzerPage />} />
-                                    <Route path="/jobs" element={<JobsPage />} />
-                                    <Route path="/jobs/:id" element={<JobDetailsPage />} />
-                                    <Route path="/applications" element={<ApplicationsPage />} />
-                                    <Route path="/roadmap" element={<CareerRoadmapPage />} />
-                                    <Route path="/interview-prep" element={<InterviewPrepPage />} />
-                                    <Route path="/simulations" element={<SimulationsPage />} />
-                                    <Route path="/simulations/:trackKey" element={<SimulationWorkspacePage />} />
-                                    <Route path="/settings" element={<SettingsPage />} />
-                                    <Route path="/admin" element={<FounderRoute><FounderAdminPage /></FounderRoute>} />
-                                    <Route path="/founder" element={<FounderRoute><FounderAdminPage /></FounderRoute>} />
-                                </Route>
+                                    {/* Protected App Routes with AppLayout Shell */}
+                                    <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                                        <Route path="/dashboard" element={<DashboardPage />} />
+                                        <Route path="/pricing" element={<PricingPage />} />
+                                        <Route path="/campus" element={<CampusRoute><CampusDashboard /></CampusRoute>} />
+                                        <Route path="/campus-dashboard" element={<CampusRoute><CampusDashboard /></CampusRoute>} />
+                                        <Route path="/tpo" element={<CampusRoute><CampusDashboard /></CampusRoute>} />
+                                        <Route path="/profile" element={<CareerProfilePage />} />
+                                        <Route path="/ai-studio" element={<AICareerStudioPage />} />
+                                        <Route path="/ai-career-studio" element={<AICareerStudioPage />} />
+                                        <Route path="/resume" element={<Navigate to="/ai-studio" replace />} />
+                                        <Route path="/resume-analysis" element={<Navigate to="/ai-studio" replace />} />
+                                        <Route path="/job-analyzer" element={<JobAnalyzerPage />} />
+                                        <Route path="/jobs" element={<JobsPage />} />
+                                        <Route path="/jobs/:id" element={<JobDetailsPage />} />
+                                        <Route path="/applications" element={<ApplicationsPage />} />
+                                        <Route path="/roadmap" element={<CareerRoadmapPage />} />
+                                        <Route path="/interview-prep" element={<InterviewPrepPage />} />
+                                        <Route path="/simulations" element={<SimulationsPage />} />
+                                        <Route path="/simulations/:trackKey" element={<SimulationWorkspacePage />} />
+                                        <Route path="/settings" element={<SettingsPage />} />
+                                        <Route path="/admin" element={<FounderRoute><FounderAdminPage /></FounderRoute>} />
+                                        <Route path="/founder" element={<FounderRoute><FounderAdminPage /></FounderRoute>} />
+                                    </Route>
 
-                                {/* Fallback */}
-                                <Route path="*" element={<Navigate to="/" replace />} />
-                            </Routes>
-                        </Router>
+                                    {/* Fallback */}
+                                    <Route path="*" element={<Navigate to="/" replace />} />
+                                </Routes>
+                            </Router>
+                        </SubscriptionProvider>
                     </ToastProvider>
                 </ThemeProvider>
             </AuthProvider>

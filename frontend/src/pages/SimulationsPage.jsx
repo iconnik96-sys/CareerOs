@@ -24,9 +24,17 @@ import {
 } from 'lucide-react';
 import { SIMULATION_COMPANIES, getCompanyById, getLevelData } from '../data/simulationCatalog';
 import { DeveloperSimulationLab } from '../components/simulation/DeveloperSimulationLab';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 export const SimulationsPage = () => {
     const navigate = useNavigate();
+    const {
+        currentPlan,
+        activePlanId,
+        checkFeatureAccess,
+        triggerUpgradeModal,
+        isVipBypass
+    } = useSubscription();
 
     // 3-Step Selection Funnel: 'company' -> 'level' -> 'review'
     const [currentStep, setCurrentStep] = useState('company'); // 'company' | 'level' | 'review'
@@ -48,6 +56,11 @@ export const SimulationsPage = () => {
     };
 
     const handleSelectLevel = (levelId) => {
+        const access = checkFeatureAccess('simulation', { levelId });
+        if (!access.allowed) {
+            triggerUpgradeModal(access);
+            return;
+        }
         setSelectedLevelId(levelId);
         setActiveReviewTaskIndex(0);
         setCurrentStep('review');
@@ -56,6 +69,11 @@ export const SimulationsPage = () => {
 
     const handleLaunchIde = (ticketCode = null) => {
         const ticketToOpen = ticketCode || selectedLevelData?.tasks?.[0]?.code || 'FIN-BEG-1';
+        const access = checkFeatureAccess('simulation', { ticketCode: ticketToOpen, levelId: selectedLevelId });
+        if (!access.allowed) {
+            triggerUpgradeModal(access);
+            return;
+        }
         setIdeInitialTicket(ticketToOpen);
         setShowIdeLab(true);
     };
@@ -467,32 +485,48 @@ export const SimulationsPage = () => {
                                     </div>
 
                                     {/* Select Level Button */}
-                                    <button
-                                        onClick={() => handleSelectLevel(lvl.levelId)}
-                                        style={{
-                                            width: '100%',
-                                            padding: '0.85rem 1.25rem',
-                                            borderRadius: 'var(--radius-md)',
-                                            background: isBeginner
-                                                ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
-                                                : isIntermediate
-                                                ? 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)'
-                                                : 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
-                                            color: '#ffffff',
-                                            fontWeight: 800,
-                                            fontSize: '0.95rem',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: '0.5rem',
-                                            boxShadow: `0 4px 15px ${lvl.badgeBg}`
-                                        }}
-                                    >
-                                        <span>Select {lvl.label} & Review Tasks</span>
-                                        <ArrowRight size={17} />
-                                    </button>
+                                    {(() => {
+                                        const isLocked = !isVipBypass && (
+                                            (lvl.levelId === 'intermediate' && !currentPlan.can_access_intermediate) ||
+                                            (lvl.levelId === 'pro' && !currentPlan.can_access_pro)
+                                        );
+                                        return (
+                                            <button
+                                                onClick={() => handleSelectLevel(lvl.levelId)}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '0.85rem 1.25rem',
+                                                    borderRadius: 'var(--radius-md)',
+                                                    background: isLocked
+                                                        ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%)'
+                                                        : isBeginner
+                                                        ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
+                                                        : isIntermediate
+                                                        ? 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)'
+                                                        : 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+                                                    border: isLocked ? '1px solid rgba(239, 68, 68, 0.4)' : 'none',
+                                                    color: '#ffffff',
+                                                    fontWeight: 800,
+                                                    fontSize: '0.95rem',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '0.5rem',
+                                                    boxShadow: `0 4px 15px ${lvl.badgeBg}`
+                                                }}
+                                            >
+                                                {isLocked && <Lock size={16} color="#f87171" />}
+                                                <span>
+                                                    {isLocked
+                                                        ? `🔒 Unlock with ${lvl.levelId === 'intermediate' ? 'Premium (₹149/mo)' : 'Placement Pro (₹299/mo)'}`
+                                                        : `Select ${lvl.label} & Review Tasks`
+                                                    }
+                                                </span>
+                                                {!isLocked && <ArrowRight size={17} />}
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             );
                         })}
@@ -665,28 +699,33 @@ export const SimulationsPage = () => {
 
                                     {/* Quick Launch this Ticket Button */}
                                     <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)', display: 'flex', justifyContent: 'flex-end' }}>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleLaunchIde(task.code);
-                                            }}
-                                            style={{
-                                                padding: '0.45rem 0.95rem',
-                                                borderRadius: 'var(--radius-sm)',
-                                                background: 'rgba(59, 130, 246, 0.15)',
-                                                border: '1px solid rgba(59, 130, 246, 0.3)',
-                                                color: '#60a5fa',
-                                                fontSize: '0.8rem',
-                                                fontWeight: 700,
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.35rem'
-                                            }}
-                                        >
-                                            <Play size={13} />
-                                            <span>Open {task.code} Directly in IDE</span>
-                                        </button>
+                                        {(() => {
+                                            const isTaskLocked = !isVipBypass && activePlanId === 'free' && task.code !== 'FIN-BEG-1';
+                                            return (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleLaunchIde(task.code);
+                                                    }}
+                                                    style={{
+                                                        padding: '0.45rem 0.95rem',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        background: isTaskLocked ? 'rgba(239, 68, 68, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                                        border: isTaskLocked ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(59, 130, 246, 0.3)',
+                                                        color: isTaskLocked ? '#f87171' : '#60a5fa',
+                                                        fontSize: '0.8rem',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.35rem'
+                                                    }}
+                                                >
+                                                    {isTaskLocked ? <Lock size={13} color="#f87171" /> : <Play size={13} />}
+                                                    <span>{isTaskLocked ? `Unlock ${task.code} with Premium` : `Open ${task.code} Directly in IDE`}</span>
+                                                </button>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             );

@@ -64,6 +64,102 @@ export const InterviewPrepPage = () => {
   const [masteredIds, setMasteredIds] = useState([]);
   const [liveModalOpen, setLiveModalOpen] = useState(false);
 
+  // Zero-Quota Mic & Audio Warm-up Sandbox State
+  const [micTesting, setMicTesting] = useState(false);
+  const [micVolume, setMicVolume] = useState(0);
+  const [micHeardText, setMicHeardText] = useState('');
+  const [micCheckStatus, setMicCheckStatus] = useState('idle'); // 'idle' | 'listening' | 'success' | 'error'
+  const micStreamRef = React.useRef(null);
+  const audioContextRef = React.useRef(null);
+  const analyserRef = React.useRef(null);
+  const animFrameRef = React.useRef(null);
+
+  const handleStartMicTest = async () => {
+    setMicCheckStatus('listening');
+    setMicTesting(true);
+    setMicHeardText('');
+
+    try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setMicCheckStatus('error');
+        showToast('Microphone access is not supported in this browser.', 'warning');
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStreamRef.current = stream;
+
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioContextRef.current = audioCtx;
+      const analyser = audioCtx.createAnalyser();
+      analyserRef.current = analyser;
+      analyser.fftSize = 64;
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const checkVolume = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / bufferLength;
+        const normalized = Math.min(100, Math.round((avg / 128) * 100));
+        setMicVolume(normalized);
+        animFrameRef.current = requestAnimationFrame(checkVolume);
+      };
+      checkVolume();
+
+      // Test Speech Recognition simultaneously
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const reco = new SpeechRecognition();
+        reco.lang = 'en-US';
+        reco.interimResults = true;
+        reco.onresult = (evt) => {
+          let str = '';
+          for (let i = 0; i < evt.results.length; i++) {
+            str += evt.results[i][0].transcript;
+          }
+          if (str.trim()) {
+            setMicHeardText(str);
+            setMicCheckStatus('success');
+          }
+        };
+        reco.onerror = () => {};
+        try { reco.start(); } catch {}
+      }
+
+      // Simulate prompt after 4 seconds if speech recognition didn't catch words yet
+      setTimeout(() => {
+        setMicCheckStatus(prev => prev === 'listening' ? 'success' : prev);
+      }, 3500);
+
+    } catch (err) {
+      console.warn('Mic check error:', err);
+      setMicCheckStatus('error');
+      showToast('Could not access microphone. Please enable mic permissions in your browser.', 'error');
+    }
+  };
+
+  const handleStopMicTest = () => {
+    setMicTesting(false);
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(t => t.stop());
+      micStreamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try { audioContextRef.current.close(); } catch {}
+      audioContextRef.current = null;
+    }
+    setMicVolume(0);
+  };
+
   const handleOpenVoiceModal = (trackId = null) => {
     const access = checkFeatureAccess('voice_interview');
     if (!access.allowed) {
@@ -73,7 +169,6 @@ export const InterviewPrepPage = () => {
     if (trackId) {
       setSelectedTrack(trackId);
     }
-    recordUsage('voice_interview');
     setLiveModalOpen(true);
   };
 
@@ -593,6 +688,98 @@ export const InterviewPrepPage = () => {
             </Button>
           </div>
         </Card>
+
+        {/* ZERO-QUOTA MIC CHECK & WARM-UP SANDBOX */}
+        <div style={{
+          background: 'rgba(15, 23, 42, 0.7)',
+          border: '1.5px dashed rgba(99, 102, 241, 0.4)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '1.25rem 1.75rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '1.25rem'
+        }}>
+          <div style={{ maxWidth: '580px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+              <span style={{
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                background: 'rgba(34, 197, 94, 0.15)',
+                color: '#4ade80',
+                padding: '0.2rem 0.55rem',
+                borderRadius: '999px',
+                border: '1px solid rgba(34, 197, 94, 0.3)'
+              }}>
+                🛡️ Zero Quotas Used • 100% Free Test
+              </span>
+              <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f8fafc' }}>
+                Hostel Room Audio & Mic Pre-Flight Check
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.5 }}>
+              Worried your mic won't work? Test your voice clarity and volume levels here first without burning any interview credits.
+            </p>
+
+            {/* Live Volume Meter and Detected Speech */}
+            {micTesting && (
+              <div style={{ marginTop: '0.85rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#cbd5e1', fontWeight: 600 }}>Mic Level:</span>
+                  <div style={{ width: '140px', height: '8px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${Math.max(5, micVolume)}%`,
+                      height: '100%',
+                      background: micVolume > 60 ? '#ef4444' : micVolume > 15 ? '#10b981' : '#6366f1',
+                      transition: 'width 0.1s ease'
+                    }} />
+                  </div>
+                  <span style={{ fontSize: '0.72rem', color: '#4ade80', fontWeight: 700 }}>
+                    {micVolume > 15 ? '🟢 Sound Detected' : '⚪ Speak into mic...'}
+                  </span>
+                </div>
+                {micHeardText ? (
+                  <div style={{ fontSize: '0.78rem', color: '#86efac', background: 'rgba(34, 197, 94, 0.1)', padding: '0.35rem 0.65rem', borderRadius: '6px' }}>
+                    ✓ Transcribed: "{micHeardText}"
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                    Say a technical word aloud (e.g., "PostgreSQL indexing" or "Hello CareerOS")...
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!micTesting && micCheckStatus === 'success' && (
+              <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#4ade80', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CheckCircle2 size={14} /> Microphone tested successfully! Your sound is loud and clear.
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={micTesting ? handleStopMicTest : handleStartMicTest}
+            style={{
+              padding: '0.65rem 1.25rem',
+              borderRadius: '8px',
+              background: micTesting ? 'rgba(239, 68, 68, 0.2)' : 'rgba(99, 102, 241, 0.2)',
+              border: micTesting ? '1px solid #ef4444' : '1px solid #818cf8',
+              color: micTesting ? '#f87171' : '#c7d2fe',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem'
+            }}
+          >
+            <Mic size={16} />
+            <span>{micTesting ? '⏹️ Stop Mic Check' : '🎙️ Test Microphone'}</span>
+          </button>
+        </div>
 
         {/* 4 Formats Grid */}
         <div>

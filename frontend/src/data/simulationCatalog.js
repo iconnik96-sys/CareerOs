@@ -756,15 +756,417 @@ func (s *TransactionService) ExecutePayment(ctx context.Context, merchantID stri
         name: 'HealthPulse Medical AI',
         tagline: 'HIPAA-Compliant Real-Time Patient Analytics & Triage Platform',
         industry: 'Healthcare & AI',
-        badge: 'Coming Soon',
+        badge: 'AI Engineering Partner',
         logoType: 'heart-pulse',
         accentColor: '#10b981',
-        scaleMetrics: 'HIPAA Audited • HL7 FHIR Protocol',
-        role: 'Healthcare Data & API Engineer',
-        team: 'Patient Telemetry & Edge Inference',
-        stack: ['Python', 'FastAPI', 'Kafka', 'PostgreSQL'],
-        description: 'Process telemetry from 50,000 hospital monitors in real time, executing automated early-warning sepsis alerts with sub-second accuracy.',
-        available: false
+        scaleMetrics: '50,000 Hospital Beds • Sub-second AI Triage',
+        role: 'AI & Clinical Data Platform Engineer',
+        team: 'Patient Telemetry & Clinical LLM Systems',
+        stack: ['Python', 'FastAPI', 'Pydantic', 'LangChain', 'PostgreSQL'],
+        description: 'Process telemetry from 50,000 hospital monitors in real time, validating clinical LLM diagnostic output, preventing hallucinations, and executing automated sepsis alerts.',
+        available: true,
+        levels: {
+            beginner: {
+                levelId: 'beginner',
+                label: 'Beginner',
+                title: 'AI Output Validation & Clinical Guardrails',
+                audience: 'Ideal for Students Learning Python, LLMs & Pydantic',
+                color: '#10b981',
+                badgeBg: 'rgba(16, 185, 129, 0.15)',
+                duration: '~45 mins total (3 Tasks)',
+                description: 'Build clinical LLM output guardrails using Pydantic, HIPAA regex de-identification, and rate-limited fallback handlers.',
+                tasks: [
+                    {
+                        id: 'HLTH-BEG-1',
+                        code: 'HLTH-BEG-1',
+                        title: 'Clinical LLM Output Pydantic Validation & Backtick Stripping',
+                        badge: 'Task 1 • Beginner Friendly',
+                        duration: '15 mins',
+                        targetFile: 'clinicalSummaryValidator.py',
+                        tipText: 'Tip: Strip markdown code fences (```json) and enforce 60 <= systolic_bp <= 250 in Pydantic',
+                        scenario: "Hospital ER triage dashboard is crashing because OpenAI API responses wrap JSON in markdown backticks (```json ... ```) and hallucinate impossible blood pressures (e.g. systolic = -40 or 999). Downstream EHR systems reject these with 500 crashes.",
+                        objective: 'Clean raw LLM markdown formatting, validate vitals boundaries using Pydantic (systolic between 60-250 mmHg, diastolic between 40-150 mmHg), and return HTTP 422 if invalid.',
+                        constraint: 'Reject unverified vitals; guarantee clean JSON output.',
+                        the3Changes: [
+                            '1. Implement clean_llm_markdown() to remove ```json and ``` wrappers from raw LLM output.',
+                            '2. Add @field_validator("systolic_bp") to ensure systolic is between 60 and 250 mmHg; raise ValueError if invalid.',
+                            '3. In parse_and_validate_summary(), catch validation errors and return structured 422 error payload.'
+                        ],
+                        acceptanceCriteria: [
+                            'Correctly strips markdown code fences (```json ... ```) from string inputs.',
+                            'Rejects out-of-range systolic blood pressure (< 60 or > 250 mmHg) with HTTP 422.',
+                            'Returns parsed ClinicalSummary schema with HTTP 200 for clean vitals.'
+                        ],
+                        hint: `# 1. Clean markdown fences
+cleaned = raw_output.strip()
+if cleaned.startswith('\`\`\`json'):
+    cleaned = cleaned[7:]
+elif cleaned.startswith('\`\`\`'):
+    cleaned = cleaned[3:]
+if cleaned.endswith('\`\`\`'):
+    cleaned = cleaned[:-3]
+return cleaned.strip()
+
+# 2. In Pydantic validator:
+if not (60 <= v <= 250):
+    raise ValueError('Systolic BP must be between 60 and 250 mmHg')`,
+                        starterFile: 'clinicalSummaryValidator.py',
+                        starterCode: `import json
+import re
+from typing import Optional
+from pydantic import BaseModel, Field, field_validator
+
+class VitalsPayload(BaseModel):
+    patient_id: str
+    heart_rate: int = Field(..., ge=30, le=220)
+    systolic_bp: int
+    diastolic_bp: int = Field(..., ge=40, le=140)
+    temperature_c: float = Field(..., ge=32.0, le=43.0)
+
+    # TODO Change 2 (HLTH-BEG-1): Add @field_validator('systolic_bp')
+    # Systolic must be between 60 and 250 mmHg; raise ValueError if out of bounds
+
+def clean_llm_markdown(raw_output: str) -> str:
+    """
+    TODO Change 1: Strip markdown code fences (e.g. \`\`\`json ... \`\`\`) from raw LLM output.
+    """
+    return raw_output.strip()
+
+def parse_and_validate_summary(raw_llm_json: str) -> dict:
+    """
+    TODO Change 3: Clean markdown fences, parse JSON, validate with VitalsPayload,
+    and return dict with status 200 or status 422 if invalid.
+    """
+    clean_json = clean_llm_markdown(raw_llm_json)
+    data = json.loads(clean_json)
+    return {"status": 200, "data": data}
+`,
+                        solutionCode: `import json
+import re
+from typing import Optional
+from pydantic import BaseModel, Field, field_validator
+
+class VitalsPayload(BaseModel):
+    patient_id: str
+    heart_rate: int = Field(..., ge=30, le=220)
+    systolic_bp: int
+    diastolic_bp: int = Field(..., ge=40, le=140)
+    temperature_c: float = Field(..., ge=32.0, le=43.0)
+
+    @field_validator('systolic_bp')
+    @classmethod
+    def validate_systolic_bp(cls, v: int) -> int:
+        if not (60 <= v <= 250):
+            raise ValueError('Systolic BP must be between 60 and 250 mmHg')
+        return v
+
+def clean_llm_markdown(raw_output: str) -> str:
+    cleaned = raw_output.strip()
+    if cleaned.startswith('\`\`\`json'):
+        cleaned = cleaned[7:]
+    elif cleaned.startswith('\`\`\`'):
+        cleaned = cleaned[3:]
+    if cleaned.endswith('\`\`\`'):
+        cleaned = cleaned[:-3]
+    return cleaned.strip()
+
+def parse_and_validate_summary(raw_llm_json: str) -> dict:
+    try:
+        clean_json = clean_llm_markdown(raw_llm_json)
+        raw_data = json.loads(clean_json)
+        validated = VitalsPayload(**raw_data)
+        return {"status": 200, "data": validated.model_dump()}
+    except Exception as e:
+        return {"status": 422, "error": f"Invalid clinical vitals payload: {str(e)}"}
+`,
+                        mentorQuote: '"In clinical AI applications, an unvalidated LLM output hallucinating a negative blood pressure could trigger erroneous drug dosages. Pydantic boundary validation at the API edge protects patient safety!"',
+                        mentorInitialMessages: [
+                            {
+                                sender: 'ai',
+                                name: 'Dr. Elena Rostova (Staff Clinical AI Lead)',
+                                text: "Welcome to the HealthPulse AI team! We have an urgent bug in our ER triage pipeline: OpenAI GPT-4o periodically emits triple-backtick markdown blocks and hallucinated blood pressure values."
+                            },
+                            {
+                                sender: 'ai',
+                                name: 'Dr. Elena Rostova (Staff Clinical AI Lead)',
+                                text: "Take a look at clinicalSummaryValidator.py. We need you to strip markdown code fences, enforce biological bounds on systolic BP using Pydantic V2, and return clean HTTP 422 on bad data."
+                            }
+                        ],
+                        terminalLogs: [
+                            { type: 'system', text: 'HealthPulse Medical AI Telemetry Daemon initialized [v1.8.2]' },
+                            { type: 'command', text: 'tail -n 12 /var/log/healthpulse/llm-triage.log' },
+                            { type: 'stdout', text: '[2026-10-22T08:14:10.021Z] [WARN] LLM emitted fenced JSON: ```json {"systolic_bp": -12, "diastolic_bp": 80} ```' },
+                            { type: 'stderr', text: '[2026-10-22T08:14:10.025Z] [CRITICAL] EHR Ingestion Exception: JSONDecodeError at character 0. Sepsis alert delayed!' }
+                        ]
+                    },
+                    {
+                        id: 'HLTH-BEG-2',
+                        code: 'HLTH-BEG-2',
+                        title: 'HIPAA Patient De-Identification & PII Masking Pipeline',
+                        badge: 'Task 2 • Beginner Friendly',
+                        duration: '15 mins',
+                        targetFile: 'hipaaSanitizer.py',
+                        tipText: 'Tip: Define regex patterns for SSN and phone numbers and replace with [REDACTED_SSN] and [REDACTED_PHONE]',
+                        scenario: "Clinical staff paste raw patient charts into the triage tool. Raw Social Security Numbers and phone numbers were transmitted in plain text to external LLM providers, triggering a critical HIPAA audit warning.",
+                        objective: 'Implement regex-based sanitization in sanitize_clinical_notes() replacing SSNs with [REDACTED_SSN] and US phone numbers with [REDACTED_PHONE] before dispatching to external APIs.',
+                        constraint: 'Zero raw SSNs or phone numbers may leave the local cluster.',
+                        the3Changes: [
+                            '1. Define SSN_REGEX matching XXX-XX-XXXX format.',
+                            '2. Define PHONE_REGEX matching XXX-XXX-XXXX format.',
+                            '3. Substitute all occurrences with [REDACTED_SSN] and [REDACTED_PHONE] and return sanitized text.'
+                        ],
+                        acceptanceCriteria: [
+                            'Replaces all SSN formats with [REDACTED_SSN].',
+                            'Replaces all phone number formats with [REDACTED_PHONE].',
+                            'Leaves legitimate clinical notes and dosages intact.'
+                        ],
+                        hint: `SSN_REGEX = re.compile(r'\\b\\d{3}-\\d{2}-\\d{4}\\b')
+PHONE_REGEX = re.compile(r'(\\+?1[-.\\s]?)?(\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4})')
+sanitized = SSN_REGEX.sub('[REDACTED_SSN]', notes)
+sanitized = PHONE_REGEX.sub('[REDACTED_PHONE]', sanitized)`,
+                        starterFile: 'hipaaSanitizer.py',
+                        starterCode: `import re
+
+# TODO Change 1 (HLTH-BEG-2): Define SSN regex matching standard 9-digit formats (XXX-XX-XXXX)
+SSN_REGEX = re.compile(r'\\b\\d{3}-\\d{2}-\\d{4}\\b')
+
+# TODO Change 2: Define US Phone Number regex (e.g. XXX-XXX-XXXX)
+PHONE_REGEX = re.compile(r'(\\+?1[-.\\s]?)?(\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4})')
+
+def sanitize_clinical_notes(notes: str) -> str:
+    """
+    TODO Change 3: Replace all SSNs with '[REDACTED_SSN]' and phone numbers with '[REDACTED_PHONE]'
+    before sending prompt notes to third-party LLM APIs.
+    """
+    sanitized = notes
+    return sanitized
+`,
+                        solutionCode: `import re
+
+# Change 1: Regex matching US Social Security Numbers (XXX-XX-XXXX)
+SSN_REGEX = re.compile(r'\\b\\d{3}-\\d{2}-\\d{4}\\b')
+
+# Change 2: Regex matching standard US phone numbers
+PHONE_REGEX = re.compile(r'(\\+?1[-.\\s]?)?(\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4})')
+
+def sanitize_clinical_notes(notes: str) -> str:
+    """
+    Change 3: Redact all patient SSNs and phone numbers to ensure strict HIPAA compliance.
+    """
+    if not notes:
+        return ""
+    sanitized = SSN_REGEX.sub('[REDACTED_SSN]', notes)
+    sanitized = PHONE_REGEX.sub('[REDACTED_PHONE]', sanitized)
+    return sanitized
+`,
+                        mentorQuote: '"HIPAA violations carry statutory penalties up to $50,000 per violation. Sanitizing patient identifiers before sending tokens to an external LLM provider is a non-negotiable compliance requirement."',
+                        mentorInitialMessages: [
+                            {
+                                sender: 'ai',
+                                name: 'Dr. Elena Rostova (Staff Clinical AI Lead)',
+                                text: "Compliance audit flagged an issue: doctors are pasting consultation transcripts that contain SSNs and contact numbers directly into our AI triage prompt."
+                            },
+                            {
+                                sender: 'ai',
+                                name: 'Dr. Elena Rostova (Staff Clinical AI Lead)',
+                                text: "Open hipaaSanitizer.py. Let's build a deterministic regex filter that redacts SSNs and phone numbers before LLM serialization."
+                            }
+                        ],
+                        terminalLogs: [
+                            { type: 'system', text: 'HIPAA Auditing Service [v2.4.0]' },
+                            { type: 'command', text: 'pytest tests/test_hipaa_sanitizer.py' },
+                            { type: 'stderr', text: '[SECURITY AUDIT FAIL] Unmasked SSN detected in outgoing prompt payload: "Patient SSN: 984-22-1104"' },
+                            { type: 'stderr', text: '[SECURITY AUDIT FAIL] Unmasked Phone detected in outgoing prompt payload: "Emergency contact: 415-555-0199"' }
+                        ]
+                    },
+                    {
+                        id: 'HLTH-BEG-3',
+                        code: 'HLTH-BEG-3',
+                        title: 'LLM API Rate-Limit (429) Exponential Backoff & Heuristic Fallback',
+                        badge: 'Task 3 • Beginner Friendly',
+                        duration: '15 mins',
+                        targetFile: 'llmClient.py',
+                        tipText: 'Tip: Implement max_retries loop with exponential backoff and fallback to compute_heuristic_fallback on 429 exhaustion',
+                        scenario: "During peak triage hours, the OpenAI API returns HTTP 429 rate limit errors. The hospital triage queue stalls indefinitely because calls lack retry logic and have no deterministic fallback mechanism.",
+                        objective: 'Implement 3-attempt exponential backoff retry logic. If all retries fail with 429 or timeout, return a deterministic rule-based triage score ("LEVEL_3_URGENT") with source="heuristic_fallback".',
+                        constraint: 'Never crash the triage queue; always return a valid triage classification.',
+                        the3Changes: [
+                            '1. Implement loop with max_retries attempts.',
+                            '2. Catch RateLimitError and apply exponential backoff sleep.',
+                            '3. If retries are exhausted, invoke and return compute_heuristic_fallback(patient_vitals).'
+                        ],
+                        acceptanceCriteria: [
+                            'Retries up to max_retries times upon catching RateLimitError.',
+                            'Falls back gracefully to deterministic rule-based triage score upon exhaustion.',
+                            'Sets payload source to "heuristic_fallback" so attending physicians know LLM was bypassed.'
+                        ],
+                        hint: `for attempt in range(max_retries):
+    try:
+        return call_openai_triage_api(patient_vitals)
+    except RateLimitError:
+        if attempt < max_retries - 1:
+            time.sleep((2 ** attempt) * 0.05)
+        continue
+return compute_heuristic_fallback(patient_vitals)`,
+                        starterFile: 'llmClient.py',
+                        starterCode: `import time
+from typing import Dict, Any
+
+class RateLimitError(Exception):
+    pass
+
+def call_openai_triage_api(patient_vitals: Dict[str, Any]) -> Dict[str, Any]:
+    # Simulated API that raises RateLimitError under hospital load spikes
+    raise RateLimitError("HTTP 429: Rate limit exceeded")
+
+def compute_heuristic_fallback(patient_vitals: Dict[str, Any]) -> Dict[str, Any]:
+    """Deterministic rule-based triage score for emergency fallback."""
+    hr = patient_vitals.get("heart_rate", 75)
+    triage_level = "LEVEL_2_EMERGENT" if hr > 120 else "LEVEL_3_URGENT"
+    return {
+        "status": 200,
+        "triage_score": triage_level,
+        "source": "heuristic_fallback"
+    }
+
+def triage_patient_with_retry(patient_vitals: Dict[str, Any], max_retries: int = 3) -> Dict[str, Any]:
+    """
+    TODO Change 1, 2, 3 (HLTH-BEG-3):
+    1. Implement loop with max_retries attempts.
+    2. Exponential backoff (e.g. sleep 2 ** attempt).
+    3. If all retries exhausted with RateLimitError, return compute_heuristic_fallback(patient_vitals).
+    """
+    try:
+        return call_openai_triage_api(patient_vitals)
+    except RateLimitError:
+        # TODO: Implement retry and fallback
+        return compute_heuristic_fallback(patient_vitals)
+`,
+                        solutionCode: `import time
+from typing import Dict, Any
+
+class RateLimitError(Exception):
+    pass
+
+def call_openai_triage_api(patient_vitals: Dict[str, Any]) -> Dict[str, Any]:
+    raise RateLimitError("HTTP 429: Rate limit exceeded")
+
+def compute_heuristic_fallback(patient_vitals: Dict[str, Any]) -> Dict[str, Any]:
+    hr = patient_vitals.get("heart_rate", 75)
+    triage_level = "LEVEL_2_EMERGENT" if hr > 120 else "LEVEL_3_URGENT"
+    return {
+        "status": 200,
+        "triage_score": triage_level,
+        "source": "heuristic_fallback"
+    }
+
+def triage_patient_with_retry(patient_vitals: Dict[str, Any], max_retries: int = 3) -> Dict[str, Any]:
+    for attempt in range(max_retries):
+        try:
+            return call_openai_triage_api(patient_vitals)
+        except RateLimitError:
+            if attempt < max_retries - 1:
+                backoff_delay = (2 ** attempt) * 0.05
+                time.sleep(backoff_delay)
+            continue
+        except Exception:
+            break
+            
+    return compute_heuristic_fallback(patient_vitals)
+`,
+                        mentorQuote: '"Hospital triage queues cannot halt just because an external LLM API is rate-limiting. A reliable AI system always has a deterministic rule-based fallback."',
+                        mentorInitialMessages: [
+                            {
+                                sender: 'ai',
+                                name: 'Dr. Elena Rostova (Staff Clinical AI Lead)',
+                                text: "Shift change at 7:00 AM triggered an OpenAI 429 rate limit spike. Our triage queue froze, delaying patient intake."
+                            },
+                            {
+                                sender: 'ai',
+                                name: 'Dr. Elena Rostova (Staff Clinical AI Lead)',
+                                text: "Look at llmClient.py. Wrap the API call with exponential backoff and fall back to our local deterministic triage function if all retries fail."
+                            }
+                        ],
+                        terminalLogs: [
+                            { type: 'system', text: 'Telemetry Client v3.1.0' },
+                            { type: 'command', text: 'python -m pytest tests/test_llm_retry.py' },
+                            { type: 'stderr', text: '[HTTP 429 RateLimitError] OpenAI TPM rate limit exhausted. No retry configured; request aborted.' }
+                        ]
+                    }
+                ]
+            },
+            intermediate: {
+                levelId: 'intermediate',
+                label: 'Intermediate',
+                title: 'RAG Pipeline Retrieval & Context Optimization',
+                audience: 'Ideal for 3rd & 4th Year College Students',
+                color: '#3b82f6',
+                badgeBg: 'rgba(59, 130, 246, 0.15)',
+                duration: '~60 mins total (3 Tasks)',
+                description: 'Implement hybrid BM25 + semantic vector search, token budget truncation, and async Kafka telemetry ingestion.',
+                tasks: [
+                    {
+                        id: 'HLTH-INT-1',
+                        code: 'HLTH-INT-1',
+                        title: 'RAG Pipeline Hybrid BM25 & Semantic Vector Re-Ranking',
+                        badge: 'Task 1 • Intermediate',
+                        duration: '20 mins',
+                        targetFile: 'ragRetriever.py',
+                        tipText: 'Tip: Combine dense embeddings with sparse keyword BM25 to prevent missing exact medication dosages',
+                        scenario: "Doctors search patient history, but pure vector cosine similarity fails to match exact drug trade names like 'Metoprolol Succinate 25mg', retrieving irrelevant cardiology notes.",
+                        objective: 'Build a reciprocal rank fusion (RRF) retriever combining dense vector similarities with sparse BM25 scores.',
+                        constraint: 'Ensure sub-50ms hybrid retrieval latency.',
+                        the3Changes: [
+                            '1. Calculate reciprocal rank score for dense vector candidates.',
+                            '2. Calculate reciprocal rank score for sparse BM25 keyword candidates.',
+                            '3. Fuse and sort top 5 clinical documents.'
+                        ],
+                        acceptanceCriteria: [
+                            'Matches exact medication trade names with 100% precision.',
+                            'Returns top-k documents sorted by combined RRF score.'
+                        ],
+                        starterFile: 'ragRetriever.py',
+                        starterCode: `def hybrid_rrf_retrieval(query: str, top_k: int = 5):\n    # TODO (HLTH-INT-1): Implement Reciprocal Rank Fusion\n    return []`,
+                        solutionCode: `def hybrid_rrf_retrieval(query: str, top_k: int = 5):\n    return [{"doc_id": "doc_1", "score": 0.94}]`
+                    }
+                ]
+            },
+            pro: {
+                levelId: 'pro',
+                label: 'Pro',
+                title: 'Sub-Second Sepsis Edge Inference & Drift Guardrails',
+                audience: 'Targeting 12+ LPA Applied AI Roles',
+                color: '#ef4444',
+                badgeBg: 'rgba(239, 68, 68, 0.15)',
+                duration: '~90 mins total (3 Tasks)',
+                description: 'Engineer high-throughput ONNX micro-batching, model confidence calibration, and distributed Kafka alarm pipelines.',
+                tasks: [
+                    {
+                        id: 'HLTH-PRO-1',
+                        code: 'HLTH-PRO-1',
+                        title: 'ONNX Micro-Batching for Sepsis Risk Scoring',
+                        badge: 'Task 1 • Pro Challenge',
+                        duration: '30 mins',
+                        targetFile: 'inferenceEngine.py',
+                        tipText: 'Tip: Aggregate incoming telemetry ticks into 32-sample tensors before executing ONNX session run',
+                        scenario: "Sequential PyTorch inference takes 380ms per bed, causing severe telemetry backpressure across 50,000 active monitors. Sepsis early-warning alerts are delayed by up to 12 minutes.",
+                        objective: 'Implement dynamic micro-batching with 20ms queue timeout in ONNX Runtime, cutting inference latency to 12ms per batch.',
+                        constraint: 'Zero dropped sensor frames; p99 latency < 20ms.',
+                        the3Changes: [
+                            '1. Collect telemetry events into an asyncio thread-safe batch queue.',
+                            '2. Dispatch batch once size reaches 32 or timeout reaches 20ms.',
+                            '3. Execute batch inference on onnx_session and scatter results to patient sockets.'
+                        ],
+                        acceptanceCriteria: [
+                            'Achieves sub-20ms batch inference throughput under 50,000 telemetry events/sec.'
+                        ],
+                        starterFile: 'inferenceEngine.py',
+                        starterCode: `class BatchInferenceEngine:\n    # TODO (HLTH-PRO-1): Dynamic micro-batching\n    pass`,
+                        solutionCode: `class BatchInferenceEngine:\n    pass`
+                    }
+                ]
+            }
+        }
     },
     {
         id: 'cloudscale-infra',
@@ -791,3 +1193,180 @@ export const getLevelData = (companyId, levelKey) => {
     const company = getCompanyById(companyId);
     return company?.levels?.[levelKey] || company?.levels?.beginner;
 };
+
+export const TASK_INTERVIEW_PITCHES = {
+    'FIN-BEG-1': {
+        taskCode: 'FIN-BEG-1',
+        title: 'ISO-4217 Currency Code & Boundary Validation',
+        elevatorPitch: "In my FinPulse payment simulation, downstream settlement reconciliation was failing because external webhooks transmitted lowercase currency codes and non-positive floats. I implemented strict RFC-7807 payload boundary validations with whitelist sets and decimal regex, cutting unprocessable ledger exceptions by 100%.",
+        starAnswer: {
+            situation: "Downstream settlement reconciliation engines were throwing 500 errors when foreign merchants sent lowercase or negative amounts.",
+            task: "Enforce strict ISO-4217 uppercase currency whitelisting and numerical boundary verification before dispatching to the core payment processor.",
+            action: "Created an O(1) Set lookup for whitelisted ISO-4217 currencies, enforced uppercase formatting, and validated positive decimal amounts (< 2 decimal points) with HTTP 422 RFC-7807 responses.",
+            result: "Completely eliminated invalid currency entries before they touched the database, reducing downstream reconciliation errors to zero."
+        },
+        interviewerQuestions: [
+            {
+                q: "Why did you validate this in the controller rather than letting the PostgreSQL database schema handle the constraints?",
+                a: "Validating at the edge in the controller fails fast with HTTP 422 before allocating expensive database connections or transaction locks, protecting the database connection pool under high traffic."
+            }
+        ]
+    },
+    'FIN-BEG-2': {
+        taskCode: 'FIN-BEG-2',
+        title: 'Idempotency Keys & Replay Attack Prevention',
+        elevatorPitch: "During payment retries under network dropouts, customers were charged twice. I engineered an idempotency middleware using Redis atomic SETNX with a 120-second TTL, ensuring identical transaction payloads return cached responses without double-charging.",
+        starAnswer: {
+            situation: "Network timeouts caused mobile clients to retry checkout requests, causing double-deductions on merchant bank accounts.",
+            task: "Guarantee that duplicate HTTP POST requests with the same Idempotency-Key return the original response without re-executing ledger operations.",
+            action: "Implemented distributed Redis locking with atomic SETNX and sha256 payload hashing, caching the original response headers and body with an expiration window.",
+            result: "Prevented duplicate charges across 10,000 simulated concurrent retries with 0 double-billing errors."
+        },
+        interviewerQuestions: [
+            {
+                q: "What happens if a request with the same idempotency key arrives while the first request is still processing?",
+                a: "We acquire an in-flight lock status (HTTP 409 Conflict or waiting on Redis pub/sub) so subsequent requests don't execute concurrently, returning the final response once the initial worker finishes."
+            }
+        ]
+    },
+    'FIN-BEG-3': {
+        taskCode: 'FIN-BEG-3',
+        title: 'PostgreSQL Connection Leak & Query Timeout Fix',
+        elevatorPitch: "Under 15,000 req/sec load, the payment microservice suffered a SIGSEGV OOM crash due to orphaned database connections. I wrapped all queries in 3-second context timeouts and enforced deferred connection releases, restoring 99.99% availability.",
+        starAnswer: {
+            situation: "Connection pool starvation under 15k req/sec caused cascading gateway timeouts and memory leaks in the Go payment service.",
+            task: "Diagnose connection leaks and prevent rogue slow queries from holding database connection slots indefinitely.",
+            action: "Wrapped context queries with context.WithTimeout (3s), added deferred connection releases (defer conn.Close()), and configured pool max idle limits.",
+            result: "Eliminated connection starvation; p99 latency dropped from 8,400ms to 42ms under full load."
+        },
+        interviewerQuestions: [
+            {
+                q: "Why is defer conn.Close() critical in Go even when an error occurs?",
+                a: "In Go's database/sql package, acquiring a connection checks it out of the pool. If an early return occurs on error without closing, the connection remains orphaned, eventually exhausting the pool."
+            }
+        ]
+    },
+    'ECOM-INT-1': {
+        taskCode: 'ECOM-INT-1',
+        title: 'Flash Sale Distributed Lock & Inventory Race Condition',
+        elevatorPitch: "During flash sales, concurrent shoppers bought the last item simultaneously, causing negative stock inventory. I built a distributed Redlock mutex in Redis to serialize inventory deductions safely.",
+        starAnswer: {
+            situation: "High-concurrency flash sales caused multiple checkout workers to read stock=1 and all approve transactions, resulting in 50+ oversold orders.",
+            task: "Prevent overselling without creating high-latency database table locks.",
+            action: "Utilized Redis distributed locks with short TTLs and Lua scripts for atomic decrement, rolling back failed acquires with HTTP 409.",
+            result: "Handled 5,000 concurrent purchase attempts on 10 units with exactly zero oversold items."
+        },
+        interviewerQuestions: [
+            {
+                q: "Why use Redis distributed locks instead of SELECT ... FOR UPDATE in SQL?",
+                a: "SELECT FOR UPDATE locks rows at the database level, which degrades transactional throughput and spikes DB CPU under flash sales. Redis handles 100k+ ops/sec in-memory with sub-millisecond lock acquisition."
+            }
+        ]
+    },
+    'ECOM-INT-2': {
+        taskCode: 'ECOM-INT-2',
+        title: 'Flash Sale Redis Cache Stampede & TTL Jitter',
+        elevatorPitch: "When popular product cache keys expired during flash sales, 50,000 requests hammered PostgreSQL simultaneously. I resolved this cache stampede using probabilistic early expiration and random TTL jitter.",
+        starAnswer: {
+            situation: "Cache stampede collapsed the primary PostgreSQL instance when a hot product key hit TTL expiration under 50k RPS.",
+            task: "Eliminate simultaneous cache misses while ensuring data freshness.",
+            action: "Implemented a Mutex lock on cache misses so only 1 worker computes the DB query, combined with a 15% randomized TTL jitter to prevent synchronized key expiry.",
+            result: "DB query volume during key renewal dropped from 50,000 queries to exactly 1 query, saving the database from crashing."
+        },
+        interviewerQuestions: [
+            {
+                q: "What is TTL jitter and why does it help?",
+                a: "TTL jitter adds random delta seconds (e.g. 300s ± 30s) to cache expiration times so keys created at the same time don't all expire at the exact same instant, spreading out cache refreshes."
+            }
+        ]
+    },
+    'CLOUD-PRO-1': {
+        taskCode: 'CLOUD-PRO-1',
+        title: 'Kafka Consumer Group Poison Pill & Dead-Letter Queue',
+        elevatorPitch: "A malformed payload crashed Kafka consumer workers in an infinite restart loop, stalling all message processing. I designed a Dead-Letter Queue (DLQ) circuit breaker that diverts unprocessable events after 3 failed retries.",
+        starAnswer: {
+            situation: "A poison pill message caused unhandled exceptions in consumer partition 4, triggering continuous rebalances that blocked the entire pipeline.",
+            task: "Isolate corrupt payloads without crashing consumer workers or dropping event streams.",
+            action: "Configured an exponential backoff retry handler with max 3 attempts before publishing the payload to an isolated DLQ topic with error metadata.",
+            result: "Consumer lag normalized in seconds and 100% of valid events resumed processing without manual pipeline intervention."
+        },
+        interviewerQuestions: [
+            {
+                q: "What information should you preserve when routing a message to the DLQ?",
+                a: "You must preserve the original message key, raw payload, timestamp, failure exception message, stack trace, and consumer attempt count in the DLQ header."
+            }
+        ]
+    },
+    'HLTH-BEG-1': {
+        taskCode: 'HLTH-BEG-1',
+        title: 'Clinical LLM Output Pydantic Validation & Backtick Stripping',
+        elevatorPitch: "In my HealthPulse AI work simulation, GPT-4 occasionally emitted markdown fences and hallucinated biologically impossible blood pressures that crashed hospital EHR ingestion. I engineered strict Pydantic V2 schema boundary validators and code-fence sanitizers, eliminating 100% of EHR ingestion exceptions.",
+        starAnswer: {
+            situation: "Hospital ER triage dashboard experienced 500 errors when OpenAI models outputted raw markdown backticks and out-of-range systolic blood pressures.",
+            task: "Enforce strict schema validation and strip markdown fences before EHR database ingestion.",
+            action: "Implemented a regex fence stripper and Pydantic field validators enforcing 60-250 mmHg boundaries, returning structured RFC-7807 422 errors on violations.",
+            result: "Completely eliminated invalid triage ingestions and guaranteed EHR schema compliance."
+        },
+        interviewerQuestions: [
+            {
+                q: "Why use Pydantic V2 field_validator instead of raw if/else statements?",
+                a: "Pydantic centralizes schema enforcement, provides automatic type coercion, generates standard validation errors, and integrates natively with FastAPI request/response validation pipelines."
+            }
+        ]
+    },
+    'HLTH-BEG-2': {
+        taskCode: 'HLTH-BEG-2',
+        title: 'HIPAA Patient De-Identification & PII Masking Pipeline',
+        elevatorPitch: "Clinical notes contained unmasked SSNs and phone numbers that were leaking to third-party LLM providers. I built a deterministic regex sanitization pipeline that masked 100% of PII before serialization, bringing our AI platform into full HIPAA compliance.",
+        starAnswer: {
+            situation: "Doctors pasted raw patient records into the triage prompt, transmitting SSNs and contact numbers in cleartext.",
+            task: "Prevent any raw PII from leaving the hospital's private VPC.",
+            action: "Engineered pre-serialization sanitization regexes that replace SSNs and phone numbers with standard [REDACTED] tokens while preserving clinical dosages.",
+            result: "Achieved 100% HIPAA compliance in automated data privacy audit."
+        },
+        interviewerQuestions: [
+            {
+                q: "Why not use an LLM itself to redact PII?",
+                a: "Using an LLM to redact PII requires sending the raw unmasked PII to the model in the first place, violating zero-data-retention compliance. Deterministic local regex/NER runs within the VPC before tokens leave the network."
+            }
+        ]
+    },
+    'HLTH-BEG-3': {
+        taskCode: 'HLTH-BEG-3',
+        title: 'LLM API Rate-Limit (429) Exponential Backoff & Heuristic Fallback',
+        elevatorPitch: "During morning shift change, OpenAI 429 rate limit spikes froze hospital triage. I designed an exponential backoff retry loop with a deterministic rule-based heuristic fallback, guaranteeing sub-second triage scores even during complete LLM outages.",
+        starAnswer: {
+            situation: "Rate limit errors on third-party LLM APIs stalled ER patient intake during peak hours.",
+            task: "Guarantee 100% availability for patient triage classification.",
+            action: "Implemented a 3-attempt exponential backoff with jitter and a deterministic rule-based fallback based on clinical vital thresholds.",
+            result: "Achieved 100% uptime for triage scoring with zero queue freezes during LLM provider downtime."
+        },
+        interviewerQuestions: [
+            {
+                q: "How does the attending staff know if a triage score came from the LLM vs the fallback?",
+                a: "The payload explicitly attaches metadata including source='heuristic_fallback' and timestamps, ensuring clinical transparency and auditability."
+            }
+        ]
+    }
+};
+
+export const getInterviewPitchForTask = (taskCode) => {
+    return TASK_INTERVIEW_PITCHES[taskCode] || {
+        taskCode: taskCode,
+        title: 'Production System Engineering Ticket',
+        elevatorPitch: `In this simulation, I solved critical reliability bottlenecks by isolating failure modes, implementing defensive boundary validations, and verifying automated regression tests before deployment.`,
+        starAnswer: {
+            situation: "Production systems experienced latency spikes and inconsistent responses under heavy traffic.",
+            task: "Identify the architectural bottleneck and refactor the codebase to maintain sub-50ms SLA.",
+            action: "Profiled the execution flow, applied defensive checks and asynchronous patterns, and validated against automated test suites.",
+            result: "Restored full system throughput and prevented cascading downstream outages."
+        },
+        interviewerQuestions: [
+            {
+                q: "How did you verify this fix wouldn't break existing functionality?",
+                a: "I executed end-to-end regression tests verifying boundary edge cases, idempotency, and error status code compliance."
+            }
+        ]
+    };
+};
+

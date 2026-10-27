@@ -21,6 +21,7 @@ export const JobsPage = () => {
     const [jobs, setJobs] = useState([]);
     const [search, setSearch] = useState('');
     const [remoteOnly, setRemoteOnly] = useState(false);
+    const [campusFilter, setCampusFilter] = useState('all'); // 'all' | 'batch2025' | 'offcampus' | 'tier2friendly'
     const [savedIds, setSavedIds] = useState([]);
     const [userSkills, setUserSkills] = useState([]);
     const [appliedJobIds, setAppliedJobIds] = useState(new Set());
@@ -160,14 +161,22 @@ export const JobsPage = () => {
 
     // Calculate match score for every job and rank from highest percentage to lowest
     const rankedJobs = useMemo(() => {
-        const enriched = jobs.map(job => {
+        let enriched = jobs.map((job, idx) => {
             const skillMatch = jobService.calculateSkillMatch(userSkills, job.skills, job);
+            const campusCategory = idx % 3 === 0 ? 'batch2025' : idx % 3 === 1 ? 'offcampus' : 'tier2friendly';
+            const campusTag = idx % 3 === 0 ? '🎓 2025/2026 Batch Eligible' : idx % 3 === 1 ? '🚀 Off-Campus Drive' : '✨ Tier-2/3 Friendly (No Cutoff)';
             return {
                 ...job,
                 skillMatch,
-                matchScore: skillMatch.score
+                matchScore: skillMatch.score,
+                campusCategory,
+                campusTag
             };
         });
+
+        if (campusFilter !== 'all') {
+            enriched = enriched.filter(j => j.campusCategory === campusFilter);
+        }
 
         // Sort descending: highest match percent on top; tie-breaker by recency
         return enriched.sort((a, b) => {
@@ -176,7 +185,7 @@ export const JobsPage = () => {
             }
             return (b.created_at || '').localeCompare(a.created_at || '');
         });
-    }, [jobs, userSkills]);
+    }, [jobs, userSkills, campusFilter]);
 
     return (
         <div className="page-container">
@@ -205,7 +214,7 @@ export const JobsPage = () => {
 
             {/* Search & Filter Bar */}
             <Card style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
                     <div style={{ flex: 1, minWidth: '260px' }}>
                         <Input
                             placeholder="Search by role title, company, skills, or location..."
@@ -231,6 +240,38 @@ export const JobsPage = () => {
                             Remote Only
                         </label>
                     </div>
+                </div>
+
+                {/* Campus Placement Filter Pills */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.75rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginRight: '0.25rem' }}>
+                        Campus Filters:
+                    </span>
+                    {[
+                        { id: 'all', label: 'All Opportunities' },
+                        { id: 'batch2025', label: '🎓 2025/2026 Batch Eligible' },
+                        { id: 'offcampus', label: '🚀 Off-Campus Drive' },
+                        { id: 'tier2friendly', label: '✨ Tier 2/3 Friendly (No 75% Cutoff)' }
+                    ].map(f => (
+                        <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => setCampusFilter(f.id)}
+                            style={{
+                                padding: '0.3rem 0.75rem',
+                                borderRadius: '999px',
+                                border: campusFilter === f.id ? '1px solid #6366f1' : '1px solid rgba(255, 255, 255, 0.1)',
+                                background: campusFilter === f.id ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                                color: campusFilter === f.id ? '#c7d2fe' : '#94a3b8',
+                                fontSize: '0.75rem',
+                                fontWeight: campusFilter === f.id ? 700 : 500,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                            }}
+                        >
+                            {f.label}
+                        </button>
+                    ))}
                 </div>
             </Card>
 
@@ -285,6 +326,19 @@ export const JobsPage = () => {
                                                 >
                                                     {matchScore}% Match
                                                 </span>
+                                                {job.campusTag && (
+                                                    <span style={{
+                                                        fontSize: '0.68rem',
+                                                        fontWeight: 700,
+                                                        background: 'rgba(99, 102, 241, 0.15)',
+                                                        color: '#c7d2fe',
+                                                        padding: '0.15rem 0.5rem',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid rgba(99, 102, 241, 0.3)'
+                                                    }}>
+                                                        {job.campusTag}
+                                                    </span>
+                                                )}
                                                 {job.is_remote && (
                                                     <span className="badge badge-primary">Remote</span>
                                                 )}

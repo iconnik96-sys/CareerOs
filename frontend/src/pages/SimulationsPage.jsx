@@ -18,11 +18,16 @@ import {
     Play,
     Check,
     CreditCard,
+    Activity,
+    Cloud,
     ChevronRight,
     FileCode,
-    AlertCircle
+    AlertCircle,
+    MessageSquare,
+    Copy,
+    X
 } from 'lucide-react';
-import { SIMULATION_COMPANIES, getCompanyById, getLevelData } from '../data/simulationCatalog';
+import { SIMULATION_COMPANIES, getCompanyById, getLevelData, getInterviewPitchForTask } from '../data/simulationCatalog';
 import { DeveloperSimulationLab } from '../components/simulation/DeveloperSimulationLab';
 import { useSubscription } from '../contexts/SubscriptionContext';
 
@@ -45,6 +50,10 @@ export const SimulationsPage = () => {
     // Full-screen Simulation IDE Modal state
     const [showIdeLab, setShowIdeLab] = useState(false);
     const [ideInitialTicket, setIdeInitialTicket] = useState(null);
+
+    // Interview Pitch Cheatsheet Modal State
+    const [pitchModalTask, setPitchModalTask] = useState(null);
+    const [copiedPitch, setCopiedPitch] = useState(false);
 
     const selectedCompany = getCompanyById(selectedCompanyId);
     const selectedLevelData = getLevelData(selectedCompanyId, selectedLevelId);
@@ -240,14 +249,20 @@ export const SimulationsPage = () => {
                                             width: 46,
                                             height: 46,
                                             borderRadius: '12px',
-                                            backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                                            backgroundColor: company.accentColor ? `${company.accentColor}20` : 'rgba(59, 130, 246, 0.15)',
+                                            border: `1px solid ${company.accentColor ? `${company.accentColor}40` : 'rgba(59, 130, 246, 0.3)'}`,
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            color: '#60a5fa'
+                                            color: company.accentColor || '#60a5fa'
                                         }}>
-                                            <CreditCard size={24} />
+                                            {company.logoType === 'heart-pulse' ? (
+                                                <Activity size={24} />
+                                            ) : company.logoType === 'cloud' ? (
+                                                <Cloud size={24} />
+                                            ) : (
+                                                <CreditCard size={24} />
+                                            )}
                                         </div>
 
                                         <span style={{
@@ -378,7 +393,13 @@ export const SimulationsPage = () => {
                             fontSize: '0.8125rem',
                             fontWeight: 700
                         }}>
-                            <CreditCard size={14} />
+                            {selectedCompany.logoType === 'heart-pulse' ? (
+                                <Activity size={14} />
+                            ) : selectedCompany.logoType === 'cloud' ? (
+                                <Cloud size={14} />
+                            ) : (
+                                <CreditCard size={14} />
+                            )}
                             <span>Active Company: {selectedCompany.name}</span>
                         </div>
                     </div>
@@ -651,6 +672,18 @@ export const SimulationsPage = () => {
                                             <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                                 <FileCode size={13} color="#10b981" /> Target: <strong style={{ color: '#f8fafc' }}>{task.targetFile}</strong>
                                             </span>
+                                            <span style={{
+                                                fontSize: '0.65rem',
+                                                padding: '0.15rem 0.45rem',
+                                                borderRadius: '4px',
+                                                backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                                                color: '#38bdf8',
+                                                border: '1px solid rgba(56, 189, 248, 0.25)',
+                                                fontWeight: 800,
+                                                letterSpacing: '0.03em'
+                                            }}>
+                                                TS • PY • JAVA
+                                            </span>
                                         </div>
 
                                         <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -697,8 +730,33 @@ export const SimulationsPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* Quick Launch this Ticket Button */}
-                                    <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)', display: 'flex', justifyContent: 'flex-end' }}>
+                                    {/* Action Buttons: Interview Pitch Script & Quick Launch */}
+                                    <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setPitchModalTask(task);
+                                                setCopiedPitch(false);
+                                            }}
+                                            style={{
+                                                padding: '0.45rem 0.85rem',
+                                                borderRadius: 'var(--radius-sm)',
+                                                background: 'rgba(168, 85, 247, 0.12)',
+                                                border: '1px solid rgba(168, 85, 247, 0.3)',
+                                                color: '#c084fc',
+                                                fontSize: '0.78rem',
+                                                fontWeight: 700,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem'
+                                            }}
+                                        >
+                                            <MessageSquare size={13} />
+                                            <span>🎤 How to Pitch in Interview</span>
+                                        </button>
+
                                         {(() => {
                                             const isTaskLocked = !isVipBypass && activePlanId === 'free' && task.code !== 'FIN-BEG-1';
                                             return (
@@ -791,6 +849,144 @@ export const SimulationsPage = () => {
                     onClose={() => setShowIdeLab(false)}
                 />
             )}
+
+            {/* ========================================================================= */}
+            {/* INTERVIEW PITCH CHEATSHEET MODAL                                          */}
+            {/* ========================================================================= */}
+            {pitchModalTask && (() => {
+                const pitch = getInterviewPitchForTask(pitchModalTask.code);
+                const handleCopyScript = () => {
+                    const fullText = `30-SECOND ELEVATOR PITCH:\n"${pitch.elevatorPitch}"\n\nSTAR FRAMEWORK:\n• Situation: ${pitch.starAnswer.situation}\n• Task: ${pitch.starAnswer.task}\n• Action: ${pitch.starAnswer.action}\n• Result: ${pitch.starAnswer.result}\n\nCOMMON INTERVIEWER GOTCHA:\nQ: ${pitch.interviewerQuestions?.[0]?.q}\nA: ${pitch.interviewerQuestions?.[0]?.a}`;
+                    navigator.clipboard.writeText(fullText);
+                    setCopiedPitch(true);
+                    setTimeout(() => setCopiedPitch(false), 2500);
+                };
+
+                return (
+                    <div style={{
+                        position: 'fixed',
+                        inset: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                        backdropFilter: 'blur(8px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 9999,
+                        padding: '1.5rem'
+                    }} onClick={() => setPitchModalTask(null)}>
+                        <div style={{
+                            background: '#0f172a',
+                            border: '1.5px solid #a855f7',
+                            borderRadius: '16px',
+                            maxWidth: '720px',
+                            width: '100%',
+                            maxHeight: '90vh',
+                            overflowY: 'auto',
+                            padding: '2rem',
+                            boxShadow: '0 25px 60px rgba(168, 85, 247, 0.3)',
+                            position: 'relative'
+                        }} onClick={(e) => e.stopPropagation()}>
+                            
+                            {/* Modal Header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+                                <div>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#c084fc', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        🎙️ Recruiter & System Design Pitch Script
+                                    </span>
+                                    <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.35rem', fontWeight: 900, color: '#f8fafc' }}>
+                                        How to Pitch {pitchModalTask.code} in Round 2
+                                    </h3>
+                                </div>
+                                <button
+                                    onClick={() => setPitchModalTask(null)}
+                                    style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Section 1: 30-Second Elevator Pitch */}
+                            <div style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.3)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#e9d5ff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                        ⚡ 30-Second Spoken Pitch (Word-for-Word)
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyScript}
+                                        style={{
+                                            background: copiedPitch ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
+                                            border: 'none',
+                                            color: '#fff',
+                                            fontSize: '0.72rem',
+                                            fontWeight: 700,
+                                            padding: '0.25rem 0.65rem',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                        }}
+                                    >
+                                        {copiedPitch ? <Check size={12} /> : <Copy size={12} />}
+                                        <span>{copiedPitch ? 'Copied Full Script!' : 'Copy to Clipboard'}</span>
+                                    </button>
+                                </div>
+                                <p style={{ margin: 0, fontSize: '0.9rem', color: '#f8fafc', lineHeight: 1.6, fontStyle: 'italic' }}>
+                                    "{pitch.elevatorPitch}"
+                                </p>
+                            </div>
+
+                            {/* Section 2: STAR Framework */}
+                            <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#818cf8', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.04em' }}>
+                                    📊 STAR Framework Breakdown
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.84rem' }}>
+                                    <div><strong style={{ color: '#93c5fd' }}>Situation:</strong> <span style={{ color: '#cbd5e1' }}>{pitch.starAnswer.situation}</span></div>
+                                    <div><strong style={{ color: '#93c5fd' }}>Task:</strong> <span style={{ color: '#cbd5e1' }}>{pitch.starAnswer.task}</span></div>
+                                    <div><strong style={{ color: '#93c5fd' }}>Action:</strong> <span style={{ color: '#cbd5e1' }}>{pitch.starAnswer.action}</span></div>
+                                    <div><strong style={{ color: '#4ade80' }}>Result:</strong> <span style={{ color: '#f8fafc', fontWeight: 600 }}>{pitch.starAnswer.result}</span></div>
+                                </div>
+                            </div>
+
+                            {/* Section 3: Interviewer Gotcha Question */}
+                            {pitch.interviewerQuestions?.[0] && (
+                                <div style={{ background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '12px', padding: '1.25rem' }}>
+                                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#f87171', textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '0.04em' }}>
+                                        🎯 Anticipated Interviewer Gotcha Question
+                                    </div>
+                                    <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#fca5a5', marginBottom: '0.4rem' }}>
+                                        Q: "{pitch.interviewerQuestions[0].q}"
+                                    </div>
+                                    <div style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: 1.5 }}>
+                                        <strong style={{ color: '#34d399' }}>Your Winning Response:</strong> "{pitch.interviewerQuestions[0].a}"
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Close Button */}
+                            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => setPitchModalTask(null)}
+                                    style={{
+                                        padding: '0.6rem 1.4rem',
+                                        borderRadius: '8px',
+                                        background: '#a855f7',
+                                        border: 'none',
+                                        color: '#fff',
+                                        fontWeight: 800,
+                                        fontSize: '0.85rem',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Done
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };

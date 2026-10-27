@@ -381,11 +381,22 @@ export const DashboardPage = () => {
             }}>
               <Zap size={16} />
             </div>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
-              Today's Priority Mission
+            <span style={{ fontSize: '0.8125rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
+              🎯 Your #1 Highest-Impact Move Today
             </span>
             <span className="badge badge-purple" style={{ fontSize: '0.6875rem', padding: '0.15rem 0.5rem' }}>
               {priorityMission.tag}
+            </span>
+            <span style={{
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              color: '#38bdf8',
+              padding: '0.15rem 0.5rem',
+              borderRadius: '999px'
+            }}>
+              🧘 Ignore the noise • 1 step at a time
             </span>
           </div>
 

@@ -77,7 +77,7 @@ const DEFAULT_FREE_DURATION_SECONDS = 5 * 60; // 5 Minutes for Free tier
 export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Developer', initialQuestions = [] }) => {
     const { showToast } = useToast();
     const { profile, user } = useAuth();
-    const { currentPlan, triggerUpgradeModal } = useSubscription();
+    const { currentPlan, triggerUpgradeModal, recordUsage, checkFeatureAccess } = useSubscription();
     const sessionDurationSeconds = (currentPlan?.voice_duration_minutes || 5) * 60;
     const candidateName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Candidate';
 
@@ -917,6 +917,12 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
 
     // Start Interview
     const handleStartInterview = async () => {
+        const access = checkFeatureAccess('voice_interview');
+        if (!access.allowed) {
+            triggerUpgradeModal(access);
+            return;
+        }
+
         try {
             // User-gesture microphone warmup to ensure browser permissions
             if (navigator?.mediaDevices?.getUserMedia) {
@@ -928,6 +934,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             showToast('Please ensure microphone access is allowed in your browser address bar.', 'warning');
         }
 
+        recordUsage('voice_interview');
         setLoadingQuestions(true);
         setSessionCompleted(false);
         sessionCompletedRef.current = false;

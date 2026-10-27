@@ -56,6 +56,7 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
 
     {/* 5 Core Navigation Items */}
     <nav className="sidebar-nav" style={{ padding: '0.5rem 0.25rem' }}>
+
       {navItems.map(item => (
         <NavLink
           key={item.to}

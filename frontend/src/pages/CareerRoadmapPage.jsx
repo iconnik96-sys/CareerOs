@@ -3,10 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { roadmapService } from '../services/roadmapService';
 import { getRoleDisplayName } from '../utils/careerRoles';
-import { Milestone, CheckCircle2, Clock, Circle, ChevronDown, ChevronUp, FolderGit2, Sparkles, RefreshCw, AlertCircle, RotateCcw, Calendar, Layers } from 'lucide-react';
+import { Milestone, CheckCircle2, Clock, Circle, ChevronDown, ChevronUp, FolderGit2, Sparkles, RefreshCw, AlertCircle, RotateCcw, Calendar, Layers, SlidersHorizontal } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { CircularProgress } from '../components/common/CircularProgress';
+import { RoadmapTimelineSlider } from '../components/roadmap/RoadmapTimelineSlider';
 import confetti from 'canvas-confetti';
 
 export const CareerRoadmapPage = () => {
@@ -22,6 +23,7 @@ export const CareerRoadmapPage = () => {
     const [resetting, setResetting] = useState(false);
     const [error, setError] = useState(null);
     const [expandedSkillId, setExpandedSkillId] = useState(null);
+    const [activeTab, setActiveTab] = useState('interactive'); // 'interactive' | 'curriculum'
 
     const loadRoadmap = async () => {
         setLoading(true);
@@ -119,6 +121,67 @@ export const CareerRoadmapPage = () => {
             Refresh
           </Button>
         </div>
+      </div>
+
+      {/* Dynamic Mobile-First Progress Timeline Slider (Feature 4) */}
+      <RoadmapTimelineSlider roleName={roleDisplayName} />
+
+      {/* View Switch Tabs */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '0.75rem',
+        marginBottom: '1.25rem',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        paddingBottom: '0.75rem'
+      }}>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('interactive')}
+            style={{
+              padding: '0.4rem 0.85rem',
+              borderRadius: '8px',
+              backgroundColor: activeTab === 'interactive' ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
+              border: activeTab === 'interactive' ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid transparent',
+              color: activeTab === 'interactive' ? '#818cf8' : 'var(--text-muted)',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <SlidersHorizontal size={14} /> Interactive Overview
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('curriculum')}
+            style={{
+              padding: '0.4rem 0.85rem',
+              borderRadius: '8px',
+              backgroundColor: activeTab === 'curriculum' ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
+              border: activeTab === 'curriculum' ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid transparent',
+              color: activeTab === 'curriculum' ? '#818cf8' : 'var(--text-muted)',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Layers size={14} /> Full Deep Curriculum ({phases.length} Phases)
+          </button>
+        </div>
+
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          Click any skill to view practice milestones & code exercises
+        </span>
       </div>
 
       {error && (<div style={{ padding: '1rem 1.25rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>

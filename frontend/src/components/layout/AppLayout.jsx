@@ -23,7 +23,10 @@ export const AppLayout = () => {
     return (
         <div className="app-container">
             {/* Sidebar Navigation */}
-            <Sidebar mobileOpen={mobileSidebarOpen} onCloseMobile={() => setMobileSidebarOpen(false)}/>
+            <Sidebar 
+                mobileOpen={mobileSidebarOpen} 
+                onCloseMobile={() => setMobileSidebarOpen(false)}
+            />
 
             {/* Backdrop for mobile drawer */}
             {mobileSidebarOpen && (
@@ -37,7 +40,10 @@ export const AppLayout = () => {
 
             {/* Main Content Area */}
             <div className="main-content-wrapper">
-                <Navbar onOpenMobileSidebar={() => setMobileSidebarOpen(true)} onToggleCopilot={() => setCopilotOpen(prev => !prev)}/>
+                <Navbar 
+                    onOpenMobileSidebar={() => setMobileSidebarOpen(true)} 
+                    onToggleCopilot={() => setCopilotOpen(prev => !prev)}
+                />
                 <main style={{ flex: 1 }}>
                     <Outlet />
                 </main>

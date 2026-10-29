@@ -33,6 +33,7 @@ import { CampusDashboard } from './pages/CampusDashboard';
 import { AcceptCampusInvitePage } from './pages/AcceptCampusInvitePage';
 import { StudentJoinBatchPage } from './pages/StudentJoinBatchPage';
 import { PricingPage } from './pages/PricingPage';
+import { PlacementArenaPage } from './pages/PlacementArenaPage';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 
 // Guard component that requires authenticated session
@@ -133,6 +134,7 @@ export const App = () => {
                                         <Route path="/jobs/:id" element={<JobDetailsPage />} />
                                         <Route path="/applications" element={<ApplicationsPage />} />
                                         <Route path="/roadmap" element={<CareerRoadmapPage />} />
+                                        <Route path="/arena" element={<Navigate to="/dashboard" replace />} />
                                         <Route path="/interview-prep" element={<InterviewPrepPage />} />
                                         <Route path="/simulations" element={<SimulationsPage />} />
                                         <Route path="/simulations/:trackKey" element={<SimulationWorkspacePage />} />

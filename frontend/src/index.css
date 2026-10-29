@@ -936,6 +936,13 @@ input.input {
   color: var(--text-muted);
 }
 
+/* Hide native browser password reveal button to avoid duplicate or dark unstyled icons */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+}
+
+
 select.form-select option,
 select.form-input option,
 select.input option {

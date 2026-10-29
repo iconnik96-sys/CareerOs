@@ -48,7 +48,7 @@ export const InterviewPrepPage = () => {
   const urlTrack = searchParams.get('track');
 
   // Interview Navigation Mode: 'voice' | 'text'
-  const [interviewMode, setInterviewMode] = useState(urlMode === 'text' ? 'text' : 'voice');
+  const [interviewMode, setInterviewMode] = useState('voice');
   const [selectedTrack, setSelectedTrack] = useState(urlTrack && INTERVIEW_MODES.some(m => m.id === urlTrack) ? urlTrack : 'TECHNICAL');
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -184,7 +184,7 @@ export const InterviewPrepPage = () => {
 
   // Sync mode and track with URL search params when changed externally (e.g. Sidebar dropdown)
   useEffect(() => {
-    if (urlMode === 'voice' || urlMode === 'text') {
+    if (urlMode === 'voice') {
       setInterviewMode(urlMode);
     }
     if (urlTrack && INTERVIEW_MODES.some(m => m.id === urlTrack)) {
@@ -467,140 +467,6 @@ export const InterviewPrepPage = () => {
       </div>
     </div>
 
-    {/* Primary Interview Mode Selection Options */}
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-      gap: '1rem',
-      marginBottom: '1.75rem'
-    }}>
-      {/* Option 1: Live AI Voice Interview */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => handleSelectMode('voice')}
-        style={{
-          cursor: 'pointer',
-          padding: '1.25rem 1.5rem',
-          borderRadius: 'var(--radius-xl)',
-          border: `2px solid ${interviewMode === 'voice' ? 'var(--primary)' : 'var(--border-color)'}`,
-          backgroundColor: interviewMode === 'voice' ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-secondary)',
-          boxShadow: interviewMode === 'voice' ? '0 8px 24px -4px rgba(99, 102, 241, 0.25)' : 'none',
-          transition: 'all 0.2s ease',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '1rem'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: 'var(--radius-lg)',
-            backgroundColor: interviewMode === 'voice' ? 'var(--primary)' : 'var(--bg-tertiary)',
-            color: interviewMode === 'voice' ? '#fff' : 'var(--text-secondary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: interviewMode === 'voice' ? '0 4px 12px rgba(99, 102, 241, 0.35)' : 'none',
-            flexShrink: 0
-          }}>
-            <Mic size={24} className={interviewMode === 'voice' ? 'animate-pulse' : ''} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                Live AI Voice Interview
-              </h3>
-              <span className="badge badge-purple" style={{ fontSize: '0.6875rem' }}>
-                Live Audio
-              </span>
-            </div>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
-              Real-time spoken simulation with zero-latency AI examiner & verbal turn-taking.
-            </p>
-          </div>
-        </div>
-        <div style={{
-          width: '22px',
-          height: '22px',
-          borderRadius: '50%',
-          border: `2px solid ${interviewMode === 'voice' ? 'var(--primary)' : 'var(--border-color)'}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: interviewMode === 'voice' ? 'var(--primary)' : 'transparent',
-          flexShrink: 0
-        }}>
-          {interviewMode === 'voice' && <Check size={13} color="#fff" strokeWidth={3} />}
-        </div>
-      </div>
-
-      {/* Option 2: Typing or Text Interview */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => handleSelectMode('text')}
-        style={{
-          cursor: 'pointer',
-          padding: '1.25rem 1.5rem',
-          borderRadius: 'var(--radius-xl)',
-          border: `2px solid ${interviewMode === 'text' ? 'var(--primary)' : 'var(--border-color)'}`,
-          backgroundColor: interviewMode === 'text' ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-secondary)',
-          boxShadow: interviewMode === 'text' ? '0 8px 24px -4px rgba(99, 102, 241, 0.25)' : 'none',
-          transition: 'all 0.2s ease',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '1rem'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: 'var(--radius-lg)',
-            backgroundColor: interviewMode === 'text' ? 'var(--primary)' : 'var(--bg-tertiary)',
-            color: interviewMode === 'text' ? '#fff' : 'var(--text-secondary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: interviewMode === 'text' ? '0 4px 12px rgba(99, 102, 241, 0.35)' : 'none',
-            flexShrink: 0
-          }}>
-            <Keyboard size={24} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                Typing & Text Interview
-              </h3>
-              <span className="badge badge-neutral" style={{ fontSize: '0.6875rem' }}>
-                Self-Paced
-              </span>
-            </div>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
-              Curated role question bank with written response drafting & instant STAR AI evaluation.
-            </p>
-          </div>
-        </div>
-        <div style={{
-          width: '22px',
-          height: '22px',
-          borderRadius: '50%',
-          border: `2px solid ${interviewMode === 'text' ? 'var(--primary)' : 'var(--border-color)'}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: interviewMode === 'text' ? 'var(--primary)' : 'transparent',
-          flexShrink: 0
-        }}>
-          {interviewMode === 'text' && <Check size={13} color="#fff" strokeWidth={3} />}
-        </div>
-      </div>
-    </div>
-
     {/* Live Interview Arena Modal (always accessible) */}
     <LiveInterviewModal
       isOpen={liveModalOpen}
@@ -612,36 +478,37 @@ export const InterviewPrepPage = () => {
     {/* VIEW 1: LIVE AI VOICE INTERVIEW */}
     {interviewMode === 'voice' && (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        {/* Hero: AI Live Interactive Voice Mock Interview Arena */}
+        {/* Unified Compact AI Voice Interview Hero */}
         <Card style={{
-          padding: '2rem',
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.14) 0%, rgba(168, 85, 247, 0.09) 100%)',
-          border: '1px solid rgba(99, 102, 241, 0.35)',
+          padding: '1.25rem 1.5rem',
+          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.07) 100%)',
+          border: '1px solid rgba(99, 102, 241, 0.3)',
           borderRadius: 'var(--radius-xl)',
-          boxShadow: '0 8px 30px -4px rgba(99, 102, 241, 0.18)'
+          boxShadow: '0 4px 20px -2px rgba(99, 102, 241, 0.15)',
+          marginBottom: '0.25rem'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div style={{ maxWidth: '640px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-                <span className="badge badge-purple" style={{ backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>
-                  <Radio size={12} className="animate-pulse" /> ZERO-LATENCY INTERVIEW ARENA
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+                <span className="badge badge-purple" style={{ backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '0.72rem' }}>
+                  <Radio size={12} className="animate-pulse" /> LIVE AI VOICE STUDIO
                 </span>
-                <span className="badge badge-success" style={{ fontSize: '0.725rem' }}>
+                <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>
                   Natural Voice Controls
                 </span>
                 <span style={{
-                  fontSize: '0.75rem',
+                  fontSize: '0.72rem',
                   fontWeight: 700,
-                  padding: '0.2rem 0.6rem',
+                  padding: '0.15rem 0.5rem',
                   borderRadius: '999px',
-                  background: 'rgba(99, 102, 241, 0.2)',
-                  border: '1px solid rgba(99, 102, 241, 0.4)',
+                  background: 'rgba(99, 102, 241, 0.18)',
+                  border: '1px solid rgba(99, 102, 241, 0.35)',
                   color: '#818cf8',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px'
                 }}>
-                  🎙️ Voice Sessions: {(usage?.voice_interviews_count || 0)} / {totalVoiceInterviewsAllowed} Used
+                  🎙️ {(usage?.voice_interviews_count || 0)} / {totalVoiceInterviewsAllowed} Sessions Used
                 </span>
                 <button
                   type="button"
@@ -650,9 +517,9 @@ export const InterviewPrepPage = () => {
                     background: 'rgba(168, 85, 247, 0.15)',
                     border: '1px solid rgba(168, 85, 247, 0.35)',
                     color: '#c084fc',
-                    fontSize: '0.72rem',
+                    fontSize: '0.7rem',
                     fontWeight: 700,
-                    padding: '0.2rem 0.6rem',
+                    padding: '0.15rem 0.5rem',
                     borderRadius: '999px',
                     display: 'flex',
                     alignItems: 'center',
@@ -660,126 +527,99 @@ export const InterviewPrepPage = () => {
                     cursor: 'pointer'
                   }}
                 >
-                  <Gift size={12} /> +2 Free Sessions with Referral
+                  <Gift size={11} /> +2 Free Sessions
                 </button>
               </div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0.25rem 0 0.5rem 0' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0.15rem 0 0.25rem 0' }}>
                 Practice Live Voice Interview with AI
               </h2>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
-                Experience real-time verbal turn-taking across 4 tailored formats (Technical, DSA, Behavioral STAR, System Design). Includes natural conversational controls—say <em>"Could you repeat that?"</em> or click repeat anytime at zero token cost!
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                Real-time spoken simulation with verbal turn-taking across Technical, DSA, Behavioral, and System Design tracks.
               </p>
             </div>
 
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={() => handleOpenVoiceModal()}
-              leftIcon={<Mic size={20} />}
-              style={{
-                padding: '1rem 2rem',
-                fontSize: '1rem',
-                fontWeight: 800,
-                boxShadow: '0 4px 18px rgba(99, 102, 241, 0.45)',
-                borderRadius: 'var(--radius-lg)'
-              }}
-            >
-              Launch AI Mock Interview
-            </Button>
-          </div>
-        </Card>
+            {/* Action Buttons: Test Mic + Launch Interview */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={micTesting ? handleStopMicTest : handleStartMicTest}
+                style={{
+                  padding: '0.65rem 1.15rem',
+                  borderRadius: 'var(--radius-lg)',
+                  background: micTesting ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-secondary)',
+                  border: micTesting ? '1px solid #ef4444' : '1px solid var(--border-color)',
+                  color: micTesting ? '#f87171' : 'var(--text-secondary)',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Mic size={16} className={micTesting ? 'animate-pulse' : ''} />
+                <span>{micTesting ? 'Stop Mic Check' : 'Test Microphone'}</span>
+              </button>
 
-        {/* ZERO-QUOTA MIC CHECK & WARM-UP SANDBOX */}
-        <div style={{
-          background: 'rgba(15, 23, 42, 0.7)',
-          border: '1.5px dashed rgba(99, 102, 241, 0.4)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '1.25rem 1.75rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1.25rem'
-        }}>
-          <div style={{ maxWidth: '580px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-              <span style={{
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                background: 'rgba(34, 197, 94, 0.15)',
-                color: '#4ade80',
-                padding: '0.2rem 0.55rem',
-                borderRadius: '999px',
-                border: '1px solid rgba(34, 197, 94, 0.3)'
-              }}>
-                🛡️ Zero Quotas Used • 100% Free Test
-              </span>
-              <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f8fafc' }}>
-                Hostel Room Audio & Mic Pre-Flight Check
-              </span>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => handleOpenVoiceModal()}
+                leftIcon={<Play size={16} />}
+                style={{
+                  padding: '0.65rem 1.35rem',
+                  fontSize: '0.88rem',
+                  fontWeight: 800,
+                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+                  borderRadius: 'var(--radius-lg)'
+                }}
+              >
+                Launch Mock Interview
+              </Button>
             </div>
-            <p style={{ margin: 0, fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.5 }}>
-              Worried your mic won't work? Test your voice clarity and volume levels here first without burning any interview credits.
-            </p>
-
-            {/* Live Volume Meter and Detected Speech */}
-            {micTesting && (
-              <div style={{ marginTop: '0.85rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#cbd5e1', fontWeight: 600 }}>Mic Level:</span>
-                  <div style={{ width: '140px', height: '8px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{
-                      width: `${Math.max(5, micVolume)}%`,
-                      height: '100%',
-                      background: micVolume > 60 ? '#ef4444' : micVolume > 15 ? '#10b981' : '#6366f1',
-                      transition: 'width 0.1s ease'
-                    }} />
-                  </div>
-                  <span style={{ fontSize: '0.72rem', color: '#4ade80', fontWeight: 700 }}>
-                    {micVolume > 15 ? '🟢 Sound Detected' : '⚪ Speak into mic...'}
-                  </span>
-                </div>
-                {micHeardText ? (
-                  <div style={{ fontSize: '0.78rem', color: '#86efac', background: 'rgba(34, 197, 94, 0.1)', padding: '0.35rem 0.65rem', borderRadius: '6px' }}>
-                    ✓ Transcribed: "{micHeardText}"
-                  </div>
-                ) : (
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                    Say a technical word aloud (e.g., "PostgreSQL indexing" or "Hello CareerOS")...
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!micTesting && micCheckStatus === 'success' && (
-              <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#4ade80', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CheckCircle2 size={14} /> Microphone tested successfully! Your sound is loud and clear.
-              </div>
-            )}
           </div>
 
-          <button
-            type="button"
-            onClick={micTesting ? handleStopMicTest : handleStartMicTest}
-            style={{
-              padding: '0.65rem 1.25rem',
-              borderRadius: '8px',
-              background: micTesting ? 'rgba(239, 68, 68, 0.2)' : 'rgba(99, 102, 241, 0.2)',
-              border: micTesting ? '1px solid #ef4444' : '1px solid #818cf8',
-              color: micTesting ? '#f87171' : '#c7d2fe',
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              cursor: 'pointer',
+          {/* Inline Compact Mic Level (Visible only while testing) */}
+          {micTesting && (
+            <div style={{
+              marginTop: '0.85rem',
+              paddingTop: '0.75rem',
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem'
-            }}
-          >
-            <Mic size={16} />
-            <span>{micTesting ? '⏹️ Stop Mic Check' : '🎙️ Test Microphone'}</span>
-          </button>
-        </div>
+              justifyContent: 'space-between',
+              gap: '1rem',
+              flexWrap: 'wrap'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#cbd5e1', fontWeight: 600 }}>Mic Level:</span>
+                <div style={{ width: '130px', height: '6px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${Math.max(5, micVolume)}%`,
+                    height: '100%',
+                    background: micVolume > 60 ? '#ef4444' : micVolume > 15 ? '#10b981' : '#6366f1',
+                    transition: 'width 0.1s ease'
+                  }} />
+                </div>
+                <span style={{ fontSize: '0.72rem', color: '#4ade80', fontWeight: 700 }}>
+                  {micVolume > 15 ? '🟢 Sound Detected' : '⚪ Speak into mic...'}
+                </span>
+              </div>
+              {micHeardText && (
+                <div style={{ fontSize: '0.75rem', color: '#86efac', background: 'rgba(34, 197, 94, 0.1)', padding: '0.25rem 0.55rem', borderRadius: '4px' }}>
+                  ✓ Transcribed: "{micHeardText}"
+                </div>
+              )}
+            </div>
+          )}
+
+          {!micTesting && micCheckStatus === 'success' && (
+            <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: '#4ade80', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <CheckCircle2 size={13} /> Microphone tested successfully! Your sound is loud and clear.
+            </div>
+          )}
+        </Card>
 
         {/* 4 Formats Grid */}
         <div>
@@ -856,7 +696,7 @@ export const InterviewPrepPage = () => {
     )}
 
     {/* VIEW 2: TYPING & TEXT INTERVIEW */}
-    {interviewMode === 'text' && (
+    {/* Text interview hidden for now */ false && interviewMode === 'text' && (
       <div>
         {/* Interview Tracks Selector for Typing & Text Interview */}
         <div style={{ marginBottom: '1.25rem' }}>

@@ -114,13 +114,6 @@ export const LoginPage = () => {
             Create Account
           </Link>
         </div>
-
-        <div style={{ textAlign: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          Placement Officer (TPO)?{' '}
-          <Link to="/campus/accept-invite?token=demo-tpo-apex-token-2026" style={{ color: '#818cf8', fontWeight: 600 }}>
-            Activate Campus Invite
-          </Link>
-        </div>
       </div>
     </div>);
 };

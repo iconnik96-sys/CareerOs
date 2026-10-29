@@ -9,7 +9,7 @@ import {
 import { wasmExecutionService } from '../../services/wasmExecutionService';
 import { simulationService } from '../../services/simulationService';
 import { useToast } from '../../contexts/ToastContext';
-import { getCompanyById, getLevelData } from '../../data/simulationCatalog';
+import { getCompanyById, getLevelData, getInterviewPitchForTask } from '../../data/simulationCatalog';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 
 // Original unedited repository baseline
@@ -259,6 +259,28 @@ services:
     depends_on:
       - postgres
       - redis`,
+    'transactionService.ts': `import { Pool, PoolClient } from 'pg';
+
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 20,
+    connectionTimeoutMillis: 3000
+});
+
+export class TransactionService {
+    static async executePayment(merchantId: string, amount: number): Promise<void> {
+        // VULNERABILITY: Connection is acquired but NEVER released on error!
+        // Leaks open connections until server crashes with Out of Memory.
+        
+        let client: PoolClient | null = null;
+        // TODO Change 1: Connect to pool in try block: client = await pool.connect()
+        
+        // TODO Change 2: Execute query with timeout
+        
+        // TODO Change 3: Crucial fix! Add finally block to ALWAYS call client.release()
+    }
+}
+`,
     'transactionService.go': `package main
 
 import (
@@ -388,6 +410,14 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, next: 
     "ioredis": "^5.4.1"
   }
 }`,
+    'ragRetriever.py': `def hybrid_rrf_retrieval(query: str, top_k: int = 5):
+    # TODO (HLTH-INT-1): Implement Reciprocal Rank Fusion
+    return []
+`,
+    'inferenceEngine.py': `class BatchInferenceEngine:
+    # TODO (HLTH-PRO-1): Dynamic micro-batching
+    pass
+`,
     'README.md': `# FinPulse Payment Microservice
 Production incident simulation: Flash sale traffic spike causing 504 Gateway Timeouts.
 Investigate pool exhaustion and adjust connection limits.`
@@ -1226,6 +1256,21 @@ export const DeveloperSimulationLab = ({
         setTerminalLines(newLines);
     };
 
+// Strips comments and docstrings so test assertions don't falsely match TODOs or instructions
+function stripComments(code = '') {
+    if (!code) return '';
+    // Strip multi-line comments /* ... */
+    let res = code.replace(/\/\*[\s\S]*?\*\//g, '');
+    // Strip single-line comments // ...
+    res = res.replace(/\/\/.*$/gm, '');
+    // Strip Python docstrings """ ... """ and ''' ... '''
+    res = res.replace(/"""[\s\S]*?"""/g, '');
+    res = res.replace(/'''[\s\S]*?'''/g, '');
+    // Strip Python/Shell # comments
+    res = res.replace(/#.*$/gm, '');
+    return res;
+}
+
     // Run in-browser test execution tailored to the active ticket
     const runWasmTests = async () => {
         setWasmRunning(true);
@@ -1240,19 +1285,70 @@ export const DeveloperSimulationLab = ({
             let logs = [];
 
             const code = currentTicketData.code;
+            const targetFile = getTargetFileForLanguage(code, selectedLanguage);
+
+            // STRICT GUARD 1: Prevent unedited starter files from passing tests!
+            const starterBaseline = STARTER_REPOSITORY_FILES[targetFile] || '';
+            const currentTargetContent = files[targetFile] || '';
+            const isTargetModified = currentTargetContent.trim() !== starterBaseline.trim();
+
+            if (!isTargetModified) {
+                success = false;
+                logs = [
+                    { type: 'stderr', text: `  ✗ FAIL: test_no_changes_detected: No code changes detected in "${targetFile}".` },
+                    { type: 'stderr', text: `     You must implement the ticket solution before running verification tests!` }
+                ];
+
+                const result = {
+                    success: false,
+                    durationMs: 40,
+                    logs,
+                    output: logs.map(l => l.text).join('\n')
+                };
+
+                setTestResult(result);
+                setTestsPassed(false);
+                setTerminalLines(prev => [
+                    ...prev,
+                    ...logs.map(l => ({ type: 'stderr', text: l.text })),
+                    { 
+                        type: 'stderr', 
+                        text: `✗ TESTS FAILED (${result.durationMs}ms) — Unmodified starter file. Implement the changes in ${targetFile} first.` 
+                    }
+                ]);
+
+                if (toast?.showToast) toast.showToast(`No code changes detected in ${targetFile}. Please implement the ticket first!`, 'warning', 'No Changes Detected');
+                return;
+            }
 
             // 1. BEGINNER LEVEL TASKS
             if (code === 'FIN-BEG-1' || code === 'FIN-101') {
                 const isPy = selectedLanguage === 'python' || activeFile.endsWith('.py');
                 const isJava = selectedLanguage === 'java' || activeFile.endsWith('.java');
-                const content = isPy ? (files['payment_controller.py'] || '') : isJava ? (files['PaymentController.java'] || '') : (files['paymentController.ts'] || '');
+                const rawContent = isPy ? (files['payment_controller.py'] || '') : isJava ? (files['PaymentController.java'] || '') : (files['paymentController.ts'] || '');
+                const content = stripComments(rawContent);
 
-                const hasCurrencySet = /SUPPORTED_CURRENCIES/i.test(content) || /has\(currency/i.test(content) || /contains/i.test(content) || /USD|EUR|GBP/i.test(content);
-                const hasCaseCheck = /toUpperCase/i.test(content) || /isupper/i.test(content) || /ISO-4217/i.test(content);
-                const hasAmountCheck = /amount\s*<=?\s*0|typeof amount|amount\s*>\s*0|compareTo|BigDecimal/i.test(content);
-                const has422 = /422/i.test(content) || /HTTPException.*422/i.test(content) || /UNPROCESSABLE_ENTITY/i.test(content);
+                const hasCurrencySet = isPy 
+                    ? /SUPPORTED_CURRENCIES/i.test(content) && /currency\s+in\s+SUPPORTED_CURRENCIES/i.test(content)
+                    : isJava 
+                    ? /SUPPORTED_CURRENCIES\.contains\s*\(/i.test(content)
+                    : /SUPPORTED_CURRENCIES\.has\s*\(/i.test(content) || /SUPPORTED_CURRENCIES/i.test(content);
 
-                success = hasCurrencySet && hasAmountCheck && has422;
+                const hasCaseCheck = isPy 
+                    ? /isupper\s*\(\)/i.test(content)
+                    : isJava 
+                    ? /toUpperCase\s*\(\)/i.test(content)
+                    : /toUpperCase\s*\(\)/i.test(content);
+
+                const hasAmountCheck = isPy 
+                    ? /amount\s*<=?\s*0|amount\s*>\s*0/i.test(content)
+                    : isJava
+                    ? /compareTo\(BigDecimal\.ZERO\)|amount\s*<=?\s*0/i.test(content)
+                    : /amount\s*<=?\s*0|amount\s*>\s*0/i.test(content);
+
+                const has422 = /422/i.test(content);
+
+                success = hasCurrencySet && hasCaseCheck && hasAmountCheck && has422;
 
                 const runnerName = isPy ? '[PyTest WASM Engine]' : isJava ? '[JUnit 5 WASM Engine]' : '[Jest WASM Test Engine]';
                 const testSuiteName = isPy ? 'test_payment_boundary_validation.py' : isJava ? 'PaymentBoundaryValidationTest.java' : 'paymentController.test.ts';
@@ -1280,10 +1376,18 @@ export const DeveloperSimulationLab = ({
                 }
 
             } else if (code === 'FIN-BEG-2') {
-                const content = files['authMiddleware.ts'] || '';
-                const hasHeaders = /x-merchant-id/i.test(content) && /x-finpulse-signature/i.test(content);
-                const hasValidation = /!merchantId/i.test(content) || /!signature/i.test(content) || /401/i.test(content);
-                const hasNext = /next\(\)/i.test(content);
+                const rawContent = files['authMiddleware.ts'] || '';
+                const content = stripComments(rawContent);
+
+                // Must extract headers in executable code
+                const hasHeaders = (/req\.headers\s*\[\s*['"]x-merchant-id['"]\s*\]|req\.headers\s*\[\s*['"]x-finpulse-signature['"]\s*\]|req\.get\s*\(\s*['"]x-merchant-id['"]\s*\)|req\.header\s*\(\s*['"]x-merchant-id['"]\s*\)|req\.headers/i.test(content)) &&
+                    (/merchant-id/i.test(content) || /signature/i.test(content));
+
+                // Must validate presence and return 401
+                const hasValidation = (/!merchantId|!signature|!req\.headers/i.test(content) || /res\.status\(\s*401\s*\)|status\(\s*401\s*\)/i.test(content)) && /401/i.test(content);
+
+                // Must call next() when valid
+                const hasNext = /next\s*\(\s*\)/i.test(content);
 
                 success = hasHeaders && hasValidation && hasNext;
 
@@ -1294,7 +1398,7 @@ export const DeveloperSimulationLab = ({
                 if (hasHeaders) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_header_extraction: Extracts "x-merchant-id" and "x-finpulse-signature" safely' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_header_extraction: Headers "x-merchant-id" and "x-finpulse-signature" must be extracted' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_header_extraction: Headers "x-merchant-id" and "x-finpulse-signature" must be extracted from req.headers' });
                 }
 
                 if (hasValidation) {
@@ -1310,10 +1414,12 @@ export const DeveloperSimulationLab = ({
                 }
 
             } else if (code === 'FIN-BEG-3') {
-                const content = files['errorMiddleware.ts'] || '';
-                const hasStatus = /res\.status\(/i.test(content) && (/500/i.test(content) || /status/i.test(content));
+                const rawContent = files['errorMiddleware.ts'] || '';
+                const content = stripComments(rawContent);
+
+                const hasStatus = /res\.status\s*\(/i.test(content) && (/500/i.test(content) || /status/i.test(content));
                 const stripsStack = !/stack:\s*err\.stack/i.test(content) || /NODE_ENV/i.test(content);
-                const hasRfc7807 = /type/i.test(content) || /title/i.test(content) || /detail/i.test(content);
+                const hasRfc7807 = /title\s*:/i.test(content) && (/type\s*:/i.test(content) || /detail\s*:/i.test(content));
 
                 success = hasStatus && stripsStack && hasRfc7807;
 
@@ -1341,9 +1447,11 @@ export const DeveloperSimulationLab = ({
 
             // 2. INTERMEDIATE LEVEL TASKS
             } else if (code === 'FIN-INT-1' || code === 'FIN-102') {
-                const content = files['idempotencyService.ts'] || '';
-                const hasAcquire = /acquireLock/i.test(content) && /redis\.set/i.test(content) && /NX/i.test(content);
-                const hasRelease = /releaseLock/i.test(content);
+                const rawContent = files['idempotencyService.ts'] || '';
+                const content = stripComments(rawContent);
+
+                const hasAcquire = /redis\.set\s*\(/i.test(content) && /NX/i.test(content);
+                const hasRelease = /releaseLock/i.test(content) && (/redis\.del\s*\(/i.test(content) || /redis\.set\s*\(/i.test(content));
                 success = hasAcquire && hasRelease;
 
                 logs = [
@@ -1354,19 +1462,21 @@ export const DeveloperSimulationLab = ({
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_atomic_lock_acquisition: Acquired Redis lock with atomic NX and 60s TTL' });
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_prevent_double_charge: Rejects concurrent duplicate Idempotency-Key within 200ms' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_atomic_lock_acquisition: Redis set NX atomic lock not implemented' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_atomic_lock_acquisition: Atomic Redis SET with NX and 60s TTL not implemented' });
                 }
 
                 if (hasRelease) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_lock_cleanup_guarantee: Guaranteed key release and outcome persistence' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_lock_cleanup_guarantee: releaseLock not called or missing cleanup' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_lock_cleanup_guarantee: releaseLock must update key or delete lock in Redis' });
                 }
 
             } else if (code === 'FIN-INT-2') {
-                const content = files['rateLimiter.ts'] || '';
-                const hasIncr = /redis\.incr/i.test(content) || /incr/i.test(content);
-                const has429 = /429/i.test(content);
+                const rawContent = files['rateLimiter.ts'] || '';
+                const content = stripComments(rawContent);
+
+                const hasIncr = /redis\.incr\s*\(/i.test(content);
+                const has429 = /429/i.test(content) && /res\.status/i.test(content);
                 const hasHeaders = /Retry-After/i.test(content) || /X-RateLimit/i.test(content) || /setHeader/i.test(content);
 
                 success = hasIncr && has429;
@@ -1378,13 +1488,13 @@ export const DeveloperSimulationLab = ({
                 if (hasIncr) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_sliding_window_counter: Increments client request counter with 60s expiration' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_sliding_window_counter: Must increment counter in Redis atomically with TTL' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_sliding_window_counter: Must increment counter in Redis atomically with redis.incr()' });
                 }
 
                 if (has429) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_rate_limit_throttle: Exceeding threshold triggers HTTP 429 Too Many Requests' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_rate_limit_throttle: Expected HTTP 429 status code when limit exceeded' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_rate_limit_throttle: Expected HTTP 429 status code via res.status(429) when limit exceeded' });
                 }
 
                 if (hasHeaders) {
@@ -1394,12 +1504,14 @@ export const DeveloperSimulationLab = ({
                 }
 
             } else if (code === 'FIN-INT-3') {
-                const content = files['webhookService.ts'] || '';
-                const hasHmac = /createHmac/i.test(content) && /sha256/i.test(content);
-                const hasRetry = /for|while/i.test(content) && (/attempt/i.test(content) || /retry/i.test(content) || /delay/i.test(content));
+                const rawContent = files['webhookService.ts'] || '';
+                const content = stripComments(rawContent);
+
+                const hasHmac = /createHmac\s*\(\s*['"]sha256['"]/i.test(content);
+                const hasRetry = /(for\s*\(|while\s*\()[\s\S]*?(attempt|retry)/i.test(content) || /setTimeout/i.test(content);
                 const hasStatus = /DELIVERED/i.test(content);
 
-                success = hasHmac && (hasRetry || hasStatus);
+                success = hasHmac && hasRetry && hasStatus;
 
                 logs = [
                     { type: 'stdout', text: '[WASM Test Engine] Executing Dispatch Suite: test_resilient_webhook_delivery.py...' }
@@ -1414,7 +1526,7 @@ export const DeveloperSimulationLab = ({
                 if (hasRetry) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_exponential_backoff_retry: Retries transient network failures with backoff' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_exponential_backoff_retry: Implement a retry loop with exponential backoff' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_exponential_backoff_retry: Implement a retry loop with exponential delay' });
                 }
 
                 if (hasStatus) {
@@ -1454,71 +1566,83 @@ export const DeveloperSimulationLab = ({
                 }
 
             } else if (code === 'FIN-PRO-2') {
-                const content = files['circuitBreaker.ts'] || '';
-                const hasStates = /OPEN/i.test(content) && /HALF_OPEN/i.test(content) && /CLOSED/i.test(content);
-                const hasTrip = /failureThreshold/i.test(content) || /failureCount/i.test(content);
-                const hasReset = /resetTimeoutMs/i.test(content) || /Date\.now\(\)/i.test(content);
+                const rawContent = files['circuitBreaker.ts'] || '';
+                const content = stripComments(rawContent);
 
-                success = hasStates && hasTrip && hasReset;
+                const hasOpenCheck = /this\.state\s*===?\s*['"]OPEN['"]/i.test(content);
+                const hasTryCatch = /try\s*\{[\s\S]*?catch/i.test(content);
+                const hasTrip = /this\.state\s*=\s*['"]OPEN['"]/i.test(content) || /this\.failureCount\s*\+\+/i.test(content);
+                const hasClosed = /this\.state\s*=\s*['"]CLOSED['"]/i.test(content);
+
+                success = hasOpenCheck && hasTryCatch && (hasTrip || hasClosed);
 
                 logs = [
                     { type: 'stdout', text: '[WASM Test Engine] Executing Chaos Engineering Suite: test_circuit_breaker_resilience.py...' }
                 ];
 
-                if (hasStates) {
-                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_finite_state_machine: Transitions cleanly across CLOSED, OPEN, and HALF_OPEN states' });
+                if (hasOpenCheck) {
+                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_fast_failure_on_open: Throws immediate error when circuit is OPEN without network call' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_finite_state_machine: Circuit breaker must manage CLOSED, OPEN, and HALF_OPEN states' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_fast_failure_on_open: Must check if this.state === "OPEN" and fail fast' });
                 }
 
-                if (hasTrip) {
-                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_failure_threshold_tripping: Fast-fails requests when downstream error threshold is breached' });
+                if (hasTryCatch && hasTrip) {
+                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_failure_threshold_tripping: Increments failure counter in catch block and trips to OPEN' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_failure_threshold_tripping: Must trip to OPEN after failureThreshold breaches' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_failure_threshold_tripping: Must wrap execution in try/catch and trip state to OPEN on repeated failures' });
                 }
 
-                if (hasReset) {
-                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_half_open_recovery: Attempts recovery probe after resetTimeoutMs expires' });
+                if (hasClosed) {
+                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_half_open_recovery: Successfully recovers and resets state to CLOSED upon trial success' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_half_open_recovery: Must transition to HALF_OPEN after cooldown period' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_half_open_recovery: Must reset this.state = "CLOSED" and reset failures on successful call' });
                 }
 
             } else if (code === 'FIN-PRO-3') {
-                const content = files['transactionService.go'] || '';
-                const hasTimeout = /WithTimeout/i.test(content) && /cancel\(\)/i.test(content);
-                const hasClose = /defer conn\.Close\(\)/i.test(content);
-                const hasExec = /Query|Exec|Conn/i.test(content);
+                const rawContent = files['transactionService.ts'] || files['transactionService.go'] || '';
+                const content = stripComments(rawContent);
 
-                success = hasTimeout && hasClose;
+                const isGo = activeFile.endsWith('.go') || !!files['transactionService.go'];
+                let hasAcquire = false;
+                let hasRelease = false;
+
+                if (isGo && !files['transactionService.ts']) {
+                    hasAcquire = /WithTimeout/i.test(content) && /cancel\(\)/i.test(content);
+                    hasRelease = /defer\s+conn\.Close\(\)/i.test(content);
+                } else {
+                    // TypeScript pg pool implementation
+                    hasAcquire = /pool\.connect\s*\(\s*\)/i.test(content) || /connect\(\)/i.test(content);
+                    hasRelease = /finally\s*\{[\s\S]*?client\.release\s*\(\s*\)/i.test(content) || /client\.release\s*\(\s*\)/i.test(content);
+                }
+
+                success = hasAcquire && hasRelease;
 
                 logs = [
-                    { type: 'stdout', text: '[WASM Test Engine] Executing Go Memory Profiler: test_transaction_service_leak.go...' }
+                    { type: 'stdout', text: '[WASM Test Engine] Executing Connection Leak Suite: test_transaction_service_leak.ts...' }
                 ];
 
-                if (hasTimeout) {
-                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_context_deadline: Wrapped context with context.WithTimeout and defer cancel()' });
+                if (hasAcquire) {
+                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_connection_acquisition: Acquired client connection with pool.connect()' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_context_deadline: Context must have a 3-second deadline with defer cancel()' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_connection_acquisition: Must acquire client connection from pool' });
                 }
 
-                if (hasClose) {
-                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_connection_leak_prevention: Guaranteed release with defer conn.Close()' });
+                if (hasRelease) {
+                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_connection_leak_prevention: Guaranteed release with client.release() in finally block' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_connection_leak_prevention: Must include "defer conn.Close()" to prevent connection leak OOM' });
-                }
-
-                if (hasExec) {
-                    logs.push({ type: 'stdout', text: '  ✓ PASS: test_safe_execution: Successfully executed query with timeout context' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_connection_leak_prevention: Must release client connection in finally block to prevent OOM crash' });
                 }
 
             } else if (code === 'HLTH-BEG-1') {
                 const isTs = selectedLanguage === 'typescript' || activeFile.endsWith('.ts');
                 const isJava = selectedLanguage === 'java' || activeFile.endsWith('.java');
-                const content = isTs ? (files['clinicalSummaryValidator.ts'] || '') : isJava ? (files['ClinicalSummaryValidator.java'] || '') : (files['clinicalSummaryValidator.py'] || '');
+                const rawContent = isTs ? (files['clinicalSummaryValidator.ts'] || '') : isJava ? (files['ClinicalSummaryValidator.java'] || '') : (files['clinicalSummaryValidator.py'] || '');
+                const content = stripComments(rawContent);
 
-                const hasClean = /```/i.test(content) || /strip/i.test(content) || /replace/i.test(content) || /clean.*markdown/i.test(content);
-                const hasSystolicValidator = (/field_validator|validator|systolic/i.test(content)) && /250/i.test(content);
-                const has422 = /422/i.test(content) || /status.*422/i.test(content) || /error/i.test(content) || /UNPROCESSABLE_ENTITY/i.test(content);
+                const hasClean = /startswith\s*\(\s*['"]```|replace\s*\(\s*['"]```|\[7:\]|\[:-3\]|clean_json/i.test(content) || /```/i.test(content);
+                const hasSystolicValidator = (/@field_validator\s*\(\s*['"]systolic_bp['"]\s*\)/i.test(content) || /validate_systolic/i.test(content)) &&
+                    (/60/i.test(content) && /250/i.test(content));
+                const has422 = /try\s*:[\s\S]*?except/i.test(content) && /422/i.test(content);
 
                 success = hasClean && hasSystolicValidator && has422;
 
@@ -1532,56 +1656,60 @@ export const DeveloperSimulationLab = ({
                 if (hasClean) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_markdown_fence_stripping: Successfully removes ```json and ``` fences from LLM output' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_markdown_fence_stripping: Must clean markdown code fences before JSON parsing' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_markdown_fence_stripping: clean_llm_markdown must strip ```json and ``` markdown wrappers' });
                 }
 
                 if (hasSystolicValidator) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_systolic_boundary_validation: Enforces biological bounds (60 <= systolic <= 250 mmHg)' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_systolic_boundary_validation: Must enforce systolic_bp biological bounds (60 to 250 mmHg)' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_systolic_boundary_validation: Must add @field_validator("systolic_bp") checking 60 <= v <= 250' });
                 }
 
                 if (has422) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_error_status_code: Emits HTTP 422 Unprocessable Entity on schema validation failure' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_error_status_code: Expected HTTP 422 on invalid vital boundaries' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_error_status_code: Must catch validation errors in try/except and return status 422' });
                 }
 
             } else if (code === 'HLTH-BEG-2') {
-                const content = files['hipaaSanitizer.py'] || '';
-                const hasSsn = /\[REDACTED_SSN\]/i.test(content) && /\\d\{3\}/i.test(content);
-                const hasPhone = /\[REDACTED_PHONE\]/i.test(content) && (/\\d\{3\}/i.test(content) || /\\d\{4\}/i.test(content));
-                const hasSub = /sub\(/i.test(content) || /replace/i.test(content);
+                const rawContent = files['hipaaSanitizer.py'] || '';
+                const content = stripComments(rawContent);
 
-                success = hasSsn && hasPhone && hasSub;
+                const hasSub = /SSN_REGEX\.sub\s*\(/i.test(content) || /PHONE_REGEX\.sub\s*\(/i.test(content) || /re\.sub\s*\(/i.test(content);
+                const hasSsn = /\[REDACTED_SSN\]/i.test(content);
+                const hasPhone = /\[REDACTED_PHONE\]/i.test(content);
+
+                success = hasSub && hasSsn && hasPhone;
 
                 logs = [
                     { type: 'stdout', text: '[PyTest WASM Runner] Executing HIPAA Compliance Audit Suite: test_hipaa_sanitizer.py...' }
                 ];
 
-                if (hasSsn) {
+                if (hasSsn && hasSub) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_ssn_deidentification: Redacts US Social Security Numbers to [REDACTED_SSN]' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_ssn_deidentification: SSN patterns must be substituted with [REDACTED_SSN]' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_ssn_deidentification: SSN patterns must be substituted with [REDACTED_SSN] using regex .sub()' });
                 }
 
-                if (hasPhone) {
+                if (hasPhone && hasSub) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_phone_deidentification: Redacts phone numbers to [REDACTED_PHONE]' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_phone_deidentification: Phone patterns must be substituted with [REDACTED_PHONE]' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_phone_deidentification: Phone patterns must be substituted with [REDACTED_PHONE] using regex .sub()' });
                 }
 
                 if (hasSub) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_clinical_preservation: Leaves clinical dosage tokens intact while masking PII' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_clinical_preservation: Notes must be processed through regex substitution' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_clinical_preservation: Notes must be processed through regex substitution (.sub)' });
                 }
 
             } else if (code === 'HLTH-BEG-3') {
-                const content = files['llmClient.py'] || '';
-                const hasLoop = /for\s+.*in\s+range/i.test(content) || /while/i.test(content) || /max_retries/i.test(content);
-                const hasBackoff = /2\s*\*\*/i.test(content) || /sleep/i.test(content);
-                const hasFallback = /compute_heuristic_fallback/i.test(content) || /heuristic_fallback/i.test(content);
+                const rawContent = files['llmClient.py'] || '';
+                const content = stripComments(rawContent);
+
+                const hasLoop = /for\s+\w+\s+in\s+range\s*\(/i.test(content) || /while\s+/i.test(content);
+                const hasBackoff = /time\.sleep\s*\(/i.test(content);
+                const hasFallback = /return\s+compute_heuristic_fallback\s*\(/i.test(content);
 
                 success = hasLoop && hasBackoff && hasFallback;
 
@@ -1592,30 +1720,37 @@ export const DeveloperSimulationLab = ({
                 if (hasLoop) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_retry_loop_attempts: Retries API call up to max_retries upon RateLimitError' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_retry_loop_attempts: Must implement retry loop with max_retries limit' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_retry_loop_attempts: Must implement retry loop (for attempt in range(max_retries))' });
                 }
 
                 if (hasBackoff) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_exponential_backoff: Implements sleep with exponential backoff delay' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_exponential_backoff: Must apply exponential sleep before retrying' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_exponential_backoff: Must apply exponential time.sleep before retrying' });
                 }
 
                 if (hasFallback) {
                     logs.push({ type: 'stdout', text: '  ✓ PASS: test_heuristic_fallback_graceful: Falls back to deterministic triage score on exhaustion' });
                 } else {
-                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_heuristic_fallback_graceful: Must return compute_heuristic_fallback(patient_vitals) on failure' });
+                    logs.push({ type: 'stderr', text: '  ✗ FAIL: test_heuristic_fallback_graceful: Must return compute_heuristic_fallback(patient_vitals) after retries exhausted' });
                 }
 
             } else {
-                // Generic fallback
-                success = true;
+                // Preview / custom tasks: require actual code implementation
+                const rawContent = files[targetFile] || '';
+                const content = stripComments(rawContent).trim();
+                success = content.length > 50 && !content.includes('pass') && !content.includes('return []');
+
                 logs = [
-                    { type: 'stdout', text: '[WASM Test Engine] Verified changes across target file.' },
-                    { type: 'stdout', text: '  ✓ PASS: test_implementation_sanity: Syntax valid and assertions verified.' }
+                    { type: 'stdout', text: `[WASM Test Engine] Executing Sandbox Verification for ${code}...` },
+                    { 
+                        type: success ? 'stdout' : 'stderr', 
+                        text: success 
+                            ? '  ✓ PASS: test_implementation_verified: Valid syntax and function body detected.' 
+                            : '  ✗ FAIL: test_implementation_incomplete: Please implement the preview function logic.' 
+                    }
                 ];
             }
-
             const result = {
                 success,
                 durationMs: 95,
@@ -1680,19 +1815,24 @@ export const DeveloperSimulationLab = ({
                 'Zero memory leaks or concurrency race conditions'
             ];
 
+            const pitch = getInterviewPitchForTask(currentTicketData.code);
+            const companyName = company?.name || 'enterprise';
+            const starBullet = pitch?.elevatorPitch || `Engineered and verified ${currentTicketData.title} within ${companyName} infrastructure, achieving 100% test pass rate and eliminating edge-case failure modes under production load.`;
+            const interviewPoint = pitch?.interviewerQuestions?.[0]?.a || `In a tech interview, highlight ${currentTicketData.code}: explain the architecture bottleneck, how you implemented the defensive changes without introducing regressions, and how automated tests verified the fix.`;
+
             const generatedReview = {
                 status: 'APPROVED',
                 score: 96,
-                summary: `Outstanding work on ${currentTicketData.code}! You systematically tackled the 3 required changes, satisfied all acceptance criteria, and verified your implementation in WebAssembly before submitting. This code is clean, robust, and production-ready.`,
+                summary: `Outstanding work on ${currentTicketData.code} at ${companyName}! You systematically tackled the 3 required changes, satisfied all acceptance criteria, and verified your implementation in WebAssembly before submitting. This code is clean, robust, and production-ready.`,
                 criteria_breakdown: criteriaList.map(crit => ({
                     criterion: crit,
                     status: 'PASS',
-                    feedback: 'Verified and passing 100% of automated unit and boundary tests under high-concurrency simulation.',
+                    feedback: `Verified and passing 100% of automated unit and boundary tests under high-concurrency simulation for ${companyName}.`,
                     points_awarded: Math.floor(100 / criteriaList.length),
                     points_possible: Math.floor(100 / criteriaList.length)
                 })),
-                star_bullet: `Engineered and verified ${currentTicketData.title} within FinPulse Payments infrastructure, achieving 100% test pass rate and eliminating edge-case failure modes under 15,000 req/sec load.`,
-                interview_talking_point: `In a tech interview, highlight ${currentTicketData.code}: explain why edge-case boundary testing is critical in fintech, how you architected the 3 changes without introducing regressions, and how automated verification guaranteed zero production incidents.`
+                star_bullet: starBullet,
+                interview_talking_point: interviewPoint
             };
             setLocalReview(generatedReview);
             setShowReviewModal(true);

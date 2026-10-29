@@ -5,7 +5,7 @@ import { useSubscription } from '../../contexts/SubscriptionContext';
 import {
   LayoutDashboard, User, FileText, ScanSearch, Briefcase, Layers,
   Milestone, HelpCircle, Settings, LogOut, Sparkles, Terminal,
-  ShieldAlert, Building2, CreditCard, ArrowRight, Mic
+  ShieldAlert, Building2, CreditCard, ArrowRight, Mic, Trophy
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
@@ -34,6 +34,7 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
     { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
     { to: '/ai-studio', label: 'AI Career Studio', icon: <Sparkles size={18} />, badge: 'ATS 85' },
     { to: '/roadmap', label: 'Career Roadmap', icon: <Milestone size={18} />, badge: 'Skills' },
+    // { to: '/arena', label: 'Placement Arena', icon: <Trophy size={18} />, badge: '⚡ Live' },
     { to: '/simulations', label: 'Workplace Simulation', icon: <Terminal size={18} />, badge: 'Code IDE' },
     { to: '/interview-prep', label: 'Mock Interviews', icon: <HelpCircle size={18} />, badge: 'AI Voice' },
     { to: '/jobs', label: 'Jobs & Pipeline', icon: <Briefcase size={18} />, badge: 'Matches' },

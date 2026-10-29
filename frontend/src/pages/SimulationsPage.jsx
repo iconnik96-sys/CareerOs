@@ -589,56 +589,6 @@ export const SimulationsPage = () => {
                         </div>
                     </div>
 
-                    {/* Briefing Header Container */}
-                    <div style={{
-                        background: 'var(--bg-card)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        borderRadius: 'var(--radius-lg)',
-                        padding: '2rem',
-                        marginBottom: '2rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: '1.5rem'
-                    }}>
-                        <div style={{ maxWidth: '650px' }}>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>
-                                Pre-Simulation Briefing • {selectedLevelData.label} Sprint
-                            </div>
-                            <h2 style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>
-                                {selectedLevelData.title}
-                            </h2>
-                            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                                Review the 3 tasks assigned to your sprint below. In each task, you will make ~3 focused changes to solve enterprise tickets, run in-browser tests, and submit a Pull Request to AI Staff Engineer Marcus.
-                            </p>
-                        </div>
-
-                        {/* Top Start with IDE Hero CTA */}
-                        <button
-                            onClick={() => handleLaunchIde()}
-                            style={{
-                                padding: '1rem 2rem',
-                                borderRadius: 'var(--radius-md)',
-                                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                                color: '#ffffff',
-                                fontWeight: 900,
-                                fontSize: '1.05rem',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.65rem',
-                                boxShadow: '0 8px 25px rgba(37, 99, 235, 0.4)',
-                                flexShrink: 0
-                            }}
-                        >
-                            <Terminal size={20} />
-                            <span>Start with IDE</span>
-                            <ArrowRight size={20} />
-                        </button>
-                    </div>
-
                     {/* The 3 Tasks Breakdown List */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '2.5rem' }}>
                         {selectedLevelData.tasks.map((task, idx) => {

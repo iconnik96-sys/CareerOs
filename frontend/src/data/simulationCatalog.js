@@ -30,13 +30,13 @@ export const SIMULATION_COMPANIES = [
                     {
                         id: 'FIN-BEG-1',
                         code: 'FIN-BEG-1',
-                        title: 'Strict ISO-4217 Currency Code & Amount Boundary Validation',
+                        title: 'Bug Fix: Block Negative Amounts & Invalid Currencies',
                         badge: 'Task 1 • Beginner Friendly',
                         duration: '15 mins',
                         targetFile: 'paymentController.ts',
-                        tipText: 'Tip: Check SUPPORTED_CURRENCIES & ensure amount > 0 with max 2 decimals',
-                        scenario: "Downstream settlement reconciliation is failing because merchant webhooks send lowercase currency codes ('usd' instead of 'USD') and negative numbers.",
-                        objective: 'Validate currency against SUPPORTED_CURRENCIES, enforce uppercase strings, and reject non-positive amounts with HTTP 422.',
+                        tipText: 'Tip: Check if SUPPORTED_CURRENCIES has currency, and verify amount > 0',
+                        scenario: "A customer submitted an order with amount = -₹150 and currency = 'usd' instead of 'USD', causing an accounting error. Add validation to reject negative prices and lowercase currencies.",
+                        objective: 'Ensure currency is uppercase and in SUPPORTED_CURRENCIES, and amount is strictly positive with max 2 decimals.',
                         constraint: 'RFC-7807 compliance; reject unverified decimal charges.',
                         the3Changes: [
                             '1. Declare/import SUPPORTED_CURRENCIES Set (USD, EUR, GBP, CAD, JPY, INR).',
@@ -140,13 +140,13 @@ export const handlePayment = async (req: Request, res: Response) => {
                     {
                         id: 'FIN-BEG-2',
                         code: 'FIN-BEG-2',
-                        title: 'Merchant API Key Signature Verification',
+                        title: 'Security Fix: Block Requests Missing an API Key',
                         badge: 'Task 2 • Beginner Friendly',
                         duration: '15 mins',
                         targetFile: 'authMiddleware.ts',
                         tipText: 'Tip: Check x-merchant-id and x-finpulse-signature in req.headers',
-                        scenario: "Unauthenticated requests are hitting internal payment endpoints. We must enforce API key signature authentication on all merchant requests.",
-                        objective: 'Extract signature and merchant ID headers, verify formatting, and reject unauthenticated calls with HTTP 401.',
+                        scenario: "Spam bots are hitting our payment endpoints without logging in. Add an authentication check to block any request that doesn't send the merchant ID and signature headers.",
+                        objective: 'Read x-merchant-id and x-finpulse-signature from req.headers. If missing, return HTTP 401 Unauthorized.',
                         constraint: 'Block unauthorized requests before reaching controllers.',
                         the3Changes: [
                             '1. Extract x-merchant-id and x-finpulse-signature from req.headers.',
@@ -196,13 +196,13 @@ export const verifyMerchantSignature = (req: Request, res: Response, next: NextF
                     {
                         id: 'FIN-BEG-3',
                         code: 'FIN-BEG-3',
-                        title: 'Structured RFC-7807 JSON Error Sanitizer',
+                        title: 'Security Fix: Hide Database Passwords & Stack Traces from Error Screens',
                         badge: 'Task 3 • Beginner Friendly',
                         duration: '15 mins',
                         targetFile: 'errorMiddleware.ts',
-                        tipText: 'Tip: Format error as RFC-7807 JSON and strip stack traces in production',
-                        scenario: "Internal PostgreSQL connection strings and server stack traces were exposed to clients during a database timeout, violating security audit compliance.",
-                        objective: 'Sanitize error responses, strip err.stack, and standardize output to RFC-7807 Problem Details JSON format.',
+                        tipText: 'Tip: Return clean JSON with title, status 500, and detail; never send err.stack to clients',
+                        scenario: "When the database crashed, our server sent the full PostgreSQL credentials and file paths directly to the user's browser. Clean up the error handler so clients only see a friendly error message.",
+                        objective: 'Remove err.stack and return a clean { title, status: 500, detail } JSON response.',
                         constraint: 'Zero sensitive internal stack trace leaks to client responses.',
                         the3Changes: [
                             '1. Catch unhandled error in global Express error handler.',
@@ -267,13 +267,13 @@ export const globalErrorHandler = (err: any, req: Request, res: Response, next: 
                     {
                         id: 'FIN-INT-1',
                         code: 'FIN-INT-1',
-                        title: 'Distributed Idempotency Key Lock (Race Condition Prevention)',
+                        title: 'Bug Fix: Stop Double-Charging When Impatient Users Tap "Pay" Twice',
                         badge: 'Task 1 • Intermediate',
                         duration: '20 mins',
                         targetFile: 'idempotencyService.ts',
                         tipText: 'Tip: Use Redis SET idemp:{key} PROCESSING EX 60 NX',
-                        scenario: "Mobile users with high latency double-tap 'Pay Now' within 100ms. Without distributed locks, concurrent threads double-charge customers $159.98.",
-                        objective: 'Implement an atomic Redis lock using SET NX with 60s TTL; reject concurrent attempts with HTTP 409 Conflict.',
+                        scenario: "When internet is slow, shoppers tap 'Pay Now' multiple times in 1 second, accidentally charging their card twice. Use Redis to lock the transaction so identical payments are processed only once.",
+                        objective: 'Acquire an atomic 60-second Redis lock. If already processing, reject the duplicate request.',
                         constraint: 'Zero duplicate charges under high concurrency race conditions.',
                         the3Changes: [
                             '1. Validate idempotencyKey presence and build redis key `idemp:${idempotencyKey}`.',
@@ -341,13 +341,13 @@ export class IdempotencyService {
                     {
                         id: 'FIN-INT-2',
                         code: 'FIN-INT-2',
-                        title: 'Token Bucket API Rate Limiter Middleware',
+                        title: 'Scale Fix: Limit Users to 100 Requests/Min to Prevent Scraper Crashes',
                         badge: 'Task 2 • Intermediate',
                         duration: '20 mins',
                         targetFile: 'rateLimiter.ts',
                         tipText: 'Tip: Track IP/client requests with Redis INCR and EXPIRE; return 429 when > 100',
-                        scenario: "A rogue merchant script began sending 4,000 requests/second from a single IP, overwhelming payment workers. We need per-client rate limiting.",
-                        objective: 'Implement a token bucket rate limiter tracking requests per minute; return HTTP 429 with standard Retry-After headers.',
+                        scenario: "A rogue bot sent 4,000 requests/second from a single IP, crashing our payment checkout. Build a rate limiter to block any IP sending more than 100 requests in 60 seconds.",
+                        objective: 'Count requests per IP in Redis. If requests exceed 100 in 60 seconds, return HTTP 429 (Too Many Requests).',
                         constraint: 'Limit: 100 requests per 60 seconds per client IP.',
                         the3Changes: [
                             '1. Extract client IP and generate redis key `ratelimit:${clientIp}`.',
@@ -418,13 +418,13 @@ export const rateLimiterMiddleware = async (req: Request, res: Response, next: N
                     {
                         id: 'FIN-INT-3',
                         code: 'FIN-INT-3',
-                        title: 'Webhook Event Dispatcher & Exponential Backoff',
+                        title: 'Reliability: Auto-Retry Failed Webhooks with Doubling Delays (1s, 2s, 4s)',
                         badge: 'Task 3 • Intermediate',
                         duration: '20 mins',
                         targetFile: 'webhookService.ts',
                         tipText: 'Tip: Compute HMAC signature and retry with 2^attempt backoff on 5xx errors',
-                        scenario: "Merchants miss crucial charge completion notifications when their endpoint experiences temporary server restarts.",
-                        objective: 'Build an HMAC-signed webhook dispatcher with exponential backoff retries (1s, 2s, 4s) on HTTP failures.',
+                        scenario: "When a merchant server restarts, payment confirmation webhooks fail. Add a retry loop that tries 3 times with doubling wait times (1s, 2s, 4s) before giving up.",
+                        objective: 'Send the webhook. If it fails, wait 1s, then 2s, then 4s before marking as failed.',
                         constraint: 'Sign payloads with HMAC-SHA256 and cap retries at 3 attempts.',
                         the3Changes: [
                             '1. Generate HMAC-SHA256 signature using merchant secret.',
@@ -510,13 +510,13 @@ export class WebhookService {
                     {
                         id: 'FIN-PRO-1',
                         code: 'FIN-PRO-1',
-                        title: '504 Flash Sale Spike Connection Pool Bottleneck',
+                        title: 'DevOps Fix: Increase Server Connection Pool for Flash Sale Traffic',
                         badge: 'Task 1 • Production Incident',
                         duration: '30 mins',
                         targetFile: 'docker-compose.yml',
-                        tipText: 'Tip: Scale DB_POOL_SIZE and MAX_CONCURRENT_REQUESTS in environment',
-                        scenario: "Black Friday flash sale surge: 15,000 customers checked out simultaneously, causing 504 Gateway Timeouts and OOM service crashes.",
-                        objective: 'Reconfigure container limits: scale DB_POOL_SIZE from 10 to 50 and MAX_CONCURRENT_REQUESTS to 500.',
+                        tipText: 'Tip: Change DB_POOL_SIZE to 50 and MAX_CONCURRENT_REQUESTS to 500 in docker-compose.yml',
+                        scenario: "During a Black Friday sale, 15,000 shoppers overwhelmed our default settings (only 10 database connections allowed). Scale the config settings to 50 connections and 500 workers.",
+                        objective: 'Edit docker-compose.yml to scale DB_POOL_SIZE=50 and MAX_CONCURRENT_REQUESTS=500.',
                         constraint: 'Eliminate 504 dropped transactions while respecting PostgreSQL server limits.',
                         the3Changes: [
                             '1. Scale database connection pool: change DB_POOL_SIZE from 10 to 50.',
@@ -572,13 +572,13 @@ services:
                     {
                         id: 'FIN-PRO-2',
                         code: 'FIN-PRO-2',
-                        title: 'Zero-Downtime Circuit Breaker Implementation',
+                        title: 'Architecture: Stop Calling a Broken Bank API to Prevent App Hangs',
                         badge: 'Task 2 • Production Incident',
                         duration: '30 mins',
                         targetFile: 'circuitBreaker.ts',
-                        tipText: 'Tip: Implement CLOSED, OPEN, HALF_OPEN state machine based on failure threshold',
-                        scenario: "A partner banking gateway experienced an outage. Our payment service kept hammering the broken bank, tying up server threads until all services crashed.",
-                        objective: 'Implement a Circuit Breaker pattern with 3 states (CLOSED, OPEN, HALF_OPEN) that fails fast when error rate exceeds 50%.',
+                        tipText: 'Tip: If state is OPEN, check if 10s passed to set HALF_OPEN, else throw fast error',
+                        scenario: "When a partner banking gateway went down, our server kept waiting 30 seconds on every request, freezing the whole checkout. If a partner bank fails 5 times, stop calling them and fail fast for 10 seconds.",
+                        objective: 'Track failed bank attempts. When failures hit 5, trip the circuit breaker to OPEN to protect your servers.',
                         constraint: 'Fail fast in < 2ms when circuit is OPEN, probe recovery after 10s cooldown.',
                         the3Changes: [
                             '1. Track consecutive failure counts in rolling window.',
@@ -657,94 +657,79 @@ export class CircuitBreaker {
                     {
                         id: 'FIN-PRO-3',
                         code: 'FIN-PRO-3',
-                        title: 'Database Connection Drain & Context Timeout (Memory Leak Fix)',
+                        title: 'Memory Leak Fix: Always Release Database Connections in Finally Block',
                         badge: 'Task 3 • Production Incident',
                         duration: '30 mins',
-                        targetFile: 'transactionService.go',
-                        tipText: 'Tip: Add context.WithTimeout(ctx, 3*time.Second) and defer conn.Close()',
-                        scenario: "Our Go transaction processor suffered a SIGSEGV out-of-memory crash. Profiling showed database connections were opened but never returned to the pool.",
-                        objective: 'Fix the connection leak by adding defer conn.Close(), apply 3-second query timeouts, and handle context cancellations.',
-                        constraint: 'Zero leaked database connections; strict 3-second deadline.',
+                        targetFile: 'transactionService.ts',
+                        tipText: 'Tip: Wrap query in try/finally and call client.release() in finally block',
+                        scenario: "Our payment server crashed with an out-of-memory error because database queries were opened but never released back to the pool. Wrap the query in a try/finally block so connections are always freed.",
+                        objective: 'Acquire database client, execute query with 3-second timeout, and always call client.release() in a finally block.',
+                        constraint: 'Zero leaked database connections; guaranteed release in finally block.',
                         the3Changes: [
-                            '1. Add context.WithTimeout(ctx, 3*time.Second) with defer cancel().',
-                            '2. Acquire connection and immediately defer conn.Close() to return connection to pool.',
-                            '3. Execute transaction with timeout context.'
+                            '1. Acquire client from database pool using await pool.connect().',
+                            '2. Execute transaction query inside try block with 3s timeout.',
+                            '3. Call client.release() inside finally block to guarantee connection cleanup.'
                         ],
                         acceptanceCriteria: [
-                            'Applies 3-second context deadline with cancellation cleanup.',
-                            'Guarantees connection release using defer conn.Close().',
-                            'Prevents unclosed connection accumulation under high concurrency.'
+                            'Acquires connection client from PostgreSQL pool.',
+                            'Guarantees connection release using client.release() in finally block.',
+                            'Prevents leaked orphaned connections even when query throws an error.'
                         ],
-                        hint: `ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-defer cancel()
-
-conn, err := s.db.Conn(ctx)
-if err != nil { return err }
-defer conn.Close()`,
-                        starterFile: 'transactionService.go',
-                        starterCode: `package main
-
-import (
-    "context"
-    "database/sql"
-    "fmt"
-    "time"
-)
-
-type TransactionService struct {
-    db *sql.DB
-}
-
-func (s *TransactionService) ExecutePayment(ctx context.Context, merchantID string, amount float64) error {
-    // VULNERABILITY: No query timeout & connection is NEVER closed!
-    
-    // TODO Change 1: Wrap ctx with context.WithTimeout (3 seconds) and defer cancel()
-    
-    // TODO Change 2: Acquire connection and guarantee release with defer conn.Close()
-    conn, err := s.db.Conn(ctx)
-    if err != nil {
-        return fmt.Errorf("connection pool exhausted: %w", err)
-    }
-    // Missing defer conn.Close() causes SIGSEGV OOM crash!
-
-    // TODO Change 3: Execute query safely with context
-    _ = conn
-    return nil
+                        hint: `let client;
+try {
+    client = await pool.connect();
+    await client.query('UPDATE balances SET amount = amount - $1 WHERE merchant_id = $2', [amount, merchantId]);
+} finally {
+    if (client) client.release(); // Crucial: always returns connection to pool!
 }`,
-                        solutionCode: `package main
+                        starterFile: 'transactionService.ts',
+                        starterCode: `import { Pool, PoolClient } from 'pg';
 
-import (
-    "context"
-    "database/sql"
-    "fmt"
-    "time"
-)
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 20,
+    connectionTimeoutMillis: 3000
+});
 
-type TransactionService struct {
-    db *sql.DB
-}
-
-func (s *TransactionService) ExecutePayment(ctx context.Context, merchantID string, amount float64) error {
-    // Change 1: 3-second deadline context
-    ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-    defer cancel()
-
-    // Change 2: Acquire connection and guarantee cleanup back to pool
-    conn, err := s.db.Conn(ctx)
-    if err != nil {
-        return fmt.Errorf("connection pool exhausted: %w", err)
+export class TransactionService {
+    static async executePayment(merchantId: string, amount: number): Promise<void> {
+        // VULNERABILITY: Connection is acquired but NEVER released on error!
+        // Leaks open connections until server crashes with Out of Memory.
+        
+        let client: PoolClient | null = null;
+        // TODO Change 1: Connect to pool in try block: client = await pool.connect()
+        
+        // TODO Change 2: Execute query with timeout
+        
+        // TODO Change 3: Crucial fix! Add finally block to ALWAYS call client.release()
     }
-    defer conn.Close() // Fixes memory and connection pool leak
-
-    // Change 3: Execute query with timeout context
-    _, err = conn.ExecContext(ctx, "UPDATE balances SET amount = amount - $1 WHERE merchant_id = $2", amount, merchantID)
-    if err != nil {
-        return fmt.Errorf("payment execution failed: %w", err)
-    }
-
-    return nil
 }`,
-                        mentorQuote: '"In high-throughput Go services, forgetting `defer conn.Close()` exhausts the pool within minutes. Always tie connection lifetimes to request contexts."'
+                        solutionCode: `import { Pool, PoolClient } from 'pg';
+
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 20,
+    connectionTimeoutMillis: 3000
+});
+
+export class TransactionService {
+    static async executePayment(merchantId: string, amount: number): Promise<void> {
+        let client: PoolClient | null = null;
+        try {
+            // Change 1: Acquire client from pool
+            client = await pool.connect();
+            
+            // Change 2: Execute balance update
+            await client.query('UPDATE balances SET amount = amount - $1 WHERE merchant_id = $2', [amount, merchantId]);
+        } finally {
+            // Change 3: Crucial fix! Always return connection to pool even if query fails
+            if (client) {
+                client.release();
+            }
+        }
+    }
+}`,
+                        mentorQuote: '"In high-throughput Node.js microservices, forgetting client.release() in a finally block exhausts your pool within minutes. Always release connections!"'
                     }
                 ]
             }
@@ -774,18 +759,18 @@ func (s *TransactionService) ExecutePayment(ctx context.Context, merchantID stri
                 color: '#10b981',
                 badgeBg: 'rgba(16, 185, 129, 0.15)',
                 duration: '~45 mins total (3 Tasks)',
-                description: 'Build clinical LLM output guardrails using Pydantic, HIPAA regex de-identification, and rate-limited fallback handlers.',
+                description: 'Build real GenAI guardrails in Python: strip broken markdown fences from OpenAI JSON, hide private phone numbers & SSNs, and build smart retry loops with backup fallbacks.',
                 tasks: [
                     {
                         id: 'HLTH-BEG-1',
                         code: 'HLTH-BEG-1',
-                        title: 'Clinical LLM Output Pydantic Validation & Backtick Stripping',
+                        title: 'AI Guardrail: Strip Markdown Fences & Block Bad AI Blood Pressure Numbers',
                         badge: 'Task 1 • Beginner Friendly',
                         duration: '15 mins',
                         targetFile: 'clinicalSummaryValidator.py',
-                        tipText: 'Tip: Strip markdown code fences (```json) and enforce 60 <= systolic_bp <= 250 in Pydantic',
-                        scenario: "Hospital ER triage dashboard is crashing because OpenAI API responses wrap JSON in markdown backticks (```json ... ```) and hallucinate impossible blood pressures (e.g. systolic = -40 or 999). Downstream EHR systems reject these with 500 crashes.",
-                        objective: 'Clean raw LLM markdown formatting, validate vitals boundaries using Pydantic (systolic between 60-250 mmHg, diastolic between 40-150 mmHg), and return HTTP 422 if invalid.',
+                        tipText: 'Tip: Strip ```json and ``` wrappers, then use @field_validator to enforce 60 <= systolic_bp <= 250',
+                        scenario: "When you ask OpenAI to return JSON, it often wraps it inside markdown code fences (```json ... ```) or hallucinates impossible numbers (like blood pressure = -40 or 999). Hospital databases crash when this happens. Clean the raw text so it parses cleanly, and add a Pydantic validator to reject bad numbers with HTTP 422.",
+                        objective: 'Strip markdown code fences (```json), enforce that systolic blood pressure is between 60 and 250 mmHg in Pydantic, and return HTTP 422 if invalid.',
                         constraint: 'Reject unverified vitals; guarantee clean JSON output.',
                         the3Changes: [
                             '1. Implement clean_llm_markdown() to remove ```json and ``` wrappers from raw LLM output.',
@@ -902,13 +887,13 @@ def parse_and_validate_summary(raw_llm_json: str) -> dict:
                     {
                         id: 'HLTH-BEG-2',
                         code: 'HLTH-BEG-2',
-                        title: 'HIPAA Patient De-Identification & PII Masking Pipeline',
+                        title: 'Data Privacy: Hide Social Security & Phone Numbers Before Sending to AI',
                         badge: 'Task 2 • Beginner Friendly',
                         duration: '15 mins',
                         targetFile: 'hipaaSanitizer.py',
-                        tipText: 'Tip: Define regex patterns for SSN and phone numbers and replace with [REDACTED_SSN] and [REDACTED_PHONE]',
-                        scenario: "Clinical staff paste raw patient charts into the triage tool. Raw Social Security Numbers and phone numbers were transmitted in plain text to external LLM providers, triggering a critical HIPAA audit warning.",
-                        objective: 'Implement regex-based sanitization in sanitize_clinical_notes() replacing SSNs with [REDACTED_SSN] and US phone numbers with [REDACTED_PHONE] before dispatching to external APIs.',
+                        tipText: 'Tip: Use re.sub() with SSN_REGEX and PHONE_REGEX to replace sensitive numbers with [REDACTED_SSN] and [REDACTED_PHONE]',
+                        scenario: "Doctors copy-paste consultation notes containing private phone numbers and Social Security Numbers into AI prompts. Before sending prompt text to OpenAI, run a regex filter that masks SSNs as [REDACTED_SSN] and phone numbers as [REDACTED_PHONE] so private data never leaks.",
+                        objective: 'Use regex to find all SSNs and phone numbers and replace them with [REDACTED_SSN] and [REDACTED_PHONE] before sending to OpenAI.',
                         constraint: 'Zero raw SSNs or phone numbers may leave the local cluster.',
                         the3Changes: [
                             '1. Define SSN_REGEX matching XXX-XX-XXXX format.',
@@ -982,13 +967,13 @@ def sanitize_clinical_notes(notes: str) -> str:
                     {
                         id: 'HLTH-BEG-3',
                         code: 'HLTH-BEG-3',
-                        title: 'LLM API Rate-Limit (429) Exponential Backoff & Heuristic Fallback',
+                        title: 'Reliability: Auto-Retry When OpenAI Rate-Limits (429) and Fall Back to Safe Rules',
                         badge: 'Task 3 • Beginner Friendly',
                         duration: '15 mins',
                         targetFile: 'llmClient.py',
-                        tipText: 'Tip: Implement max_retries loop with exponential backoff and fallback to compute_heuristic_fallback on 429 exhaustion',
-                        scenario: "During peak triage hours, the OpenAI API returns HTTP 429 rate limit errors. The hospital triage queue stalls indefinitely because calls lack retry logic and have no deterministic fallback mechanism.",
-                        objective: 'Implement 3-attempt exponential backoff retry logic. If all retries fail with 429 or timeout, return a deterministic rule-based triage score ("LEVEL_3_URGENT") with source="heuristic_fallback".',
+                        tipText: 'Tip: Retry up to 3 times with doubling sleep (0.05 * 2^attempt); if all fail, return compute_heuristic_fallback()',
+                        scenario: "During peak hours, OpenAI returns HTTP 429 Rate Limit errors, causing the app to freeze. Add a retry loop that tries up to 3 times with doubling wait times. If OpenAI is completely down, fall back to our local rule-based score so doctors never get a blank screen.",
+                        objective: 'Implement a 3-attempt exponential backoff retry loop for 429 errors, falling back to compute_heuristic_fallback() if all attempts fail.',
                         constraint: 'Never crash the triage queue; always return a valid triage classification.',
                         the3Changes: [
                             '1. Implement loop with max_retries attempts.',
@@ -1102,8 +1087,8 @@ def triage_patient_with_retry(patient_vitals: Dict[str, Any], max_retries: int =
                 audience: 'Ideal for 3rd & 4th Year College Students',
                 color: '#3b82f6',
                 badgeBg: 'rgba(59, 130, 246, 0.15)',
-                duration: '~60 mins total (3 Tasks)',
-                description: 'Implement hybrid BM25 + semantic vector search, token budget truncation, and async Kafka telemetry ingestion.',
+                duration: '~20 mins (Preview Task)',
+                description: 'Implement hybrid BM25 + semantic vector search to improve clinical document retrieval precision. (Advanced Level Preview)',
                 tasks: [
                     {
                         id: 'HLTH-INT-1',
@@ -1138,8 +1123,8 @@ def triage_patient_with_retry(patient_vitals: Dict[str, Any], max_retries: int =
                 audience: 'Targeting 12+ LPA Applied AI Roles',
                 color: '#ef4444',
                 badgeBg: 'rgba(239, 68, 68, 0.15)',
-                duration: '~90 mins total (3 Tasks)',
-                description: 'Engineer high-throughput ONNX micro-batching, model confidence calibration, and distributed Kafka alarm pipelines.',
+                duration: '~30 mins (Preview Task)',
+                description: 'Engineer high-throughput ONNX micro-batching to eliminate inference telemetry bottlenecks. (Production Level Preview)',
                 tasks: [
                     {
                         id: 'HLTH-PRO-1',
@@ -1299,7 +1284,7 @@ export const TASK_INTERVIEW_PITCHES = {
     },
     'HLTH-BEG-1': {
         taskCode: 'HLTH-BEG-1',
-        title: 'Clinical LLM Output Pydantic Validation & Backtick Stripping',
+        title: 'AI Guardrail: Strip Markdown Fences & Block Bad AI Blood Pressure Numbers',
         elevatorPitch: "In my HealthPulse AI work simulation, GPT-4 occasionally emitted markdown fences and hallucinated biologically impossible blood pressures that crashed hospital EHR ingestion. I engineered strict Pydantic V2 schema boundary validators and code-fence sanitizers, eliminating 100% of EHR ingestion exceptions.",
         starAnswer: {
             situation: "Hospital ER triage dashboard experienced 500 errors when OpenAI models outputted raw markdown backticks and out-of-range systolic blood pressures.",
@@ -1316,7 +1301,7 @@ export const TASK_INTERVIEW_PITCHES = {
     },
     'HLTH-BEG-2': {
         taskCode: 'HLTH-BEG-2',
-        title: 'HIPAA Patient De-Identification & PII Masking Pipeline',
+        title: 'Data Privacy: Hide Social Security & Phone Numbers Before Sending to AI',
         elevatorPitch: "Clinical notes contained unmasked SSNs and phone numbers that were leaking to third-party LLM providers. I built a deterministic regex sanitization pipeline that masked 100% of PII before serialization, bringing our AI platform into full HIPAA compliance.",
         starAnswer: {
             situation: "Doctors pasted raw patient records into the triage prompt, transmitting SSNs and contact numbers in cleartext.",
@@ -1333,7 +1318,7 @@ export const TASK_INTERVIEW_PITCHES = {
     },
     'HLTH-BEG-3': {
         taskCode: 'HLTH-BEG-3',
-        title: 'LLM API Rate-Limit (429) Exponential Backoff & Heuristic Fallback',
+        title: 'Reliability: Auto-Retry When OpenAI Rate-Limits (429) and Fall Back to Safe Rules',
         elevatorPitch: "During morning shift change, OpenAI 429 rate limit spikes froze hospital triage. I designed an exponential backoff retry loop with a deterministic rule-based heuristic fallback, guaranteeing sub-second triage scores even during complete LLM outages.",
         starAnswer: {
             situation: "Rate limit errors on third-party LLM APIs stalled ER patient intake during peak hours.",

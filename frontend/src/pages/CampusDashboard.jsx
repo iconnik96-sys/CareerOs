@@ -1,3 +1,4 @@
+import { isFounderUser } from '../utils/founderAuth';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,8 +15,7 @@ export const CampusDashboard = () => {
   const { user, profile } = useAuth();
   const { addToast } = useToast();
 
-  const isFounder = user?.email?.toLowerCase().trim() === 'nikhil@gmail.com' ||
-                    profile?.email?.toLowerCase().trim() === 'nikhil@gmail.com';
+  const isFounder = isFounderUser(user, profile);
 
   const userRole = (user?.user_metadata?.role || profile?.role || '').toLowerCase().trim();
   const userEmail = (user?.email || profile?.email || '').toLowerCase().trim();
@@ -835,7 +835,7 @@ export const CampusDashboard = () => {
               <BookOpen size={18} className="text-primary-accent" /> Branch-wise Performance Benchmarks
             </h3>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1.25rem' }}>
               {(metrics?.branch_breakdown || [
                 { branch: 'CSE', students: 4, avg_ats: 87.5, avg_mock: 84.5 },
                 { branch: 'IT', students: 2, avg_ats: 75.5, avg_mock: 71.5 },
@@ -1020,7 +1020,7 @@ export const CampusDashboard = () => {
 
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
               gap: '1rem',
               alignItems: 'flex-end'
             }}>
@@ -1470,7 +1470,7 @@ export const CampusDashboard = () => {
                 <BrainCircuit size={16} className="text-primary-accent" /> AI Mock Interview Evaluation
               </h4>
               <div className="card" style={{ padding: '1.25rem', background: 'rgba(15, 23, 42, 0.7)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '1rem', textAlign: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.5rem', marginBottom: '1rem', textAlign: 'center' }}>
                   <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px', borderRadius: '8px' }}>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Technical</span>
                     <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#818cf8', marginTop: '2px' }}>

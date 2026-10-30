@@ -1002,6 +1002,7 @@ export const DeveloperSimulationLab = ({
         return initialGuidedMode;
     });
     const [showGuidedHint, setShowGuidedHint] = useState(false);
+    const [mobileGuidedPane, setMobileGuidedPane] = useState('guide'); // 'guide' | 'editor' on <= 900px
 
     // Tests Passing State (Controls Pull Request submission lock!)
     const [testsPassed, setTestsPassed] = useState(false);
@@ -2260,23 +2261,51 @@ function stripComments(code = '') {
                 </div>
             </div>
 
+            {/* Mobile Tab Toggle for screens <= 900px */}
+            {isGuidedMode && (
+                <div className="sim-mobile-toggle">
+                    <button
+                        type="button"
+                        onClick={() => setMobileGuidedPane('guide')}
+                        style={{
+                            padding: '0.4rem 1rem',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: mobileGuidedPane === 'guide' ? 'var(--primary)' : 'rgba(255, 255, 255, 0.08)',
+                            color: mobileGuidedPane === 'guide' ? '#fff' : 'var(--text-muted)',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        📋 1. Mission Guide & Hints
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setMobileGuidedPane('editor')}
+                        style={{
+                            padding: '0.4rem 1rem',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: mobileGuidedPane === 'editor' ? 'var(--primary)' : 'rgba(255, 255, 255, 0.08)',
+                            color: mobileGuidedPane === 'editor' ? '#fff' : 'var(--text-muted)',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        💻 2. Code Editor ({activeFile})
+                    </button>
+                </div>
+            )}
+
             {/* 2. WORKSPACE BODY: GUIDED (2-PANE) OR PRO (4-PANE) */}
             {isGuidedMode ? (
                 /* GUIDED FRESHERS MODE (2-PANE: Mission Guide + Focused Code Editor) */
-                <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+                <div className="sim-guided-container">
                     
                     {/* LEFT PANE: Plain-English Mission Guide, Hints, AI Mentor */}
-                    <div style={{
-                        width: '460px',
-                        backgroundColor: '#0f172a',
-                        borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        overflowY: 'auto',
-                        padding: '1.5rem',
-                        gap: '1.25rem',
-                        flexShrink: 0
-                    }}>
+                    <div className={`sim-guided-left ${mobileGuidedPane !== 'guide' ? 'hidden-on-mobile' : ''}`}>
                         {/* Fresher Badge Header */}
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
@@ -2563,7 +2592,7 @@ function stripComments(code = '') {
                     </div>
 
                     {/* RIGHT PANE: Focused Editor for Target File */}
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, backgroundColor: '#090d16' }}>
+                    <div className={`sim-guided-right ${mobileGuidedPane !== 'editor' ? 'hidden-on-mobile' : ''}`}>
                         {/* Editor Header */}
                         <div style={{
                             padding: '0.6rem 1rem',

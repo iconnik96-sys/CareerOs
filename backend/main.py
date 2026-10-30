@@ -35,7 +35,7 @@ from routers import (
     admin,
     campus
 )
-from routers.admin import verify_authenticated_student
+from routers.admin import verify_authenticated_student, decode_and_verify_jwt
 from services.llm_engine import llm_engine
 
 app = FastAPI(
@@ -97,25 +97,146 @@ async def add_security_headers(request, call_next):
     response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none';"
     return response
 
-# Multi-Tier Rate Limiting for all API endpoints
+# User-Aware & Multi-Tier Rate Limiting for all API endpoints
 import time
 from collections import defaultdict
 from fastapi.responses import JSONResponse
 
 _rate_limit_records = defaultdict(list)
-RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_AI_MAX = 60  # max AI/LLM requests per window
-RATE_LIMIT_GEN_MAX = 120  # max general API requests per window
 _last_cleanup_time = time.time()
+
+# Multi-Tier Rate Limiting Configuration
+RATE_LIMIT_TIERS = {
+    "heavy_ai": {
+        "window": 60,
+        "limit": 10,
+        "name": "Heavy AI Evaluation",
+        "message": "AI generation rate limit reached (10 requests/min). Please wait a moment before initiating another comprehensive evaluation."
+    },
+    "file_upload": {
+        "window": 60,
+        "limit": 6,
+        "name": "Resume File Parser",
+        "message": "Resume upload rate limit reached (6 files/min). Please wait a moment before uploading another resume."
+    },
+    "voice_interactive": {
+        "window": 60,
+        "limit": 40,
+        "name": "Interactive AI Voice Turns",
+        "message": "Voice interview rate limit reached (40 turns/min). Please take a brief breath before your next turn."
+    },
+    "static_ai": {
+        "window": 60,
+        "limit": 120,
+        "name": "AI Catalog & Knowledge",
+        "message": "Request limit exceeded for AI knowledge services. Please wait a moment."
+    },
+    "join_code_probe": {
+        "window": 300,
+        "limit": 5,
+        "name": "College Batch Join",
+        "message": "Too many college invite code attempts. To protect campus rosters, please wait 5 minutes before trying another code."
+    },
+    "invite_verify_probe": {
+        "window": 60,
+        "limit": 10,
+        "name": "TPO Invite Verification",
+        "message": "Too many invitation verification attempts. Please wait 60 seconds before trying again."
+    },
+    "general_api": {
+        "window": 60,
+        "limit": 120,
+        "name": "API Service",
+        "message": "Rate limit exceeded. Please wait a moment before sending more requests."
+    }
+}
+
+def resolve_rate_limit_tier(path: str) -> str:
+    """Categorizes incoming endpoint path into its designated rate limiting tier."""
+    # 1. College invite code & TPO token brute-force protection
+    if path == "/api/campus/join-by-code":
+        return "join_code_probe"
+    if path.startswith("/api/campus/verify-invite") or path == "/api/campus/accept-invite":
+        return "invite_verify_probe"
+
+    # 2. File uploads (high parser/memory overhead)
+    if path in (
+        "/api/ai/parse-resume-file",
+        "/api/ai/parse-and-extract-profile",
+        "/api/ai/analyze-resume-upload"
+    ):
+        return "file_upload"
+
+    # 3. Heavy AI LLM multi-step evaluation & document generation
+    if path in (
+        "/api/ai/deep-resume-analysis",
+        "/api/ai/evaluate-interview-session",
+        "/api/ai/cover-letter",
+        "/api/ai/rag-company-outreach",
+        "/api/ai/outreach-message",
+        "/api/ai/job-match-analysis",
+        "/api/ai/rag-semantic-job-match",
+        "/api/ai/generate-roadmap",
+        "/api/ai/simulation/review"
+    ):
+        return "heavy_ai"
+
+    # 4. Interactive Voice & Real-time speech turns
+    if path in (
+        "/api/ai/interview-voice-turn",
+        "/api/ai/generate-interview-questions",
+        "/api/ai/clarify-interview-question",
+        "/api/ai/evaluate-interview-answer",
+        "/api/ai/standup",
+        "/api/ai/mentor-hint",
+        "/api/ai/copilot-chat",
+        "/api/ai/enhance-bullet"
+    ):
+        return "voice_interactive"
+
+    # 5. Static catalogs, company knowledge & tracks
+    if path in ("/api/ai/companies-knowledge", "/api/ai/suggest-role-skills") or path.startswith("/api/ai/simulation/tracks"):
+        return "static_ai"
+
+    # 6. Default general API
+    return "general_api"
 
 @app.middleware("http")
 async def rate_limit_middleware(request, call_next):
     global _last_cleanup_time
     path = request.url.path
 
-    # Only rate-limit API routes, excluding health check probe
-    if path.startswith("/api") and path != "/api/health":
-        # Resolve real client IP behind reverse proxy / CDN if present
+    # Bypass CORS preflights and health check probes
+    if request.method == "OPTIONS" or not path.startswith("/api") or path == "/api/health":
+        return await call_next(request)
+
+    now = time.time()
+
+    # Periodic cleanup of expired records every 5 minutes to prevent memory leak
+    if now - _last_cleanup_time > 300:
+        expired_keys = [k for k, ts in _rate_limit_records.items() if not ts or (now - ts[-1] > 360)]
+        for k in expired_keys:
+            _rate_limit_records.pop(k, None)
+        _last_cleanup_time = now
+
+    # Resolve client identity:
+    # Authenticated students receive a distinct user bucket (solving the Campus NAT / shared Wi-Fi IP collision problem)
+    client_id = None
+    auth_header = request.headers.get("authorization") or ""
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:].strip()
+        if token and token.count(".") == 2:
+            try:
+                payload = decode_and_verify_jwt(token)
+                if payload:
+                    user_id = payload.get("sub") or payload.get("email")
+                    if user_id:
+                        client_id = f"usr:{user_id}"
+            except Exception:
+                client_id = None
+
+    # Fall back to client IP for unauthenticated requests
+    if not client_id:
         forwarded_for = request.headers.get("x-forwarded-for")
         if forwarded_for:
             client_ip = forwarded_for.split(",")[0].strip()
@@ -123,40 +244,42 @@ async def rate_limit_middleware(request, call_next):
             client_ip = request.headers.get("cf-connecting-ip").strip()
         else:
             client_ip = request.client.host if request.client else "127.0.0.1"
-        now = time.time()
+        client_id = f"ip:{client_ip}"
 
-        # Periodic cleanup of expired IPs every 5 minutes to prevent memory leak
-        if now - _last_cleanup_time > 300:
-            expired_keys = [k for k, ts in _rate_limit_records.items() if not ts or (now - ts[-1] > RATE_LIMIT_WINDOW)]
-            for k in expired_keys:
-                _rate_limit_records.pop(k, None)
-            _last_cleanup_time = now
+    # Determine endpoint tier and parameters
+    tier_key = resolve_rate_limit_tier(path)
+    tier_cfg = RATE_LIMIT_TIERS[tier_key]
+    window = tier_cfg["window"]
+    limit = tier_cfg["limit"]
 
-        # Tiered maximums: AI endpoints are stricter to prevent LLM quota exhaustion
-        is_ai_endpoint = path.startswith("/api/ai")
-        max_requests = RATE_LIMIT_AI_MAX if is_ai_endpoint else RATE_LIMIT_GEN_MAX
-        category = "AI endpoints" if is_ai_endpoint else "API endpoints"
+    bucket_key = f"{client_id}:{tier_key}"
+    timestamps = [t for t in _rate_limit_records[bucket_key] if now - t < window]
+    _rate_limit_records[bucket_key] = timestamps
 
-        bucket_key = f"{client_ip}:{'ai' if is_ai_endpoint else 'gen'}"
-        timestamps = [t for t in _rate_limit_records[bucket_key] if now - t < RATE_LIMIT_WINDOW]
-        _rate_limit_records[bucket_key] = timestamps
+    if len(timestamps) >= limit:
+        oldest_ts = timestamps[0]
+        retry_after = max(1, int(window - (now - oldest_ts)) + 1)
+        return JSONResponse(
+            status_code=429,
+            content={
+                "detail": tier_cfg["message"],
+                "retry_after": retry_after,
+                "category": tier_cfg["name"]
+            },
+            headers={
+                "Retry-After": str(retry_after),
+                "X-RateLimit-Limit": str(limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(int(now + retry_after))
+            }
+        )
 
-        if len(timestamps) >= max_requests:
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "detail": f"Rate limit exceeded for {category}. Please wait a minute before sending more requests."
-                },
-                headers={
-                    "Retry-After": str(RATE_LIMIT_WINDOW),
-                    "X-RateLimit-Limit": str(max_requests),
-                    "X-RateLimit-Remaining": "0"
-                }
-            )
-
-        _rate_limit_records[bucket_key].append(now)
-
-    return await call_next(request)
+    _rate_limit_records[bucket_key].append(now)
+    response = await call_next(request)
+    response.headers["X-RateLimit-Limit"] = str(limit)
+    remaining = max(0, limit - len(_rate_limit_records[bucket_key]))
+    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    return response
 
 # Include AI routers with student authentication enforcement
 app.include_router(cover_letter.router, dependencies=[Depends(verify_authenticated_student)])

@@ -669,7 +669,7 @@ export const OnboardingPage = () => {
 
             <div className="form-group" style={{ marginTop: '1.25rem' }}>
               <label className="form-label">Workplace Model Preference</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginTop: '0.4rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '0.75rem', marginTop: '0.4rem' }}>
                 {['Hybrid', 'Remote', 'Onsite', 'Flexible'].map(mode => (<button key={mode} type="button" onClick={() => setRemotePref(mode)} style={{
                     padding: '0.75rem',
                     borderRadius: 'var(--radius-md)',

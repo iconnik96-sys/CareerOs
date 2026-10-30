@@ -102,6 +102,9 @@ export function detectCompletionIntent(text) {
  * Speech synthesis helper with cancellation, voice listing, garbage collection protection, and custom voice/speed controls
  */
 let activeUtterance = null;
+let activeCompletionPoller = null;
+let activeStartupWatchdog = null;
+let activeSafetyTimer = null;
 
 export const speechController = {
     isSupported() {
@@ -115,8 +118,17 @@ export const speechController = {
 
     cancel() {
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            if (activeCompletionPoller) clearInterval(activeCompletionPoller);
+            if (activeStartupWatchdog) clearTimeout(activeStartupWatchdog);
+            if (activeSafetyTimer) clearTimeout(activeSafetyTimer);
+            activeCompletionPoller = null;
+            activeStartupWatchdog = null;
+            activeSafetyTimer = null;
             window.speechSynthesis.cancel();
             activeUtterance = null;
+            if (window.__careeros_utterance) {
+                window.__careeros_utterance = null;
+            }
         }
     },
 
@@ -130,7 +142,10 @@ export const speechController = {
         this.cancel();
 
         const utterance = new SpeechSynthesisUtterance(text);
-        activeUtterance = utterance; // Keep global reference so Chromium garbage collector doesn't drop onEnd
+        activeUtterance = utterance;
+        if (typeof window !== 'undefined') {
+            window.__careeros_utterance = utterance; // Root in window global to prevent Chromium GC dropping onend
+        }
         utterance.rate = rate;
         utterance.pitch = pitch;
 
@@ -153,52 +168,81 @@ export const speechController = {
         }
 
         let completed = false;
-        let keepAliveTimer = null;
-        let safetyTimer = null;
+        let hasStarted = false;
 
         const handleComplete = () => {
             if (completed) return;
             completed = true;
-            if (safetyTimer) clearTimeout(safetyTimer);
-            if (keepAliveTimer) clearInterval(keepAliveTimer);
+            if (activeCompletionPoller) clearInterval(activeCompletionPoller);
+            if (activeStartupWatchdog) clearTimeout(activeStartupWatchdog);
+            if (activeSafetyTimer) clearTimeout(activeSafetyTimer);
+            activeCompletionPoller = null;
+            activeStartupWatchdog = null;
+            activeSafetyTimer = null;
             activeUtterance = null;
+            if (typeof window !== 'undefined' && window.__careeros_utterance === utterance) {
+                window.__careeros_utterance = null;
+            }
             if (onEnd) onEnd();
         };
 
         const handleError = (e) => {
             if (completed) return;
             completed = true;
-            if (safetyTimer) clearTimeout(safetyTimer);
-            if (keepAliveTimer) clearInterval(keepAliveTimer);
+            if (activeCompletionPoller) clearInterval(activeCompletionPoller);
+            if (activeStartupWatchdog) clearTimeout(activeStartupWatchdog);
+            if (activeSafetyTimer) clearTimeout(activeSafetyTimer);
+            activeCompletionPoller = null;
+            activeStartupWatchdog = null;
+            activeSafetyTimer = null;
             activeUtterance = null;
+            if (typeof window !== 'undefined' && window.__careeros_utterance === utterance) {
+                window.__careeros_utterance = null;
+            }
             if (onError) onError(e);
             else if (onEnd) onEnd();
         };
 
         utterance.onstart = (e) => {
+            hasStarted = true;
             if (onStart) onStart(e);
         };
         utterance.onend = handleComplete;
         utterance.onerror = handleError;
 
-        // Chromium Keep-Alive Heartbeat: Prevents Chrome/Edge from silently freezing at punctuation (commas/periods) or after 15s
-        keepAliveTimer = setInterval(() => {
+        // Active Completion Poller:
+        // Chromium on Windows often fails to fire onend if audio routes through SAPI or after pauses.
+        // Polling every 150ms detects the exact millisecond when speech audio finishes.
+        activeCompletionPoller = setInterval(() => {
             if (completed) {
-                clearInterval(keepAliveTimer);
+                clearInterval(activeCompletionPoller);
                 return;
             }
-            if (typeof window !== 'undefined' && window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-                window.speechSynthesis.pause();
-                window.speechSynthesis.resume();
+            if (typeof window !== 'undefined' && window.speechSynthesis) {
+                if (hasStarted && !window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+                    clearInterval(activeCompletionPoller);
+                    handleComplete();
+                }
             }
-        }, 5000);
+        }, 150);
 
-        // Generous deadlock safety fallback timer: only fires if utterance completely hangs for 3x normal duration
+        // Startup Watchdog: If browser audio policy blocked speech synthesis or no voice initialized,
+        // bypass TTS after 1.2s so the user's turn can proceed without hanging.
+        activeStartupWatchdog = setTimeout(() => {
+            if (!hasStarted && !completed) {
+                if (typeof window !== 'undefined' && window.speechSynthesis && !window.speechSynthesis.speaking) {
+                    console.warn('[CareerOS Speech] TTS startup watchdog triggered; unlocking mic turn.');
+                    handleComplete();
+                }
+            }
+        }, 1200);
+
+        // Calibrated Safety Duration: Standard pace is ~2.4 words per second.
         const words = (text || '').split(/\s+/).length;
-        const estimatedDurationMs = Math.max(25000, ((words / (1.0 * rate)) * 1000) + 15000);
-        safetyTimer = setTimeout(() => {
+        const estimatedDurationMs = Math.max(3500, Math.round(((words / (2.2 * rate)) * 1000) + 3000));
+        activeSafetyTimer = setTimeout(() => {
             if (!completed) {
-                console.warn('[CareerOS Speech] Utterance deadlocked in browser speech engine. Force completing turn.');
+                console.warn('[CareerOS Speech] Utterance safety duration reached. Completing turn.');
                 handleComplete();
             }
         }, estimatedDurationMs);

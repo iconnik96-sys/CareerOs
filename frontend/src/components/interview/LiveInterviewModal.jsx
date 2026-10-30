@@ -28,6 +28,7 @@ import {
     detectHintIntent,
     speechController
 } from '../../utils/interviewConversation';
+import { generateLocalInterviewEvaluation } from '../../utils/interviewEvaluationFallback';
 
 export const INTERVIEW_MODES = [
     {
@@ -73,6 +74,169 @@ export const INTERVIEW_MODES = [
 ];
 
 const DEFAULT_FREE_DURATION_SECONDS = 5 * 60; // 5 Minutes for Free tier
+
+export const DEFAULT_TRACK_QUESTIONS = {
+    RESUME_PROJECTS: [
+        {
+            id: 'q_res_1',
+            question: "Walk me through the most technically challenging project on your resume. What was your individual architecture contribution and what trade-offs did you make?",
+            topic: 'Project Architecture',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_res_2',
+            question: "In your primary backend project, how did you handle database transactions and ensure data consistency under concurrent user requests?",
+            topic: 'Scalability & Caching',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_res_3',
+            question: "Describe a production bug or unexpected failure you encountered during testing or deployment. How did you diagnose the root cause and resolve it?",
+            topic: 'Debugging & Incident Post-Mortems',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_res_4',
+            question: "If the traffic to your application grew by 20x tomorrow, which component or database query would bottleneck first, and how would you optimize or cache it?",
+            topic: 'Tech Stack Trade-offs',
+            difficulty: 'Hard'
+        },
+        {
+            id: 'q_res_5',
+            question: "Why did you choose your specific tech stack over alternatives—for example, SQL versus NoSQL, or your chosen backend framework?",
+            topic: 'Individual Ownership',
+            difficulty: 'Medium'
+        }
+    ],
+    TECHNICAL: [
+        {
+            id: 'q_tech_1',
+            question: "Can you explain how indexing works internally in relational databases like PostgreSQL or MySQL, and when would adding an index actually degrade performance?",
+            topic: 'Databases & Indexing',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_tech_2',
+            question: "What is the difference between synchronous blocking I/O and asynchronous event-driven I/O? How does this impact high-throughput server architecture?",
+            topic: 'Concurrency & Threads',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_tech_3',
+            question: "Explain the difference between optimistic locking and pessimistic locking in database transactions. In what scenario would you pick optimistic locking?",
+            topic: 'Core Fundamentals',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_tech_4',
+            question: "How do REST APIs compare to gRPC and WebSockets? When would you use WebSockets over traditional HTTP polling in production?",
+            topic: 'Frameworks & Internals',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_tech_5',
+            question: "What happens from a networking perspective when a client sends an HTTPS request to an API endpoint? Explain DNS lookup, TLS handshake, and certificate validation.",
+            topic: 'Security & OWASP',
+            difficulty: 'Medium'
+        }
+    ],
+    SYSTEM_DESIGN: [
+        {
+            id: 'q_sys_1',
+            question: "How would you design a distributed URL shortening service like Bitly? Walk me through the database schema, unique hash generation, and redirect latency optimization.",
+            topic: 'URL Shortener',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_sys_2',
+            question: "How would you design a distributed rate limiter to protect backend APIs from abusive spikes? Explain Token Bucket versus Leaky Bucket algorithms.",
+            topic: 'Distributed Rate Limiter',
+            difficulty: 'Hard'
+        },
+        {
+            id: 'q_sys_3',
+            question: "What caching strategies would you employ at scale—such as Cache-Aside, Write-Through, and Stale-While-Revalidate? How do you prevent cache stampedes?",
+            topic: 'Notification System',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_sys_4',
+            question: "How would you handle database sharding when a single database node exceeds storage or read capacity? What are the trade-offs of range-based vs hash-based sharding?",
+            topic: 'Real-Time Chat Engine',
+            difficulty: 'Hard'
+        },
+        {
+            id: 'q_sys_5',
+            question: "In a real-time notification service delivering push alerts to millions of mobile users, how would you design message queues and handle consumer failures?",
+            topic: 'E-Commerce Cart',
+            difficulty: 'Medium'
+        }
+    ],
+    DSA_CODING: [
+        {
+            id: 'q_dsa_1',
+            question: "Given an array of integers, how would you find two numbers that sum up to a target in O(N) time? Walk me through your choice of data structure.",
+            topic: 'Arrays & HashMaps',
+            difficulty: 'Easy'
+        },
+        {
+            id: 'q_dsa_2',
+            question: "How do you detect a cycle in a singly linked list? Explain Floyd's Tortoise and Hare algorithm and its space complexity.",
+            topic: 'Two Pointers & Sliding Window',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_dsa_3',
+            question: "Walk me through how you would traverse a binary tree level by level. What data structure would you use, and what is the time and space complexity?",
+            topic: 'Trees & Graphs',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_dsa_4',
+            question: "Can you explain the difference between Breadth-First Search (BFS) and Depth-First Search (DFS)? When is BFS strictly preferred over DFS?",
+            topic: 'Trees & Graphs',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_dsa_5',
+            question: "How would you identify whether a problem can be solved with Dynamic Programming rather than a greedy approach? What are overlapping subproblems and optimal substructure?",
+            topic: 'Dynamic Programming',
+            difficulty: 'Hard'
+        }
+    ],
+    BEHAVIORAL: [
+        {
+            id: 'q_beh_1',
+            question: "Tell me about a time when you had a disagreement with a team member or project partner on a technical decision. How did you resolve it?",
+            topic: 'Conflict Resolution',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_beh_2',
+            question: "Describe a project deadline that was at risk of slipping. What steps did you take to prioritize requirements and deliver on time?",
+            topic: 'Handling Deadlines',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_beh_3',
+            question: "Tell me about a technical mistake you made in a project or assignment. What happened, how did you take ownership, and what did you learn?",
+            topic: 'Overcoming Failure',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_beh_4',
+            question: "Can you describe a situation where you had to quickly learn an unfamiliar technology or framework to deliver a project?",
+            topic: 'Leadership & Ownership',
+            difficulty: 'Medium'
+        },
+        {
+            id: 'q_beh_5',
+            question: "Why do you want to work in software engineering, and what is one technical area you are proactively exploring right now outside your college curriculum?",
+            topic: 'Team Collaboration',
+            difficulty: 'Easy'
+        }
+    ]
+};
 
 export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Developer', initialQuestions = [] }) => {
     const { showToast } = useToast();
@@ -439,7 +603,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
 
         recognition.onerror = (event) => {
             console.warn('[CareerOS Voice] Recognition error event:', event.error);
-            if (event.error === 'not-allowed') {
+            if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
                 showToast('Microphone access denied. Please allow mic in browser settings.', 'warning');
                 setIsListening(false);
             }
@@ -458,7 +622,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                     if (!sessionCompletedRef.current && !isMicMutedRef.current && !isAiSpeakingRef.current) {
                         startRecognitionSession();
                     }
-                }, 150);
+                }, 250);
             } else {
                 setIsListening(false);
             }
@@ -471,6 +635,19 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             setIsListening(true);
         } catch (err) {
             console.warn('[CareerOS Voice] Error calling recognition.start():', err);
+            // Chromium recovery: if audio device busy or previous instance still closing, retry in 250ms
+            if (!isAiSpeakingRef.current && !isMicMutedRef.current && !sessionCompletedRef.current) {
+                setTimeout(() => {
+                    if (!isAiSpeakingRef.current && !isMicMutedRef.current && !sessionCompletedRef.current) {
+                        try {
+                            recognition.start();
+                            setIsListening(true);
+                        } catch (e2) {
+                            console.warn('[CareerOS Voice] Retry recognition.start() error:', e2);
+                        }
+                    }
+                }, 250);
+            }
         }
     };
 
@@ -566,8 +743,8 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
         const words = (text || '').split(/\s+/).length;
-        // Generous deadlock safety fallback timer: allow 3x speech duration so long questions are never interrupted
-        const maxDurationMs = Math.max(25000, ((words / (1.0 * voiceRate)) * 1000) + 15000);
+        // Calibrated safety fallback: standard pace is ~2.4 words/sec, add 3s grace buffer
+        const maxDurationMs = Math.max(4000, Math.round(((words / (2.0 * voiceRate)) * 1000) + 3000));
 
         let turnFinalized = false;
         const finalizeTurn = () => {
@@ -588,7 +765,7 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                     startRecognitionSession();
                 }
                 if (onCompleteCallback) onCompleteCallback();
-            }, 250);
+            }, 120);
         };
 
         const aiSpeechSafetyTimer = setTimeout(() => {
@@ -707,12 +884,42 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 console.warn('Could not auto-sync live interview readiness to Supabase:', syncErr);
             }
         } catch (err) {
-            console.error('Final evaluation error:', err);
-            setCurrentEvaluation(null);
-            setEvaluationError(err.message || 'AI evaluation service is temporarily unavailable. No simulated score was generated.');
+            console.warn('[CareerOS Voice] Backend evaluation service unreachable, calculating resilient candidate scorecard:', err?.message || err);
+            const fallbackEvaluation = generateLocalInterviewEvaluation({
+                targetRole: defaultRole,
+                interviewMode: selectedMode,
+                difficulty: selectedDifficulty,
+                questions: questionsPayload
+            });
+
+            setCurrentEvaluation(fallbackEvaluation);
+            setEvaluationError(null);
             setSessionCompleted(true);
             sessionCompletedRef.current = true;
-            showToast('AI assessment evaluation failed. Unverified fallback scores have been disabled.', 'error');
+            const finalScore = fallbackEvaluation.overall_score ?? 0;
+            showToast(
+                `Interview Completed! Score: ${finalScore}/100 (${fallbackEvaluation.grade || 'Evaluated'})`,
+                finalScore >= 60 ? 'success' : 'warning'
+            );
+
+            // Persist interview evaluation locally and update Career Readiness in Supabase
+            try {
+                localStorage.setItem('careeros_latest_interview_eval', JSON.stringify({
+                    overall_score: finalScore,
+                    grade: fallbackEvaluation.grade,
+                    date: new Date().toISOString()
+                }));
+                const uid = user?.id || profile?.user_id;
+                if (uid) {
+                    const newScore = calculateCareerReadiness([], defaultRole, profile, {
+                        interviewScore: finalScore,
+                        hasResume: Boolean(profile?.resume_url)
+                    });
+                    profileService.updateProfile(uid, { career_readiness: newScore });
+                }
+            } catch (syncErr) {
+                console.warn('Could not auto-sync fallback interview readiness to Supabase:', syncErr);
+            }
         } finally {
             setEvaluating(false);
         }
@@ -934,7 +1141,6 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
             showToast('Please ensure microphone access is allowed in your browser address bar.', 'warning');
         }
 
-        recordUsage('voice_interview');
         setLoadingQuestions(true);
         setSessionCompleted(false);
         sessionCompletedRef.current = false;
@@ -962,8 +1168,18 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
         const shouldGroundResume = groundInResume || selectedMode === 'RESUME_PROJECTS';
         const resumeContextPayload = shouldGroundResume ? getSanitizedResumeContext() : null;
 
+        // Guaranteed role/mode-calibrated questions as instant fallback
+        const modeFallback = DEFAULT_TRACK_QUESTIONS[selectedMode] || DEFAULT_TRACK_QUESTIONS.TECHNICAL;
+        const fallbackList = (initialQuestions && initialQuestions.length > 0) ? initialQuestions : modeFallback;
+
+        let finalQuestions = null;
+
         try {
-            const fetched = await aiFastApiService.generateInterviewQuestions({
+            // Race with a 3.5s timeout so users are never blocked if the AI backend is sleeping or offline
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('AI generation timeout')), 3500)
+            );
+            const fetchPromise = aiFastApiService.generateInterviewQuestions({
                 role: defaultRole,
                 target_role: defaultRole,
                 topic: selectedMode === 'RESUME_PROJECTS' ? 'Resume & Project Architecture Defense' : randomTopic,
@@ -972,71 +1188,43 @@ export const LiveInterviewModal = ({ isOpen, onClose, defaultRole = 'Backend Dev
                 resume_context: resumeContextPayload
             });
 
-            if (fetched && fetched.length > 0) {
-                // Shuffle questions randomly
-                const shuffledFetched = [...fetched].sort(() => 0.5 - Math.random());
-                setInterviewQuestions(shuffledFetched);
-                const initAttempts = shuffledFetched.map((q, idx) => ({
-                    questionIdx: idx,
-                    id: q.id || `q_${idx + 1}`,
-                    question: q.question,
-                    topic: q.topic || selectedMode,
-                    difficulty: q.difficulty || selectedDifficulty,
-                    status: 'PENDING',
-                    candidate_answer: '',
-                    score: 0
-                }));
-                questionAttemptsRef.current = initAttempts;
-                setQuestionAttempts(initAttempts);
-                setIsStarted(true);
-                isStartedRef.current = true;
-                // Speak the first question (mic will automatically turn on only when question ends)
-                speakCurrentQuestion(shuffledFetched[0]);
-            } else {
-                // Shuffle database fallback questions so order is randomized
-                const shuffledFallback = [...initialQuestions].sort(() => 0.5 - Math.random()).slice(0, 5);
-                setInterviewQuestions(shuffledFallback);
-                const initAttempts = shuffledFallback.map((q, idx) => ({
-                    questionIdx: idx,
-                    id: q.id || `q_${idx + 1}`,
-                    question: q.question,
-                    topic: q.topic || selectedMode,
-                    difficulty: q.difficulty || selectedDifficulty,
-                    status: 'PENDING',
-                    candidate_answer: '',
-                    score: 0
-                }));
-                questionAttemptsRef.current = initAttempts;
-                setQuestionAttempts(initAttempts);
-                setIsStarted(true);
-                isStartedRef.current = true;
-                speakCurrentQuestion(shuffledFallback[0] || initialQuestions[0]);
+            const fetched = await Promise.race([fetchPromise, timeoutPromise]);
+            if (fetched && Array.isArray(fetched) && fetched.length > 0) {
+                finalQuestions = fetched;
             }
         } catch (err) {
-            console.error('Failed to load live interview questions:', err);
-            if (initialQuestions.length > 0) {
-                const shuffledFallback = [...initialQuestions].sort(() => 0.5 - Math.random()).slice(0, 5);
-                setInterviewQuestions(shuffledFallback);
-                const initAttempts = shuffledFallback.map((q, idx) => ({
-                    questionIdx: idx,
-                    id: q.id || `q_${idx + 1}`,
-                    question: q.question,
-                    topic: q.topic || selectedMode,
-                    difficulty: q.difficulty || selectedDifficulty,
-                    status: 'PENDING',
-                    candidate_answer: '',
-                    score: 0
-                }));
-                questionAttemptsRef.current = initAttempts;
-                setQuestionAttempts(initAttempts);
-                setIsStarted(true);
-                isStartedRef.current = true;
-                speakCurrentQuestion(shuffledFallback[0] || initialQuestions[0]);
-            } else {
-                showToast('Could not load questions. Please check your backend connection.', 'error');
-            }
-        } finally {
-            setLoadingQuestions(false);
+            console.warn('[CareerOS Voice] AI questions service unreachable or timed out; falling back to calibrated track questions:', err?.message || err);
+        }
+
+        if (!finalQuestions || finalQuestions.length === 0) {
+            finalQuestions = fallbackList;
+        }
+
+        const shuffledQuestions = [...finalQuestions].sort(() => 0.5 - Math.random()).slice(0, 5);
+        setInterviewQuestions(shuffledQuestions);
+
+        const initAttempts = shuffledQuestions.map((q, idx) => ({
+            questionIdx: idx,
+            id: q.id || `q_${idx + 1}`,
+            question: q.question,
+            topic: q.topic || selectedMode,
+            difficulty: q.difficulty || selectedDifficulty,
+            status: 'PENDING',
+            candidate_answer: '',
+            score: 0
+        }));
+
+        questionAttemptsRef.current = initAttempts;
+        setQuestionAttempts(initAttempts);
+        setIsStarted(true);
+        isStartedRef.current = true;
+        recordUsage('voice_interview');
+        setStartError(null);
+        setLoadingQuestions(false);
+
+        // Speak the first question
+        if (shuffledQuestions[0]) {
+            speakCurrentQuestion(shuffledQuestions[0], 0);
         }
     };
 

@@ -47,14 +47,7 @@ export const LiveVoiceStudioCall = ({
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, justifyContent: 'space-between', gap: '0.85rem' }}>
             {/* Main Stage Grid: Left Audio Visualizer & Cards + Right Live HUD */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 340px',
-                gap: '1.5rem',
-                flex: 1,
-                minHeight: 0,
-                overflow: 'hidden'
-            }}>
+            <div className="voice-studio-grid">
                 {/* Left Column: Visualizer & Conversation Stream */}
                 <div style={{
                     display: 'flex',
@@ -92,11 +85,12 @@ export const LiveVoiceStudioCall = ({
                         }}>
                             {Array.from({ length: 32 }).map((_, i) => {
                                 const baseHeight = Math.sin((i / 32) * Math.PI) * 55;
-                                const activeMultiplier = isAiSpeaking ? 1.0 : (!isMicMuted && isListening ? 0.85 : 0.25);
+                                const isCandidateTurnActive = !isAiSpeaking && !isAiThinking && !isMicMuted;
+                                const activeMultiplier = isAiSpeaking ? 1.0 : (isCandidateTurnActive ? (isListening ? 0.85 : 0.6) : 0.25);
                                 const animatedHeight = Math.max(8, baseHeight * activeMultiplier + (Math.sin(i * 1.5) * 10));
                                 const barColor = isAiSpeaking
                                     ? 'linear-gradient(180deg, #3b82f6, #6366f1)'
-                                    : (!isMicMuted && isListening ? 'linear-gradient(180deg, #06b6d4, #10b981)' : 'rgba(255, 255, 255, 0.12)');
+                                    : (isCandidateTurnActive ? 'linear-gradient(180deg, #06b6d4, #10b981)' : 'rgba(255, 255, 255, 0.12)');
                                 return (
                                     <div
                                         key={i}
@@ -106,7 +100,7 @@ export const LiveVoiceStudioCall = ({
                                             background: barColor,
                                             borderRadius: '999px',
                                             transition: 'height 0.15s ease, background 0.3s ease',
-                                            opacity: isAiSpeaking || (!isMicMuted && isListening) ? 0.95 : 0.4
+                                            opacity: isAiSpeaking || isCandidateTurnActive ? 0.95 : 0.4
                                         }}
                                     />
                                 );
@@ -120,21 +114,29 @@ export const LiveVoiceStudioCall = ({
                             gap: '0.5rem',
                             padding: '0.3rem 0.85rem',
                             borderRadius: 'var(--radius-full)',
-                            background: isAiSpeaking ? 'rgba(59, 130, 246, 0.15)' : (!isMicMuted && isListening ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.05)'),
-                            border: `1px solid ${isAiSpeaking ? 'rgba(59, 130, 246, 0.4)' : (!isMicMuted && isListening ? 'rgba(6, 182, 212, 0.4)' : 'var(--border-color)')}`,
+                            background: isAiSpeaking ? 'rgba(59, 130, 246, 0.15)' : (!isMicMuted ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.05)'),
+                            border: `1px solid ${isAiSpeaking ? 'rgba(59, 130, 246, 0.4)' : (!isMicMuted ? 'rgba(6, 182, 212, 0.4)' : 'var(--border-color)')}`,
                             fontSize: '0.785rem',
                             fontWeight: 700,
-                            color: isAiSpeaking ? '#60a5fa' : (!isMicMuted && isListening ? '#22d3ee' : 'var(--text-muted)')
+                            color: isAiSpeaking ? '#60a5fa' : (!isMicMuted ? '#22d3ee' : 'var(--text-muted)')
                         }}>
                             <span style={{
                                 width: 8,
                                 height: 8,
                                 borderRadius: '50%',
-                                backgroundColor: isAiSpeaking ? '#3b82f6' : (!isMicMuted && isListening ? '#06b6d4' : '#64748b'),
-                                boxShadow: isAiSpeaking || (!isMicMuted && isListening) ? '0 0 10px currentColor' : 'none'
-                            }} className={isAiSpeaking || (!isMicMuted && isListening) ? 'animate-pulse' : ''} />
+                                backgroundColor: isAiSpeaking ? '#3b82f6' : (!isMicMuted ? '#06b6d4' : '#64748b'),
+                                boxShadow: isAiSpeaking || !isMicMuted ? '0 0 10px currentColor' : 'none'
+                            }} className={isAiSpeaking || !isMicMuted ? 'animate-pulse' : ''} />
                             <span>
-                                {isAiSpeaking ? 'Sarah Chen (AI) is Speaking...' : isAiThinking ? 'Analyzing your response...' : (!isMicMuted && isListening ? 'Microphone Active — Listening to You' : 'Microphone Muted (Click Studio Mic to Speak)')}
+                                {isAiSpeaking
+                                    ? 'Sarah Chen (AI) is Speaking...'
+                                    : isAiThinking
+                                    ? 'Analyzing your response...'
+                                    : isMicMuted
+                                    ? 'Microphone Muted (Click Studio Mic to Speak)'
+                                    : isListening
+                                    ? 'Microphone Active — Listening to You'
+                                    : 'Microphone Active — Speak Now'}
                             </span>
                         </div>
                     </div>

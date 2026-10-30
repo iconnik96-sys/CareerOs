@@ -211,7 +211,7 @@ export const AICareerStudioPage = () => {
     // Overleaf-Style LaTeX Resume Builder State
     const [resumeData, setResumeData] = useState(() => getInitialResumeData(profile));
     const [isImportingProfile, setIsImportingProfile] = useState(false);
-    const [mobileResumeView, setMobileResumeView] = useState('both'); // 'editor' | 'preview' | 'both'
+    const [mobileResumeView, setMobileResumeView] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768 ? 'editor' : 'both'); // 'editor' | 'preview' | 'both'
 
     // Auto-persist resume modifications to localStorage
     useEffect(() => {
@@ -344,7 +344,9 @@ export const AICareerStudioPage = () => {
 
     // Responsive Live Preview Auto-fit Scaling (WYSIWYG 1:1 with A4 PDF)
     const previewContainerRef = useRef(null);
-    const [containerWidth, setContainerWidth] = useState(600);
+    const [containerWidth, setContainerWidth] = useState(() =>
+        typeof window !== 'undefined' ? Math.max(260, Math.min(window.innerWidth - 32, 600)) : 360
+    );
     const [previewZoom, setPreviewZoom] = useState('fit'); // 'fit' | 0.8 | 1.0
 
     useEffect(() => {
@@ -361,7 +363,7 @@ export const AICareerStudioPage = () => {
     }, [activeTab]);
 
     const currentScale = previewZoom === 'fit'
-        ? Math.min(1, Math.max(0.45, (containerWidth - 32) / 794))
+        ? Math.min(1, Math.max(0.28, (containerWidth - 32) / 794))
         : previewZoom;
 
     // Real-time live deterministic ATS audit for quick status badges
@@ -597,7 +599,7 @@ export const AICareerStudioPage = () => {
                     <div className="resume-studio-grid">
                         {/* Left Pane: Interactive Structured Form with Add/Remove & Spacing */}
                         {(mobileResumeView === 'editor' || mobileResumeView === 'both') && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0, maxWidth: '100%', overflowX: 'hidden' }}>
                                 <ResumeBuilder
                                     initialProfile={profile}
                                     resumeData={resumeData}
@@ -620,12 +622,15 @@ export const AICareerStudioPage = () => {
                                 top: '1rem',
                                 display: 'flex',
                                 flexDirection: 'column',
-                            gap: '0.75rem',
-                            height: 'calc(100vh - 2rem)',
-                            maxHeight: 'calc(100vh - 2rem)',
-                            overflowY: 'auto',
-                            paddingRight: '4px'
-                        }}>
+                                gap: '0.75rem',
+                                height: 'calc(100vh - 2rem)',
+                                maxHeight: 'calc(100vh - 2rem)',
+                                overflowY: 'auto',
+                                paddingRight: '4px',
+                                minWidth: 0,
+                                maxWidth: '100%',
+                                overflowX: 'hidden'
+                            }}>
                             <div style={{
                                 display: 'flex',
                                 justifyContent: 'space-between',
@@ -709,7 +714,8 @@ export const AICareerStudioPage = () => {
                                     padding: '1.25rem 0.5rem',
                                     borderRadius: 'var(--radius-md)',
                                     border: '1px solid var(--border-subtle)',
-                                    overflowX: 'auto',
+                                    overflowX: 'hidden',
+                                    maxWidth: '100%',
                                     display: 'flex',
                                     justifyContent: 'center'
                                 }}
@@ -717,7 +723,9 @@ export const AICareerStudioPage = () => {
                                 <div style={{
                                     width: `${794 * currentScale}px`,
                                     height: `${1123 * currentScale}px`,
-                                    position: 'relative'
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    maxWidth: '100%'
                                 }}>
                                     <div style={{
                                         transform: `scale(${currentScale})`,
@@ -741,7 +749,7 @@ export const AICareerStudioPage = () => {
             {/* TAB 1: UNIFIED COVER LETTER & RECRUITER OUTREACH HUB */}
             {/* ========================================================================= */}
             {activeTab === 'cover_letter' && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 440px) 1fr', gap: '1.5rem', alignItems: 'start' }}>
+                <div className="cover-letter-grid" style={{ alignItems: 'start' }}>
                     {/* Form Card */}
                     <Card title="Candidate & Outreach Parameters" subtitle="RAG retrieves the target company's real tech stack to ground your pitch.">
                         {/* Company Presets */}
@@ -774,7 +782,7 @@ export const AICareerStudioPage = () => {
                         </div>
 
                         <form onSubmit={handleGenerateCoverLetter} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '0.75rem' }}>
                                 <div>
                                     <label className="form-label">Full Name</label>
                                     <input type="text" className="form-input" value={clFullName} onChange={e => setClFullName(e.target.value)} required />
@@ -785,7 +793,7 @@ export const AICareerStudioPage = () => {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '0.75rem' }}>
                                 <div>
                                     <label className="form-label">Target Company</label>
                                     <input type="text" className="form-input" value={clCompany} onChange={e => setClCompany(e.target.value)} placeholder="e.g. Razorpay / Swiggy / Google" required />
@@ -801,7 +809,7 @@ export const AICareerStudioPage = () => {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '0.75rem' }}>
                                 <div>
                                     <label className="form-label">Recipient Role</label>
                                     <select className="form-input" value={clRecipientRole} onChange={e => setClRecipientRole(e.target.value)}>

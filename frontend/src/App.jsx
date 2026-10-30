@@ -66,9 +66,7 @@ const FounderRoute = ({ children }) => {
     if (!user) {
         return <Navigate to="/login" replace />;
     }
-    const email = (user?.email || profile?.email || '').toLowerCase().trim();
-    const role = (user?.app_metadata?.role || profile?.role || '').toLowerCase().trim();
-    const isFounder = email === 'nikhil@gmail.com' || role === 'founder' || role === 'admin';
+    const isFounder = isFounderUser(user, profile);
     if (!isFounder) {
         return <Navigate to="/dashboard" replace />;
     }
@@ -88,9 +86,7 @@ const CampusRoute = ({ children }) => {
     if (!user) {
         return <Navigate to="/login" replace />;
     }
-    const email = (user?.email || profile?.email || '').toLowerCase().trim();
-    const role = (user?.app_metadata?.role || profile?.role || '').toLowerCase().trim();
-    const isAuthorized = email === 'nikhil@gmail.com' || role === 'founder' || role === 'admin' || role === 'tpo' || role === 'college_admin' || Boolean(profile?.is_tpo);
+    const isAuthorized = isCampusAdmin(user, profile);
     if (!isAuthorized) {
         return <Navigate to="/dashboard" replace />;
     }

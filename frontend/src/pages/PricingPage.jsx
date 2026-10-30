@@ -246,7 +246,7 @@ export const PricingPage = () => {
             {/* 3 Pricing Cards */}
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
                 gap: '1.75rem',
                 alignItems: 'stretch',
                 marginBottom: '4rem'

@@ -1,3 +1,4 @@
+import { isFounderUser, isCampusAdmin } from '../../utils/founderAuth';
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -76,7 +77,7 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
       ))}
 
       {/* Exclusive TPO Portal Navigation Link */}
-      {(profile?.role === 'tpo' || profile?.role === 'college_admin' || user?.email?.toLowerCase().trim() === 'nikhil@gmail.com' || profile?.email?.toLowerCase().trim() === 'nikhil@gmail.com') && (
+      {isCampusAdmin(user, profile) && (
         <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(99, 102, 241, 0.25)' }}>
           <span className="nav-category-title" style={{ color: '#818cf8', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.6875rem' }}>
             🏛️ CAMPUS & PLACEMENTS
@@ -103,7 +104,7 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
       )}
 
       {/* Exclusive Founder Access Link */}
-      {(user?.email?.toLowerCase().trim() === 'nikhil@gmail.com' || profile?.email?.toLowerCase().trim() === 'nikhil@gmail.com') && (
+      {isFounderUser(user, profile) && (
         <div style={{ marginTop: '0.5rem' }}>
           <NavLink
             to="/admin"

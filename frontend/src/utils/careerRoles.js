@@ -601,9 +601,9 @@ export function calculateCareerReadinessBreakdown(userSkills = [], targetRole = 
     if (typeof atsScoreVal === 'number' && atsScoreVal > 0) {
         atsScore = Math.round((Math.min(100, atsScoreVal) / 100) * 20);
     } else if (extraData.hasResume || profile?.resume_url) {
-        atsScore = 16; // Default verified resume baseline (~80% ATS)
+        atsScore = 15; // Default verified resume baseline (~75% ATS)
     } else {
-        atsScore = 5; // Starter drafting baseline
+        atsScore = 0; // Empty profile has no ATS score yet
     }
 
     // --- PILLAR 3: Mock Interview Performance (Max 20 pts) ---
@@ -625,7 +625,7 @@ export function calculateCareerReadinessBreakdown(userSkills = [], targetRole = 
     } else if (extraData.interviewCount > 0) {
         interviewScore = Math.min(16, 8 + extraData.interviewCount * 4);
     } else {
-        interviewScore = 6; // Graceful cold-start baseline (encourages 1st practice)
+        interviewScore = 0; // Honest score: 0 until 1st practice completed
     }
 
     // --- PILLAR 4: Workplace Simulation / Virtual Internship (Max 20 pts) ---
@@ -638,11 +638,11 @@ export function calculateCareerReadinessBreakdown(userSkills = [], targetRole = 
             }
         } catch {}
     }
-    let simScore = 5; // Base starter points for having assigned simulation track
+    let simScore = 0; // Honest score: 0 until tickets are completed
     const completedTickets = Array.isArray(simProgress?.completedTickets) ? simProgress.completedTickets.length : 0;
     if (completedTickets > 0) {
-        simScore = Math.min(20, 5 + (completedTickets * 3.75));
-        if (completedTickets >= 4) simScore = 20; // 100% on FinPulse completion
+        simScore = Math.min(20, completedTickets * 6.6);
+        if (completedTickets >= 3) simScore = 20; // 100% on 3-task sprint completion
     }
     simScore = Math.round(simScore);
 

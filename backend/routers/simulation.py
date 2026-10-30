@@ -579,10 +579,70 @@ async def fetch_github_pr_diff(pr_url: str) -> Optional[str]:
 # Endpoints
 # ====================================================================
 
+HEALTHPULSE_TRACK = {
+    "id": "track-healthpulse-002",
+    "track_key": "healthpulse-ai",
+    "title": "HealthPulse — Clinical AI Guardrails & Triage",
+    "company_name": "HealthPulse Medical AI",
+    "company_tagline": "Processing telemetry from 50,000 hospital beds in real time.",
+    "role_title": "AI & Clinical Data Platform Engineer",
+    "difficulty": "Beginner Friendly",
+    "duration_hours": 3,
+    "tech_stacks": ["Python (FastAPI)", "Pydantic V2"],
+    "github_templates": {
+        "python": "https://github.com/CareerOS-HQ/healthpulse-ai-python"
+    },
+    "architecture_overview": """### HealthPulse AI Architecture Overview
+HealthPulse ingests vitals from 50,000 hospital beds and runs real-time triage analytics using FastAPI and OpenAI models.
+Guardrails enforce that:
+1. LLM markdown code blocks are cleaned before database ingestion.
+2. Systolic blood pressures are within biological bounds (60-250 mmHg).
+3. Patient SSNs and phone numbers are redacted via regex before sending tokens to third-party AI APIs.
+4. Rate limit 429 errors fall back safely to deterministic rule-based classifications.""",
+    "tickets": [
+        {
+            "id": "ticket-hlth-beg-1",
+            "ticket_code": "HLTH-BEG-1",
+            "title": "AI Guardrail: Strip Markdown Fences & Block Bad AI Blood Pressure Numbers",
+            "order_index": 1,
+            "business_context": "OpenAI GPT-4o periodically emits triple-backtick markdown blocks and hallucinated blood pressure values that crash downstream hospital EHR ingestion.",
+            "acceptance_criteria": [
+                "Strip markdown code fences (```json ... ```) from string inputs",
+                "Rejects out-of-range systolic blood pressure (< 60 or > 250 mmHg) with HTTP 422",
+                "Returns parsed ClinicalSummary schema with HTTP 200 for clean vitals"
+            ]
+        },
+        {
+            "id": "ticket-hlth-beg-2",
+            "ticket_code": "HLTH-BEG-2",
+            "title": "Data Privacy: Hide Social Security & Phone Numbers Before Sending to AI",
+            "order_index": 2,
+            "business_context": "Clinical staff paste raw patient charts into the triage tool. Raw Social Security Numbers and phone numbers must be redacted before sending to third-party LLM APIs.",
+            "acceptance_criteria": [
+                "Replaces all SSN formats with [REDACTED_SSN]",
+                "Replaces all phone number formats with [REDACTED_PHONE]",
+                "Leaves legitimate clinical notes and dosages intact"
+            ]
+        },
+        {
+            "id": "ticket-hlth-beg-3",
+            "ticket_code": "HLTH-BEG-3",
+            "title": "Reliability: Auto-Retry When OpenAI Rate-Limits (429) and Fall Back to Safe Rules",
+            "order_index": 3,
+            "business_context": "During peak triage hours, OpenAI API returns HTTP 429 rate limit errors. Wrap with exponential backoff and safe local rule-based fallback.",
+            "acceptance_criteria": [
+                "Retries up to max_retries times upon catching RateLimitError",
+                "Falls back gracefully to deterministic rule-based triage score upon exhaustion",
+                "Sets payload source to 'heuristic_fallback'"
+            ]
+        }
+    ]
+}
+
 @router.get("/tracks")
 def get_simulation_tracks():
     """Returns all available company simulation tracks."""
-    return {"tracks": [DEFAULT_TRACK]}
+    return {"tracks": [DEFAULT_TRACK, HEALTHPULSE_TRACK]}
 
 
 @router.get("/tracks/{track_key}")
@@ -590,6 +650,8 @@ def get_simulation_track(track_key: str):
     """Returns details and tickets for a specific simulation track."""
     if track_key == DEFAULT_TRACK["track_key"]:
         return DEFAULT_TRACK
+    if track_key == HEALTHPULSE_TRACK["track_key"]:
+        return HEALTHPULSE_TRACK
     raise HTTPException(status_code=404, detail="Simulation track not found")
 
 

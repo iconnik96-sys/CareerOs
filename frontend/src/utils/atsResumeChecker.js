@@ -1053,7 +1053,7 @@ export function buildStarterAtsResume(role = 'Backend Developer', profile = {}) 
  * 3. If still empty, evaluates role's starter ATS template so it matches the live score on initial load
  */
 export function getActiveAtsScore(targetRole = 'Backend Developer', profile = {}) {
-    if (typeof window === 'undefined') return 81;
+    if (typeof window === 'undefined') return null;
     try {
         const cached = localStorage.getItem('careeros_live_ats_score');
         if (cached) {
@@ -1066,18 +1066,22 @@ export function getActiveAtsScore(targetRole = 'Backend Developer', profile = {}
         if (savedResume) {
             const parsed = JSON.parse(savedResume);
             const audit = runLiveAtsCheck(parsed, targetRole);
-            if (typeof audit?.totalScore === 'number') {
+            if (typeof audit?.totalScore === 'number' && audit.totalScore > 0) {
                 return audit.totalScore;
             }
         }
-        // Baseline initial resume score for target role
-        const starter = buildStarterAtsResume(targetRole, {
-            full_name: profile?.full_name || '',
-            email: profile?.email || ''
-        });
-        const starterAudit = runLiveAtsCheck(starter, targetRole);
-        return starterAudit?.totalScore || 81;
+        // If user has a verified uploaded resume URL in profile
+        if (profile?.resume_url) {
+            const starter = buildStarterAtsResume(targetRole, {
+                full_name: profile?.full_name || '',
+                email: profile?.email || ''
+            });
+            const starterAudit = runLiveAtsCheck(starter, targetRole);
+            return starterAudit?.totalScore || 75;
+        }
+        // User has no resume yet: return null so readiness reflects true status
+        return null;
     } catch (e) {
-        return 81;
+        return null;
     }
 }

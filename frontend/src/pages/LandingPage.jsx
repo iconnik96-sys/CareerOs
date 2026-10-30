@@ -105,7 +105,7 @@ export const LandingPage = () => {
       
       {/* Landing Navigation Header */}
       <header style={{
-        padding: '1.15rem 2rem',
+        padding: 'clamp(0.75rem, 2vw, 1.15rem) clamp(1rem, 3vw, 2rem)',
         borderBottom: '1px solid var(--border-color)',
         display: 'flex',
         alignItems: 'center',
@@ -130,7 +130,7 @@ export const LandingPage = () => {
             <Sparkles size={18} color="#fff" />
           </div>
           <span className="brand-name" style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.02em' }}>CareerOS</span>
-          <span style={{
+          <span className="hide-on-mobile" style={{
             fontSize: '0.68rem',
             background: 'rgba(99, 102, 241, 0.15)',
             border: '1px solid rgba(99, 102, 241, 0.3)',
@@ -144,16 +144,17 @@ export const LandingPage = () => {
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          <Link to="/pricing" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(0.5rem, 1.5vw, 1.25rem)' }}>
+          <Link to="/pricing" className="hide-on-mobile" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none' }}>
             Pricing
           </Link>
           <Link to="/login">
-            <Button variant="ghost" size="sm">Sign In</Button>
+            <Button variant="ghost" size="sm" style={{ padding: '0.4rem 0.65rem' }}>Sign In</Button>
           </Link>
           <Link to="/register">
-            <Button variant="primary" size="sm" style={{ boxShadow: '0 0 16px rgba(99, 102, 241, 0.4)' }}>
-              Start Free Today
+            <Button variant="primary" size="sm" style={{ boxShadow: '0 0 16px rgba(99, 102, 241, 0.4)', padding: '0.4rem 0.75rem' }}>
+              <span className="hide-on-mobile">Start Free Today</span>
+              <span className="show-on-mobile">Join Free</span>
             </Button>
           </Link>
         </div>
@@ -174,7 +175,7 @@ export const LandingPage = () => {
         <section style={{
           position: 'relative',
           zIndex: 1,
-          padding: '4.5rem 1.5rem 3.5rem',
+          padding: 'clamp(2.5rem, 6vw, 4.5rem) clamp(1rem, 3vw, 1.5rem) 3.5rem',
           maxWidth: '1150px',
           margin: '0 auto',
           textAlign: 'center',
@@ -203,7 +204,7 @@ export const LandingPage = () => {
           </div>
 
           {/* Hard-Hitting Hero Headline */}
-          <h1 className="text-h1" style={{ fontSize: 'clamp(2.3rem, 5vw, 3.8rem)', maxWidth: '980px', marginBottom: '1.25rem', lineHeight: 1.15, fontWeight: 900 }}>
+          <h1 className="text-h1" style={{ fontSize: 'clamp(1.85rem, 5vw, 3.8rem)', maxWidth: '980px', marginBottom: '1.25rem', lineHeight: 1.15, fontWeight: 900 }}>
             Don’t practice on real interviews. <br />
             <span style={{
               background: 'linear-gradient(135deg, #60a5fa 20%, #a855f7 60%, #ec4899 100%)',
@@ -276,23 +277,27 @@ export const LandingPage = () => {
                 background: 'rgba(0, 0, 0, 0.4)',
                 borderRadius: '10px',
                 padding: '3px',
-                border: '1px solid rgba(255, 255, 255, 0.08)'
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                overflowX: 'auto',
+                maxWidth: '100%',
+                WebkitOverflowScrolling: 'touch'
               }}>
                 <button
                   type="button"
                   onClick={() => setActiveTab('star')}
                   style={{
-                    padding: '0.45rem 1rem',
+                    padding: '0.45rem 0.85rem',
                     borderRadius: '8px',
                     border: 'none',
                     background: activeTab === 'star' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'transparent',
                     color: activeTab === 'star' ? '#fff' : '#94a3b8',
-                    fontSize: '0.82rem',
+                    fontSize: '0.8rem',
                     fontWeight: 700,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.4rem',
+                    whiteSpace: 'nowrap',
                     transition: 'all 0.2s'
                   }}
                 >
@@ -304,17 +309,18 @@ export const LandingPage = () => {
                   type="button"
                   onClick={() => setActiveTab('voice')}
                   style={{
-                    padding: '0.45rem 1rem',
+                    padding: '0.45rem 0.85rem',
                     borderRadius: '8px',
                     border: 'none',
                     background: activeTab === 'voice' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'transparent',
                     color: activeTab === 'voice' ? '#fff' : '#94a3b8',
-                    fontSize: '0.82rem',
+                    fontSize: '0.8rem',
                     fontWeight: 700,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.4rem',
+                    whiteSpace: 'nowrap',
                     transition: 'all 0.2s'
                   }}
                 >
@@ -326,17 +332,18 @@ export const LandingPage = () => {
                   type="button"
                   onClick={() => setActiveTab('outage')}
                   style={{
-                    padding: '0.45rem 1rem',
+                    padding: '0.45rem 0.85rem',
                     borderRadius: '8px',
                     border: 'none',
                     background: activeTab === 'outage' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'transparent',
                     color: activeTab === 'outage' ? '#fff' : '#94a3b8',
-                    fontSize: '0.82rem',
+                    fontSize: '0.8rem',
                     fontWeight: 700,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.4rem',
+                    whiteSpace: 'nowrap',
                     transition: 'all 0.2s'
                   }}
                 >
@@ -348,7 +355,7 @@ export const LandingPage = () => {
 
             {/* TAB CONTENT 1: STAR Bullet Polisher */}
             {activeTab === 'star' && (
-              <div style={{ padding: '2rem' }}>
+              <div style={{ padding: 'clamp(1rem, 3vw, 2rem)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -358,7 +365,7 @@ export const LandingPage = () => {
                       See how CareerOS converts weak student bullets into metric-driven, ATS-ranking accomplishments in 1 second.
                     </p>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {sampleBullets.map((b, idx) => (
                       <button
                         key={idx}
@@ -381,7 +388,7 @@ export const LandingPage = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
                   {/* Before Box */}
                   <div style={{
                     background: 'rgba(239, 68, 68, 0.05)',
@@ -480,7 +487,7 @@ export const LandingPage = () => {
 
             {/* TAB CONTENT 2: AI Voice Mock Interview */}
             {activeTab === 'voice' && (
-              <div style={{ padding: '2rem' }}>
+              <div style={{ padding: 'clamp(1rem, 3vw, 2rem)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -502,7 +509,7 @@ export const LandingPage = () => {
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
                   {/* Interview Audio Player Box */}
                   <div style={{
                     background: 'rgba(15, 23, 42, 0.9)',
@@ -653,7 +660,7 @@ export const LandingPage = () => {
 
             {/* TAB CONTENT 3: Outage Sandbox */}
             {activeTab === 'outage' && (
-              <div style={{ padding: '2rem' }}>
+              <div style={{ padding: 'clamp(1rem, 3vw, 2rem)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -693,11 +700,11 @@ export const LandingPage = () => {
                   fontSize: '0.82rem',
                   overflow: 'hidden'
                 }}>
-                  <div style={{ background: '#111827', padding: '0.5rem 1rem', display: 'flex', justifyContent: 'space-between', color: '#9ca3af', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ background: '#111827', padding: '0.5rem 1rem', display: 'flex', justifyContent: 'space-between', color: '#9ca3af', borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto', gap: '1rem' }}>
                     <span>webhook_handler.py (Microservice)</span>
-                    <span>Status: {testRunStatus === 'passed' ? '🟢 Fixed (p99 < 12ms)' : '🔴 Production Incident Active'}</span>
+                    <span style={{ whiteSpace: 'nowrap' }}>Status: {testRunStatus === 'passed' ? '🟢 Fixed (p99 < 12ms)' : '🔴 Production Incident Active'}</span>
                   </div>
-                  <div style={{ padding: '1rem', lineHeight: 1.6, color: '#e2e8f0' }}>
+                  <div style={{ padding: '1rem', lineHeight: 1.6, color: '#e2e8f0', overflowX: 'auto', wordBreak: 'break-word' }}>
                     <div style={{ color: '#64748b' }}># Buggy: Synchronous database lock inside webhook handler causes 504 timeouts under load</div>
                     <div><span style={{ color: '#f43f5e' }}>-</span> <span style={{ color: '#fca5a5' }}>db.orders.update_one(order_id, lock=True)  # Blocking database thread</span></div>
                     <div><span style={{ color: '#10b981' }}>+</span> <span style={{ color: '#86efac' }}>redis_queue.publish("events:payment_confirmed", payload)  # Async non-blocking</span></div>
@@ -747,7 +754,7 @@ export const LandingPage = () => {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '2rem' }}>
           {/* Old Way */}
           <div style={{
             background: 'rgba(239, 68, 68, 0.04)',
@@ -847,7 +854,7 @@ export const LandingPage = () => {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.5rem' }}>
             {/* Incident 1 */}
             <div className="card" style={{ background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -1021,7 +1028,7 @@ export const LandingPage = () => {
         </div>
 
         {/* Pricing Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '1.75rem', alignItems: 'stretch' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.75rem', alignItems: 'stretch' }}>
           
           {/* Card 1: Free */}
           <div style={{

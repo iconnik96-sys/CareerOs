@@ -1,3 +1,4 @@
+import { isFounderUser } from '../utils/founderAuth';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
@@ -134,7 +135,7 @@ export const SubscriptionProvider = ({ children }) => {
     // Check if current user qualifies for Demo / VIP bypass (Founder, Admin, or Nikhil)
     const email = (user?.email || profile?.email || '').toLowerCase().trim();
     const role = (user?.app_metadata?.role || profile?.role || '').toLowerCase().trim();
-    const isFounder = email === 'nikhil@gmail.com' || role === 'founder' || role === 'admin';
+    const isFounder = isFounderUser(user, profile);
     // ANTI-ABUSE CHECK: Only genuine founders/admins are permitted to activate demo VIP bypass
     const isVipBypass = isFounder && Boolean(subscriptionState.isDemoBypass);
 

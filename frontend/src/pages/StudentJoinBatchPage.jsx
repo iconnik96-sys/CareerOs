@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { campusService } from '../services/campusService';
 import { profileService } from '../services/profileService';
-import { Building2, GraduationCap, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Building2, GraduationCap, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
 
 export const StudentJoinBatchPage = () => {
   const { code } = useParams();
@@ -19,6 +19,7 @@ export const StudentJoinBatchPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [joined, setJoined] = useState(false);
   const [joinedInstitution, setJoinedInstitution] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const handleJoin = async (e) => {
     e.preventDefault();
@@ -28,6 +29,7 @@ export const StudentJoinBatchPage = () => {
     }
 
     setSubmitting(true);
+    setErrorMessage(null);
     try {
       const res = await campusService.studentJoinByCode(inviteCode, {
         user_id: user?.id,
@@ -55,7 +57,9 @@ export const StudentJoinBatchPage = () => {
       setJoinedInstitution(res);
       showToast(res.message, 'success');
     } catch (err) {
-      showToast(err.message || 'Invalid college invite code', 'error');
+      const msg = err.message || 'Invalid college invite code';
+      setErrorMessage(msg);
+      showToast(msg, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -117,6 +121,24 @@ export const StudentJoinBatchPage = () => {
           </div>
         ) : (
           <form onSubmit={handleJoin}>
+            {errorMessage && (
+              <div style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '8px',
+                padding: '0.75rem 1rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                color: '#f87171',
+                fontSize: '0.85rem',
+                lineHeight: 1.4
+              }}>
+                <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                <span>{errorMessage}</span>
+              </div>
+            )}
             <div style={{ marginBottom: '1.25rem' }}>
               <label className="form-label" style={{ fontSize: '0.8rem', marginBottom: '4px' }}>
                 College Invite Code
@@ -150,7 +172,7 @@ export const StudentJoinBatchPage = () => {
               </select>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
               <div>
                 <label className="form-label" style={{ fontSize: '0.8rem', marginBottom: '4px' }}>
                   College Roll Number

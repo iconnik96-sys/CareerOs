@@ -340,7 +340,7 @@ export const CareerRoadmapPage = () => {
                         </div>
 
                         {/* Accordion Detail Breakdown */}
-                        {isExpanded && (<div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', display: 'grid', gridTemplateColumns: (skill.what_to_learn?.length > 0 && skill.suggested_project) ? '1fr 1fr' : '1fr', gap: '1.5rem' }}>
+                        {isExpanded && (<div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', display: 'grid', gridTemplateColumns: (skill.what_to_learn?.length > 0 && skill.suggested_project) ? 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' : '1fr', gap: '1.5rem' }}>
                             {skill.what_to_learn?.length > 0 && (
                               <div>
                                 <h5 style={{ fontSize: '0.8125rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>

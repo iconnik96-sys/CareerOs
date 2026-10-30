@@ -97,8 +97,9 @@ export const CheckoutModal = ({
                 borderRadius: '16px',
                 width: '100%',
                 maxWidth: '520px',
+                maxHeight: '92vh',
+                overflowY: 'auto',
                 boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(99, 102, 241, 0.15)',
-                overflow: 'hidden',
                 color: '#f8fafc',
                 position: 'relative'
             }}>

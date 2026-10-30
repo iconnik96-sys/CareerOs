@@ -215,7 +215,7 @@ export const JobsPage = () => {
             {/* Search & Filter Bar */}
             <Card style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
-                    <div style={{ flex: 1, minWidth: '260px' }}>
+                    <div style={{ flex: 1, minWidth: 'min(100%, 260px)' }}>
                         <Input
                             placeholder="Search by role title, company, skills, or location..."
                             value={search}

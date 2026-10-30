@@ -179,7 +179,7 @@ export const LiveAtsChecker = ({
                 background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%)'
             }}>
                 {/* Score & Gauge Section */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: '260px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 'min(100%, 240px)', flexWrap: 'wrap' }}>
                     <CircularProgress
                         value={buildableStatus.isBuildable ? atsAudit.totalScore : buildableStatus.completionPercentage}
                         size={56}
@@ -249,7 +249,8 @@ export const LiveAtsChecker = ({
                             padding: '0.3rem 0.6rem',
                             fontSize: '0.78rem',
                             height: '32px',
-                            minWidth: '180px',
+                            minWidth: 'min(100%, 180px)',
+                            maxWidth: '100%',
                             backgroundColor: 'var(--bg-tertiary)',
                             color: 'var(--text-primary)'
                         }}

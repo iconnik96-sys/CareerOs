@@ -88,7 +88,7 @@ export const SimulationsPage = () => {
     };
 
     return (
-        <div className="page-container" style={{ padding: '2rem 2.5rem 5rem 2.5rem', maxWidth: 'var(--container-max)', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+        <div className="page-container" style={{ padding: '1.5rem clamp(0.75rem, 3vw, 2rem) 5rem clamp(0.75rem, 3vw, 2rem)', maxWidth: 'var(--container-max)', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
             
             {/* 1. PROGRESS STEPPER BREADCRUMB (Clear & unconfusing for new students) */}
             <div style={{
@@ -223,7 +223,7 @@ export const SimulationsPage = () => {
                     </div>
 
                     {/* Company Cards Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '2rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '2rem' }}>
                         {SIMULATION_COMPANIES.map((company) => {
                             const isAvailable = company.available;
                             return (
@@ -431,7 +431,7 @@ export const SimulationsPage = () => {
                     </div>
 
                     {/* 3 Difficulty Level Cards */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.75rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.75rem' }}>
                         {Object.values(selectedCompany.levels).map((lvl) => {
                             const isBeginner = lvl.levelId === 'beginner';
                             const isIntermediate = lvl.levelId === 'intermediate';
@@ -822,7 +822,7 @@ export const SimulationsPage = () => {
                         alignItems: 'center',
                         justifyContent: 'center',
                         zIndex: 9999,
-                        padding: '1.5rem'
+                        padding: '1rem'
                     }} onClick={() => setPitchModalTask(null)}>
                         <div style={{
                             background: '#0f172a',
@@ -832,7 +832,7 @@ export const SimulationsPage = () => {
                             width: '100%',
                             maxHeight: '90vh',
                             overflowY: 'auto',
-                            padding: '2rem',
+                            padding: 'clamp(1.25rem, 3vw, 2rem)',
                             boxShadow: '0 25px 60px rgba(168, 85, 247, 0.3)',
                             position: 'relative'
                         }} onClick={(e) => e.stopPropagation()}>

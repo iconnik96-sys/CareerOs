@@ -1,3 +1,4 @@
+import { getPrimaryFounderEmail } from '../utils/founderAuth';
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,7 +15,7 @@ import {
   Copy, Check, ExternalLink, UserPlus, Trash2
 } from 'lucide-react';
 
-const FOUNDER_EMAIL = 'nikhil@gmail.com';
+const FOUNDER_EMAIL = getPrimaryFounderEmail();
 
 export const FounderAdminPage = () => {
   const { user, profile } = useAuth();
@@ -1048,7 +1049,7 @@ export const FounderAdminPage = () => {
       </div>
 
       {/* Two Column Layout: Plan Margin Simulator & Feature Breakdown */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
         {/* Interactive Margin & Revenue Simulator */}
         <div style={{
           background: 'var(--card-bg, #1e1e2d)',

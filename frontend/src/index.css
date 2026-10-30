@@ -333,6 +333,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 code,
@@ -1114,8 +1123,11 @@ select.input option {
 
 @media (max-width: 1024px) {
   .resume-studio-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) !important;
     gap: 1.25rem;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden;
   }
   .resume-mobile-toggle {
     display: flex;
@@ -1127,6 +1139,50 @@ select.input option {
     position: static !important;
     height: auto !important;
     max-height: 85vh !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+}
+
+/* Responsive Skills & Certification Form Grids */
+.resume-skills-grid {
+  display: grid;
+  grid-template-columns: 24px 28% 1fr 32px;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.35rem 0.5rem;
+}
+
+.resume-skills-header {
+  display: grid;
+  grid-template-columns: 24px 28% 1fr 32px;
+  gap: 0.5rem;
+  padding: 0 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .resume-skills-header {
+    display: none !important;
+  }
+  .resume-skills-grid {
+    grid-template-columns: 24px 1fr 32px !important;
+    gap: 0.4rem;
+  }
+}
+
+.resume-cert-grid {
+  display: grid;
+  grid-template-columns: 1fr 140px 100px 32px;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .resume-cert-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.4rem;
   }
 }
 
@@ -1171,9 +1227,13 @@ select.input option {
   gap: 1.25rem;
   overflow-x: auto;
   padding-bottom: 1.5rem;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
 }
 
 .kanban-column {
+  scroll-snap-align: start;
+  min-width: 260px;
   background-color: rgba(15, 23, 42, 0.5);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -1397,6 +1457,20 @@ select.input option {
 
 /* Responsive Overrides */
 @media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    z-index: 50;
+    transform: translateX(-100%);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
 
   .col-span-8,
   .col-span-7,
@@ -1416,16 +1490,6 @@ select.input option {
 }
 
 @media (max-width: 768px) {
-  .sidebar {
-    position: fixed;
-    transform: translateX(-100%);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .sidebar.mobile-open {
-    transform: translateX(0);
-  }
-
   .grid-cols-2,
   .grid-cols-3,
   .grid-cols-4 {
@@ -1433,7 +1497,176 @@ select.input option {
   }
 
   .page-container {
-    padding: 1.25rem 1rem 5rem 1rem;
+    padding: 1.25rem clamp(0.75rem, 3vw, 1.25rem) 5rem clamp(0.75rem, 3vw, 1.25rem);
+  }
+
+  .page-header {
+    margin-bottom: 1.25rem;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
+}
+
+/* Responsive Component Layout Helpers */
+.hide-on-mobile {
+  display: inline-flex;
+}
+
+.show-on-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+
+  .show-on-mobile {
+    display: inline-flex !important;
+  }
+
+  .toast-container {
+    top: 1rem;
+    right: 1rem;
+    left: 1rem;
+  }
+
+  .toast-item {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+.dashboard-readiness-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 2fr;
+  gap: 1.5rem;
+}
+
+.readiness-progress-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-right: 1.5rem;
+  border-right: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 860px) {
+  .dashboard-readiness-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .readiness-progress-col {
+    padding-right: 0;
+    padding-bottom: 1.25rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+}
+
+.cover-letter-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 440px) 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .cover-letter-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Simulation Lab Guided Layout & Mobile Toggle */
+.sim-guided-container {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sim-guided-left {
+  width: 440px;
+  background-color: #0f172a;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 1.5rem;
+  gap: 1.25rem;
+  flex-shrink: 0;
+}
+
+.sim-guided-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background-color: #090d16;
+}
+
+/* AI Voice Mock Studio Stage Grid */
+.voice-studio-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 880px) {
+  .voice-studio-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-y: auto;
+  }
+}
+
+.sim-workspace-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+@media (max-width: 880px) {
+  .sim-workspace-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 1.25rem;
+  }
+}
+
+.sim-mobile-toggle {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .sim-mobile-toggle {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background-color: #0f172a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .sim-guided-left {
+    width: 100% !important;
+    border-right: none !important;
+  }
+
+  .sim-guided-left.hidden-on-mobile,
+  .sim-guided-right.hidden-on-mobile {
+    display: none !important;
   }
 }
 

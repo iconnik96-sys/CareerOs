@@ -29,3 +29,4 @@ export function getPrimaryFounderEmail() {
     const firstEnv = rawEnv.split(',').map(e => e.trim().toLowerCase()).filter(Boolean)[0];
     return firstEnv || DEFAULT_FOUNDER_EMAILS[0];
 }
+

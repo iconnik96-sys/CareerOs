@@ -1,74 +1,26 @@
 {
-  "total_requests": 98,
-  "successful_requests": 98,
+  "total_requests": 102,
+  "successful_requests": 102,
   "failed_requests": 0,
-  "total_prompt_tokens": 69976,
-  "total_completion_tokens": 109710,
-  "total_tokens": 179686,
-  "total_cost_inr": 6.4876,
+  "total_prompt_tokens": 72785,
+  "total_completion_tokens": 114582,
+  "total_tokens": 187367,
+  "total_cost_inr": 6.7719,
   "feature_breakdown": {
     "general": {
-      "requests": 98,
-      "tokens": 179686,
-      "cost_inr": 6.4875
+      "requests": 102,
+      "tokens": 187367,
+      "cost_inr": 6.7718
     }
   },
   "model_breakdown": {
     "openai/gpt-oss-120b": {
-      "requests": 98,
-      "tokens": 179686,
-      "cost_inr": 6.4875
+      "requests": 102,
+      "tokens": 187367,
+      "cost_inr": 6.7718
     }
   },
   "recent_logs": [
-    {
-      "id": "req_1792904449898",
-      "timestamp": "2026-10-25 10:30:49",
-      "feature": "general",
-      "model": "openai/gpt-oss-120b",
-      "prompt_tokens": 1048,
-      "completion_tokens": 1440,
-      "total_tokens": 2488,
-      "cost_inr": 0.0868,
-      "status": "SUCCESS",
-      "latency_ms": 3692
-    },
-    {
-      "id": "req_1792904593261",
-      "timestamp": "2026-10-25 10:33:13",
-      "feature": "general",
-      "model": "openai/gpt-oss-120b",
-      "prompt_tokens": 545,
-      "completion_tokens": 217,
-      "total_tokens": 762,
-      "cost_inr": 0.01802,
-      "status": "SUCCESS",
-      "latency_ms": 961
-    },
-    {
-      "id": "req_1792904641297",
-      "timestamp": "2026-10-25 10:34:01",
-      "feature": "general",
-      "model": "openai/gpt-oss-120b",
-      "prompt_tokens": 1206,
-      "completion_tokens": 1218,
-      "total_tokens": 2424,
-      "cost_inr": 0.07749,
-      "status": "SUCCESS",
-      "latency_ms": 2905
-    },
-    {
-      "id": "req_1792905527457",
-      "timestamp": "2026-10-25 10:48:47",
-      "feature": "general",
-      "model": "openai/gpt-oss-120b",
-      "prompt_tokens": 624,
-      "completion_tokens": 1310,
-      "total_tokens": 1934,
-      "cost_inr": 0.07477,
-      "status": "SUCCESS",
-      "latency_ms": 3244
-    },
     {
       "id": "req_1792905708545",
       "timestamp": "2026-10-25 10:51:48",
@@ -620,6 +572,54 @@
       "cost_inr": 0.06388,
       "status": "SUCCESS",
       "latency_ms": 2817
+    },
+    {
+      "id": "req_1793358425940",
+      "timestamp": "2026-10-30 16:37:05",
+      "feature": "general",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 1053,
+      "completion_tokens": 2636,
+      "total_tokens": 3689,
+      "cost_inr": 0.14786,
+      "status": "SUCCESS",
+      "latency_ms": 6619
+    },
+    {
+      "id": "req_1793358450088",
+      "timestamp": "2026-10-30 16:37:30",
+      "feature": "general",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 382,
+      "completion_tokens": 210,
+      "total_tokens": 592,
+      "cost_inr": 0.01558,
+      "status": "SUCCESS",
+      "latency_ms": 919
+    },
+    {
+      "id": "req_1793358453136",
+      "timestamp": "2026-10-30 16:37:33",
+      "feature": "general",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 752,
+      "completion_tokens": 809,
+      "total_tokens": 1561,
+      "cost_inr": 0.05085,
+      "status": "SUCCESS",
+      "latency_ms": 2138
+    },
+    {
+      "id": "req_1793360251055",
+      "timestamp": "2026-10-30 17:07:31",
+      "feature": "general",
+      "model": "openai/gpt-oss-120b",
+      "prompt_tokens": 622,
+      "completion_tokens": 1217,
+      "total_tokens": 1839,
+      "cost_inr": 0.07,
+      "status": "SUCCESS",
+      "latency_ms": 3315
     }
   ],
   "active_model_override": null

@@ -853,7 +853,7 @@ export const ResumeBuilder = ({
                                     >
                                         <Trash2 size={14} />
                                     </button>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem', paddingRight: '2rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem', paddingRight: 'clamp(0px, 2vw, 2rem)' }}>
                                         <div>
                                             <label className="form-label" style={{ fontSize: '0.72rem' }}>College / University</label>
                                             <AutoResizeTextarea
@@ -910,13 +910,7 @@ export const ResumeBuilder = ({
                     {openSections.skills && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
                             {/* Column Header Row */}
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: '24px 28% 1fr 32px',
-                                gap: '0.5rem',
-                                padding: '0 0.5rem',
-                                alignItems: 'center'
-                            }}>
+                            <div className="resume-skills-header">
                                 <div></div>
                                 <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                     Category
@@ -938,12 +932,8 @@ export const ResumeBuilder = ({
                                         moveSkillCategory(draggedSkillIdx, idx);
                                         setDraggedSkillIdx(null);
                                     }}
+                                    className="resume-skills-grid"
                                     style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: '24px 28% 1fr 32px',
-                                        gap: '0.5rem',
-                                        alignItems: 'flex-start',
-                                        padding: '0.35rem 0.5rem',
                                         backgroundColor: draggedSkillIdx === idx ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.02)',
                                         borderRadius: 'var(--radius-md)',
                                         transition: 'background-color 0.15s ease'
@@ -1013,7 +1003,7 @@ export const ResumeBuilder = ({
                                         <Trash2 size={15} />
                                     </button>
 
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.65rem', paddingRight: '2rem', marginBottom: '0.75rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.65rem', paddingRight: 'clamp(0px, 2vw, 2rem)', marginBottom: '0.75rem' }}>
                                         <div>
                                             <label className="form-label" style={{ fontSize: '0.72rem' }}>Project Title</label>
                                             <AutoResizeTextarea
@@ -1140,7 +1130,7 @@ export const ResumeBuilder = ({
                                         <Trash2 size={15} />
                                     </button>
 
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem', paddingRight: '2rem', marginBottom: '0.75rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.65rem', paddingRight: 'clamp(0px, 2vw, 2rem)', marginBottom: '0.75rem' }}>
                                         <div>
                                             <label className="form-label" style={{ fontSize: '0.72rem' }}>Role / Job Title</label>
                                             <AutoResizeTextarea
@@ -1248,7 +1238,7 @@ export const ResumeBuilder = ({
                     {openSections.certifications && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
                             {resumeData.certifications?.map((cert, idx) => (
-                                <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 32px', gap: '0.5rem', alignItems: 'center' }}>
+                                <div key={idx} className="resume-cert-grid">
                                     <AutoResizeTextarea
                                         value={cert.name || ''}
                                         onChange={e => updateCertification(idx, 'name', e.target.value)}

@@ -60,13 +60,13 @@ export const Navbar = ({ onOpenMobileSidebar, onToggleCopilot }) => {
     const activeThemeObj = themes.find(t => t.id === theme) || themes[0];
 
     return (<header className="top-navbar">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <button onClick={onOpenMobileSidebar} className="btn-ghost" style={{ display: 'none', padding: '6px' }} id="mobile-menu-toggle">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <button onClick={onOpenMobileSidebar} className="btn-ghost" style={{ padding: '6px' }} id="mobile-menu-toggle" aria-label="Toggle navigation menu">
           <Menu size={20}/>
         </button>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
 
 
 
@@ -76,7 +76,7 @@ export const Navbar = ({ onOpenMobileSidebar, onToggleCopilot }) => {
             onClick={() => setIsReferralModalOpen(true)}
             className="btn-ghost"
             style={{
-                padding: '0.35rem 0.75rem',
+                padding: '0.35rem 0.65rem',
                 borderRadius: 'var(--radius-full)',
                 backgroundColor: 'rgba(168, 85, 247, 0.12)',
                 border: '1px solid rgba(168, 85, 247, 0.35)',
@@ -85,17 +85,18 @@ export const Navbar = ({ onOpenMobileSidebar, onToggleCopilot }) => {
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem',
+                gap: '0.35rem',
                 cursor: 'pointer'
             }}
             title="Invite friends & get +2 Free Voice Mock Interviews"
         >
             <Gift size={14} color="#c084fc" />
-            <span>Refer (+2 Free)</span>
+            <span className="hide-on-mobile">Refer (+2 Free)</span>
+            <span className="show-on-mobile">+2 Free</span>
         </button>
 
         {onToggleCopilot && (<button onClick={onToggleCopilot} className="btn-ghost" style={{
-                padding: '0.4rem 0.75rem',
+                padding: '0.35rem 0.65rem',
                 borderRadius: 'var(--radius-full)',
                 backgroundColor: 'rgba(124, 58, 237, 0.12)',
                 border: '1px solid rgba(124, 58, 237, 0.3)',
@@ -104,14 +105,16 @@ export const Navbar = ({ onOpenMobileSidebar, onToggleCopilot }) => {
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem',
+                gap: '0.35rem',
                 cursor: 'pointer'
             }}>
-            <Sparkles size={14}/> AI Copilot
+            <Sparkles size={14}/>
+            <span className="hide-on-mobile">AI Copilot</span>
           </button>)}
 
         {isSupabaseConnected && (
           <span
+            className="hide-on-mobile"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -215,7 +218,10 @@ export const Navbar = ({ onOpenMobileSidebar, onToggleCopilot }) => {
       </div>
 
       <style>{`
-        @media (max-width: 768px) {
+        #mobile-menu-toggle {
+          display: none;
+        }
+        @media (max-width: 1024px) {
           #mobile-menu-toggle {
             display: inline-flex !important;
           }

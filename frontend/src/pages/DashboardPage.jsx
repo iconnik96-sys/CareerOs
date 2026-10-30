@@ -315,7 +315,7 @@ export const DashboardPage = () => {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             {/* Streak Pill */}
             <div style={{
               display: 'flex',
@@ -351,7 +351,7 @@ export const DashboardPage = () => {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.25rem' }}>
-          <div style={{ flex: '1 1 500px' }}>
+          <div style={{ flex: '1 1 260px' }}>
             <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#f8fafc', margin: '0 0 0.4rem 0', letterSpacing: '-0.01em' }}>
               {priorityMission.title}
             </h2>
@@ -407,21 +407,9 @@ export const DashboardPage = () => {
           </span>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(220px, 1fr) 2fr',
-          gap: '2rem',
-          alignItems: 'center'
-        }}>
+        <div className="dashboard-readiness-grid">
           {/* Left: Overall Circular Progress */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingRight: '1rem',
-            borderRight: '1px solid var(--border-subtle)'
-          }}>
+          <div className="readiness-progress-col">
             <CircularProgress percentage={readiness} size={150} strokeWidth={12} label="Ready" subtitle={roleDisplayName} />
             <div style={{ marginTop: '0.85rem', textAlign: 'center' }}>
               <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Target Role: </span>
@@ -555,7 +543,7 @@ export const DashboardPage = () => {
             {/* Quick Metrics Strip */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
               gap: '0.5rem',
               marginBottom: '1rem',
               padding: '0.65rem 0.85rem',

@@ -1,11 +1,12 @@
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
+import { SIMULATION_COMPANIES } from '../data/simulationCatalog';
 
 const FASTAPI_BASE_URL = (import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8000').replace(/\/+$/, '');
 
 const client = axios.create({
     baseURL: FASTAPI_BASE_URL,
-    timeout: 60000, // 60s timeout to accommodate Render free tier cold starts (~50s)
+    timeout: 15000, // 15s timeout
     headers: {
         'Content-Type': 'application/json'
     }
@@ -57,23 +58,80 @@ export const simulationService = {
     // 1. Fetch all tracks
     async getTracks() {
         try {
-            const res = await client.get('/api/ai/simulation/tracks');
-            return res.data.tracks || [];
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Backend timeout')), 3500)
+            );
+            const fetchPromise = client.get('/api/ai/simulation/tracks');
+            const res = await Promise.race([fetchPromise, timeoutPromise]);
+            if (res?.data?.tracks && res.data.tracks.length > 0) {
+                return res.data.tracks;
+            }
         } catch (err) {
-            console.error('Failed to fetch simulation tracks from backend:', err);
-            throw new Error(err.response?.data?.detail || err.message || 'Workplace simulation tracks could not be loaded from the backend.');
+            console.warn('[CareerOS Simulation] Backend unreachable or timed out; loading tracks from simulation catalog:', err?.message || err);
         }
+
+        return SIMULATION_COMPANIES.map(c => ({
+            id: c.id,
+            track_key: c.id,
+            title: `${c.name} — ${c.tagline}`,
+            company_name: c.name,
+            role_title: c.role,
+            tech_stacks: c.stack,
+            available: c.available
+        }));
     },
 
     // 2. Fetch track by key with tickets
     async getTrack(trackKey) {
         try {
-            const res = await client.get(`/api/ai/simulation/tracks/${trackKey}`);
-            return res.data;
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Backend timeout')), 4000)
+            );
+            const fetchPromise = client.get(`/api/ai/simulation/tracks/${trackKey}`);
+            const res = await Promise.race([fetchPromise, timeoutPromise]);
+            if (res?.data && res.data.tickets && res.data.tickets.length > 0) {
+                return res.data;
+            }
         } catch (err) {
-            console.error('Failed to fetch simulation track from backend:', err);
-            throw new Error(err.response?.data?.detail || err.message || 'Simulation track could not be loaded from the backend.');
+            console.warn(`[CareerOS Simulation] Backend unreachable for ${trackKey}; loading from simulation catalog:`, err?.message || err);
         }
+
+        // Resilient fallback from client catalog
+        const company = SIMULATION_COMPANIES.find(c => c.id === trackKey) || SIMULATION_COMPANIES[0];
+        const tickets = [];
+        Object.values(company.levels || {}).forEach(lvl => {
+            (lvl.tasks || []).forEach(t => {
+                tickets.push({
+                    id: t.id,
+                    ticket_code: t.code || t.id,
+                    title: t.title,
+                    scenario: t.scenario,
+                    objective: t.objective,
+                    constraints: t.constraint,
+                    acceptance_criteria: t.acceptanceCriteria || [],
+                    starter_code_python: t.starterCode,
+                    starter_code_java: t.starterCode,
+                    starter_code_node: t.starterCode,
+                    solution_code: t.solutionCode,
+                    hints: t.hint ? [t.hint] : [],
+                    level: lvl.label
+                });
+            });
+        });
+
+        return {
+            id: company.id,
+            track_key: company.id,
+            title: `${company.name} — ${company.tagline}`,
+            company_name: company.name,
+            company_tagline: company.tagline,
+            role_title: company.role,
+            difficulty: 'Intermediate',
+            duration_hours: 4,
+            tech_stacks: company.stack,
+            architecture_overview: `### ${company.name} Architecture Overview\n${company.description}\n\nScale Metrics: ${company.scaleMetrics}`,
+            tickets
+        };
     },
 
     // 3. Submit Pull Request / Code for AI Review

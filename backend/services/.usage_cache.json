@@ -1,100 +1,40 @@
 {
-  "total_requests": 5,
-  "successful_requests": 5,
+  "total_requests": 1,
+  "successful_requests": 1,
   "failed_requests": 0,
-  "total_prompt_tokens": 4081,
-  "total_completion_tokens": 5411,
-  "total_tokens": 9492,
-  "total_cost_inr": 0.328,
+  "total_prompt_tokens": 1306,
+  "total_completion_tokens": 1523,
+  "total_tokens": 2829,
+  "total_cost_inr": 0.0943,
   "feature_breakdown": {
     "general": {
-      "requests": 5,
-      "tokens": 9492,
-      "cost_inr": 0.328
+      "requests": 1,
+      "tokens": 2829,
+      "cost_inr": 0.0943
     }
   },
   "model_breakdown": {
     "openai/gpt-oss-120b": {
-      "requests": 5,
-      "tokens": 9492,
-      "cost_inr": 0.328
+      "requests": 1,
+      "tokens": 2829,
+      "cost_inr": 0.0943
     }
   },
   "recent_logs": [
     {
-      "id": "req_1793422092527",
-      "timestamp": "2026-10-31 10:18:12",
+      "id": "req_1793436347735",
+      "timestamp": "2026-10-31 14:15:47",
       "feature": "general",
       "model": "openai/gpt-oss-120b",
       "provider": "groq",
       "user_id": null,
-      "prompt_tokens": 607,
-      "completion_tokens": 585,
-      "total_tokens": 1192,
-      "cost_inr": 0.03757,
+      "prompt_tokens": 1306,
+      "completion_tokens": 1523,
+      "total_tokens": 2829,
+      "cost_inr": 0.09432,
       "status": "SUCCESS",
-      "latency_ms": 2006,
-      "request_id": "req_1793422092527"
-    },
-    {
-      "id": "req_1793422095917",
-      "timestamp": "2026-10-31 10:18:15",
-      "feature": "general",
-      "model": "openai/gpt-oss-120b",
-      "provider": "groq",
-      "user_id": null,
-      "prompt_tokens": 776,
-      "completion_tokens": 1396,
-      "total_tokens": 2172,
-      "cost_inr": 0.08109,
-      "status": "SUCCESS",
-      "latency_ms": 3312,
-      "request_id": "req_1793422095917"
-    },
-    {
-      "id": "req_1793422103462",
-      "timestamp": "2026-10-31 10:18:23",
-      "feature": "general",
-      "model": "openai/gpt-oss-120b",
-      "provider": "groq",
-      "user_id": null,
-      "prompt_tokens": 607,
-      "completion_tokens": 590,
-      "total_tokens": 1197,
-      "cost_inr": 0.03783,
-      "status": "SUCCESS",
-      "latency_ms": 1907,
-      "request_id": "req_1793422103462"
-    },
-    {
-      "id": "req_1793422105835",
-      "timestamp": "2026-10-31 10:18:25",
-      "feature": "general",
-      "model": "openai/gpt-oss-120b",
-      "provider": "groq",
-      "user_id": null,
-      "prompt_tokens": 776,
-      "completion_tokens": 900,
-      "total_tokens": 1676,
-      "cost_inr": 0.05579,
-      "status": "SUCCESS",
-      "latency_ms": 2318,
-      "request_id": "req_1793422105835"
-    },
-    {
-      "id": "req_1793422420058",
-      "timestamp": "2026-10-31 10:23:40",
-      "feature": "general",
-      "model": "openai/gpt-oss-120b",
-      "provider": "groq",
-      "user_id": null,
-      "prompt_tokens": 1315,
-      "completion_tokens": 1940,
-      "total_tokens": 3255,
-      "cost_inr": 0.11571,
-      "status": "SUCCESS",
-      "latency_ms": 4747,
-      "request_id": "req_1793422420058"
+      "latency_ms": 4164,
+      "request_id": "req_1793436347735"
     }
   ],
   "active_model_override": null

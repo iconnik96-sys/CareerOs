@@ -87,9 +87,14 @@ else:
         "http://127.0.0.1:3000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
         "http://localhost:8000",
         "https://careeros.vercel.app",
-        "https://careeros.netlify.app"
+        "https://careeros.netlify.app",
+        "https://careeros-admin.vercel.app"
     ]
 
 # Restrict CORS regex: Broad third-party hosting wildcards (*.vercel.app, *.netlify.app)

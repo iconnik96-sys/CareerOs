@@ -1,5 +1,5 @@
 {
-  "user-std-101:resume_scans:2026-10": 6,
+  "user-std-101:resume_scans:2026-10": 8,
   "free-user-e226c5:resume_scans:2026-10": 2,
   "concurrent-user-521b37:resume_scans:2026-10": 2,
   "user-voice-30a03b:voice_interviews:2026-10": 1,
@@ -18,8 +18,14 @@
   "free-user-c6130f:resume_scans:2026-10": 2,
   "concurrent-user-327ca9:resume_scans:2026-10": 2,
   "user-voice-1163ab:voice_interviews:2026-10": 1,
-  "test-persist-user-999:resume_scans:2026-10": 7,
   "free-user-4aab97:resume_scans:2026-10": 2,
   "concurrent-user-8edd3a:resume_scans:2026-10": 2,
-  "user-voice-653c33:voice_interviews:2026-10": 1
+  "user-voice-653c33:voice_interviews:2026-10": 1,
+  "free-user-b882a1:resume_scans:2026-10": 2,
+  "concurrent-user-38f6b9:resume_scans:2026-10": 2,
+  "user-voice-8dbda8:voice_interviews:2026-10": 1,
+  "free-user-3fb302:resume_scans:2026-10": 2,
+  "concurrent-user-fbc654:resume_scans:2026-10": 2,
+  "user-voice-17e64a:voice_interviews:2026-10": 1,
+  "test-persist-user-999:resume_scans:2026-10": 7
 }

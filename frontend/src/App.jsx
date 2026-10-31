@@ -23,7 +23,6 @@ import { JobAnalyzerPage } from './pages/JobAnalyzerPage';
 import { JobsPage } from './pages/JobsPage';
 import { JobDetailsPage } from './pages/JobDetailsPage';
 import { ApplicationsPage } from './pages/ApplicationsPage';
-import { CareerRoadmapPage } from './pages/CareerRoadmapPage';
 import { InterviewPrepPage } from './pages/InterviewPrepPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SimulationsPage } from './pages/SimulationsPage';
@@ -129,7 +128,7 @@ export const App = () => {
                                         <Route path="/jobs" element={<JobsPage />} />
                                         <Route path="/jobs/:id" element={<JobDetailsPage />} />
                                         <Route path="/applications" element={<ApplicationsPage />} />
-                                        <Route path="/roadmap" element={<CareerRoadmapPage />} />
+                                        <Route path="/roadmap" element={<Navigate to="/dashboard" replace />} />
                                         <Route path="/arena" element={<Navigate to="/dashboard" replace />} />
                                         <Route path="/interview-prep" element={<InterviewPrepPage />} />
                                         <Route path="/simulations" element={<SimulationsPage />} />

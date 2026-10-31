@@ -9,6 +9,9 @@ import { supabase } from '../lib/supabase';
 
 const ARENA_SUBMISSIONS_LOCAL_KEY = 'careeros_arena_submissions_v1';
 
+// Private in-memory store for contest answer keys (never serialized or exposed to sessionStorage)
+const _contestAnswerKeys = new Map();
+
 export const arenaService = {
   /**
    * Fetches real contest questions directly from Supabase.
@@ -94,27 +97,46 @@ export const arenaService = {
         };
       }
 
-      // 3. Extract real questions strictly from the Supabase database rows
-      const r1 = questions
+      // 3. Extract real questions and isolate answer keys in private memory
+      const r1AnswerMap = {};
+      const sanitizedR1 = questions
         .filter(q => q.round_number === 1)
-        .map(q => ({
-          id: q.id,
-          topic: q.topic,
-          companyTag: q.company_tag,
-          question: q.question,
-          options: Array.isArray(q.options) ? q.options : [],
-          explanation: q.explanation
-        }));
+        .map(q => {
+          const rawOptions = Array.isArray(q.options) ? q.options : [];
+          const correctOpt = rawOptions.find(o => o.correct)?.id;
+          if (correctOpt) r1AnswerMap[q.id] = correctOpt;
+          return {
+            id: q.id,
+            topic: q.topic,
+            companyTag: q.company_tag,
+            question: q.question,
+            // SECURITY: Strip 'correct' attribute so client cannot inspect sessionStorage or DevTools to cheat
+            options: rawOptions.map(({ id, text }) => ({ id, text })),
+            explanation: q.explanation
+          };
+        });
 
       const r2Q = questions.find(q => q.round_number === 2);
       const r3Q = questions.find(q => q.round_number === 3);
+
+      const r2RawPatches = Array.isArray(r2Q?.options) ? r2Q.options : [];
+      const r2CorrectId = r2RawPatches.find(p => p.correct)?.id || null;
+
+      const r3RawDecisions = Array.isArray(r3Q?.options) ? r3Q.options : [];
+      const r3CorrectId = r3RawDecisions.find(d => d.correct)?.id || null;
+
+      _contestAnswerKeys.set(contest.contest_code, {
+        r1: r1AnswerMap,
+        r2: r2CorrectId,
+        r3: r3CorrectId
+      });
 
       const compiled = {
         contestCode: contest.contest_code,
         title: contest.title,
         theme: contest.theme,
         targetCompanies: contest.target_companies || ['Razorpay', 'Swiggy', 'TCS Prime'],
-        round1Questions: r1,
+        round1Questions: sanitizedR1,
         round2Challenge: r2Q ? {
           id: r2Q.id,
           title: r2Q.topic,
@@ -122,7 +144,7 @@ export const arenaService = {
           scenario: r2Q.question,
           codeSnippet: r2Q.code_snippet,
           question: 'Which production patch eliminates the race condition?',
-          patches: Array.isArray(r2Q.options) ? r2Q.options : []
+          patches: r2RawPatches.map(({ id, patchTitle, codeDiff, rationale }) => ({ id, patchTitle, codeDiff, rationale }))
         } : null,
         round3Challenge: r3Q ? {
           id: r3Q.id,
@@ -131,7 +153,7 @@ export const arenaService = {
           dilemma: r3Q.question,
           constraint: r3Q.scenario_metadata?.constraint || 'Decouple writes from relational DB under flash peak',
           question: 'As Staff Engineer, which architectural intervention restores sub-100ms response times?',
-          decisions: Array.isArray(r3Q.options) ? r3Q.options : [],
+          decisions: r3RawDecisions.map(({ id, architectureName, topology, latencyImpact, costDelta }) => ({ id, architectureName, topology, latencyImpact, costDelta })),
           engineeringLesson: r3Q.explanation
         } : null,
         source: 'supabase_live'
@@ -154,6 +176,44 @@ export const arenaService = {
         error: err.message || 'Network error connecting to Supabase'
       };
     }
+  },
+
+  /**
+   * Securely evaluates student answers against the private in-memory answer key
+   */
+  evaluateContestAnswers(contestCode, { round1Answers = {}, selectedPatch = null, selectedArchDecision = null }) {
+    const key = _contestAnswerKeys.get(contestCode);
+    if (!key) {
+      return {}; // Signal caller to use safe fallback
+    }
+
+    const r1Keys = key.r1 || {};
+    let r1Correct = 0;
+    const qIds = Object.keys(r1Keys);
+    qIds.forEach(qId => {
+      if (round1Answers[qId] && round1Answers[qId] === r1Keys[qId]) {
+        r1Correct++;
+      }
+    });
+
+    const totalR1 = Math.max(qIds.length, 1);
+    const r1Score = qIds.length > 0 ? Math.round((r1Correct / totalR1) * 100) : 0;
+
+    const r2CorrectId = key.r2;
+    const r2Score = r2CorrectId && selectedPatch === r2CorrectId ? 100 : (selectedPatch ? 20 : 0);
+
+    const r3CorrectId = key.r3;
+    const r3Score = r3CorrectId && selectedArchDecision === r3CorrectId ? 100 : (selectedArchDecision ? 25 : 0);
+
+    const overallIndex = Math.round((r1Score * 0.4) + (r2Score * 0.3) + (r3Score * 0.3));
+
+    return {
+      r1Correct,
+      r1Score,
+      r2Score,
+      r3Score,
+      overallIndex
+    };
   },
 
   /**

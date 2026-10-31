@@ -260,7 +260,7 @@ export const SettingsPage = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                      Weekly Roadmap Digest
+                      Weekly Career Prep Digest
                     </div>
                     <div className="text-body text-xs">Summary of completed skills and new matching job openings.</div>
                   </div>
@@ -289,7 +289,7 @@ export const SettingsPage = () => {
                     </span>
                   </div>
                   <p className="text-body text-xs" style={{ marginBottom: '0.5rem' }}>
-                    All user accounts, career roadmaps, job applications, and analyses are stored directly in Supabase with RLS.
+                    All user accounts, job applications, simulations, and interview analyses are stored directly in Supabase with RLS.
                   </p>
                 </div>
 
@@ -323,7 +323,7 @@ export const SettingsPage = () => {
       {/* Delete Confirmation Modal */}
       <Modal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Confirm Account Deletion">
         <p className="text-body text-sm" style={{ marginBottom: '1.5rem' }}>
-          Are you sure you want to delete your CareerOS account? This will remove all your tracked applications, parsed resumes, and customized roadmap milestones.
+          Are you sure you want to delete your CareerOS account? This will remove all your tracked applications, parsed resumes, simulation scores, and interview sessions.
         </p>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
           <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>

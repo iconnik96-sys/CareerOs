@@ -166,11 +166,21 @@ ${testAssertions}
             `;
 
             const blob = new Blob([workerCode], { type: 'application/javascript' });
-            const worker = new Worker(URL.createObjectURL(blob));
+            const blobUrl = URL.createObjectURL(blob);
+            const worker = new Worker(blobUrl);
+
+            const cleanup = () => {
+                try {
+                    worker.terminate();
+                } catch {}
+                try {
+                    URL.revokeObjectURL(blobUrl);
+                } catch {}
+            };
 
             // 5 second infinite-loop breaker
             const timer = setTimeout(() => {
-                worker.terminate();
+                cleanup();
                 resolve({
                     success: false,
                     durationMs: 5000,
@@ -181,7 +191,7 @@ ${testAssertions}
 
             worker.onmessage = (event) => {
                 clearTimeout(timer);
-                worker.terminate();
+                cleanup();
                 const duration = Math.round(performance.now() - startTime);
                 const { success, logs, error } = event.data;
                 resolve({
@@ -190,6 +200,17 @@ ${testAssertions}
                     error,
                     output: (logs || []).map(l => l.text).join('\n'),
                     logs: logs || []
+                });
+            };
+
+            worker.onerror = (err) => {
+                clearTimeout(timer);
+                cleanup();
+                resolve({
+                    success: false,
+                    durationMs: Math.round(performance.now() - startTime),
+                    error: err.message || 'Worker runtime error',
+                    output: ''
                 });
             };
 

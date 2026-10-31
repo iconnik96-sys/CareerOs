@@ -50,13 +50,18 @@ export const habitTrackerService = {
         const todayStr = today.toISOString().slice(0, 10);
         activeDates.add(todayStr); // Active today by virtue of dashboard access
 
-        // Read stored activity dates
+        // Read stored activity dates with validation
         if (userId) {
             try {
                 const stored = JSON.parse(localStorage.getItem(`careeros_activity_dates_${userId}`) || '[]');
-                stored.forEach(item => {
-                    if (item.date) activeDates.add(item.date);
-                });
+                if (Array.isArray(stored)) {
+                    stored.forEach(item => {
+                        // Anti-abuse: Only accept valid YYYY-MM-DD dates in the past or present
+                        if (typeof item?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.date) && item.date <= todayStr) {
+                            activeDates.add(item.date);
+                        }
+                    });
+                }
             } catch {}
         }
 
@@ -105,11 +110,11 @@ export const habitTrackerService = {
             });
         }
 
-        // 3. Calculate real consecutive day streak ending today
+        // 3. Calculate real consecutive day streak ending today (bounded to 365 days max)
         let streak = 0;
         let checkDate = new Date(today);
 
-        while (true) {
+        while (streak < 365) {
             const checkStr = checkDate.toISOString().slice(0, 10);
             if (activeDates.has(checkStr)) {
                 streak++;

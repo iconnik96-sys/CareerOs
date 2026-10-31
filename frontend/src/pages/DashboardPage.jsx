@@ -159,8 +159,8 @@ export const DashboardPage = () => {
                 return {
                     title: `Master ${topSkillGapName}`,
                     desc: `Bridge your top identified technical gap (${topSkillGapName}) for ${roleDisplayName} to unlock higher placement match scores.`,
-                    actionText: 'View Roadmap',
-                    link: '/roadmap',
+                    actionText: 'Launch Simulation',
+                    link: '/simulations',
                     boost: '+8% Readiness',
                     time: '20 mins',
                     tag: 'Skill Gap'

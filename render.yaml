@@ -1,0 +1,40 @@
+services:
+  # ====================================================================
+  # CareerOS FastAPI Backend Service on Render
+  # ====================================================================
+  - type: web
+    name: careeros-backend
+    env: python
+    region: oregon # or frankfurt/singapore based on primary latency target
+    plan: starter
+    rootDir: .
+    buildCommand: pip install -r backend/requirements.txt
+    # Render Pre-Deploy Command: Executes migrations inside PostgreSQL with advisory locks
+    # If migrations fail, the deployment is halted and the previous version remains active.
+    preDeployCommand: python backend/migrate.py run
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false # Set securely in Render Dashboard (Connection Pooler URL)
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: FOUNDER_EMAIL
+        value: founder@careeros.com
+      - key: ALLOWED_ORIGINS
+        value: https://careeros.vercel.app,https://careeros.netlify.app
+      - key: TRUST_PROXY_HEADERS
+        value: "false" # Keep false unless behind Cloudflare with origin verification
+

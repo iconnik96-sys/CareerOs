@@ -627,7 +627,7 @@ export const OnboardingPage = () => {
               <h2 className="text-h3">What role are you targeting?</h2>
             </div>
             <p className="text-body text-sm" style={{ marginBottom: '1.5rem' }}>
-              CareerOS will build your skill-gap analysis and roadmap specifically for this role.
+              CareerOS will build your skill-gap analysis and preparation plan specifically for this role.
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
@@ -898,7 +898,7 @@ export const OnboardingPage = () => {
                   You're ready.
                 </div>
                 <div className="text-body text-xs">
-                  Let's build your personalized career roadmap and dashboard.
+                  Let's build your personalized career profile and dashboard.
                 </div>
               </div>
             </div>

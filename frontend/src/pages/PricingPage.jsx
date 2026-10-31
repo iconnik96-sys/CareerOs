@@ -320,7 +320,7 @@ export const PricingPage = () => {
                             </li>
                             <li style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
                                 <Check size={16} color="#22c55e" style={{ flexShrink: 0, marginTop: '2px' }} />
-                                <span>Standard Canonical Role Roadmaps</span>
+                                <span>Standard Technical Skill Guides</span>
                             </li>
                             <li style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', color: '#64748b' }}>
                                 <X size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
@@ -437,7 +437,7 @@ export const PricingPage = () => {
                             </li>
                             <li style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
                                 <Check size={16} color="#6366f1" style={{ flexShrink: 0, marginTop: '2px' }} />
-                                <span>Custom Phased Roadmaps & Kanban Application Tracker</span>
+                                <span>Skill-Gap Analysis & Kanban Application Tracker</span>
                             </li>
                             <li style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', color: '#64748b' }}>
                                 <X size={16} style={{ flexShrink: 0, marginTop: '2px' }} />

@@ -60,7 +60,7 @@ export const RegisterPage = () => {
           </div>
           <h2 className="text-h2" style={{ fontSize: '1.65rem' }}>Create Free Account</h2>
           <p className="text-body text-sm" style={{ marginTop: '4px' }}>
-            Personalized roadmaps and job tracking for freshers.
+            Personalized skill analysis and job tracking for freshers.
           </p>
         </div>
 

@@ -13,6 +13,7 @@ import {
     ArrowRight
 } from 'lucide-react';
 import { PLAN_CONFIG, useSubscription } from '../../contexts/SubscriptionContext';
+import { paymentService } from '../../services/paymentService';
 
 export const CheckoutModal = ({
     isOpen,
@@ -57,25 +58,78 @@ export const CheckoutModal = ({
         setReferralApplied(true);
     };
 
-    const handleConfirmPayment = () => {
+    const handleConfirmPayment = async () => {
         setIsProcessing(true);
         setPaymentStep('processing');
+        const idemKey = `idem_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-        // Simulate 2s sandbox payment processing
-        setTimeout(() => {
+        try {
+            // 1. Create order on backend (server calculates price, prevents duplicate orders)
+            const orderRes = await paymentService.createOrder(selectedPlanId, billingCycle, idemKey);
+            const orderData = orderRes?.order;
+
+            if (!orderData) {
+                throw new Error("Failed to initialize payment order.");
+            }
+
+            // 2. If Razorpay checkout script is loaded on window, open official Razorpay checkout
+            if (typeof window !== 'undefined' && window.Razorpay) {
+                const config = await paymentService.getPaymentConfig();
+                const options = {
+                    key: config.key_id,
+                    amount: orderData.amount,
+                    currency: orderData.currency,
+                    name: "CareerOS",
+                    description: `${plan.name} (${billingCycle})`,
+                    order_id: orderData.order_id,
+                    handler: async (response) => {
+                        try {
+                            await paymentService.verifyPayment(
+                                response.razorpay_order_id,
+                                response.razorpay_payment_id,
+                                response.razorpay_signature,
+                                orderData.purchase_id
+                            );
+                            setPaymentStep('success');
+                            setTimeout(() => {
+                                onSuccess({
+                                    planId: selectedPlanId,
+                                    billingCycle,
+                                    referralCodeUsed: referralApplied ? referralCode.trim() : ''
+                                });
+                                onClose();
+                            }, 1800);
+                        } catch (err) {
+                            setIsProcessing(false);
+                            setPaymentStep('details');
+                            alert("Payment verification failed on the server. Please contact support.");
+                        }
+                    },
+                    modal: {
+                        ondismiss: () => {
+                            setIsProcessing(false);
+                            setPaymentStep('details');
+                        }
+                    },
+                    prefill: {
+                        email: referral?.userEmail || ""
+                    },
+                    theme: {
+                        color: "#6366f1"
+                    }
+                };
+                const rzp = new window.Razorpay(options);
+                rzp.open();
+            } else {
+                setIsProcessing(false);
+                setPaymentStep('details');
+                alert("Payment gateway script could not be loaded. Please ensure adblockers are disabled and try again.");
+            }
+        } catch (err) {
             setIsProcessing(false);
-            setPaymentStep('success');
-
-            // Trigger success callback after 1.5s celebratory animation
-            setTimeout(() => {
-                onSuccess({
-                    planId: selectedPlanId,
-                    billingCycle,
-                    referralCodeUsed: referralApplied ? referralCode.trim() : ''
-                });
-                onClose();
-            }, 1800);
-        }, 2200);
+            setPaymentStep('details');
+            alert(err?.response?.data?.detail || err?.message || "Failed to initiate payment. Please try again.");
+        }
     };
 
     return (

@@ -8,7 +8,9 @@ if backend_dir not in sys.path:
 
 import uvicorn
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends
+from database import verify_schema_version_healthy, close_pool, is_db_connected, IS_PRODUCTION
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -30,19 +32,40 @@ from routers import (
     career_copilot,
     resume_analyzer,
     job_matcher,
-    roadmap_generator,
     simulation,
     admin,
-    campus
+    campus,
+    payments
 )
 from routers.admin import verify_authenticated_student, decode_and_verify_jwt
 from services.llm_engine import llm_engine
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Verify that required database schema version is available
+    healthy, details = verify_schema_version_healthy(required_version="20261031_user_quota_persistence")
+    if not healthy:
+        msg = f"Database schema validation failed: {details}"
+        if IS_PRODUCTION:
+            logger.critical(f"FATAL STARTUP ERROR: {msg}. Aborting backend boot.")
+            raise RuntimeError(f"Production boot blocked: {msg}")
+        else:
+            logger.warning(f"Development startup note: {msg}")
+    else:
+        logger.info(f"Database schema verified: active version '{details}'")
+
+    yield
+
+    # Shutdown: Cleanly close database connection pool
+    close_pool()
+
 app = FastAPI(
     title="CareerOS AI Engine",
-    description="Python FastAPI backend powering LLM services for CareerOS (Cover Letters, STAR Bullets, Interview Grader, Career Copilot, Job Matcher, Roadmaps).",
+    description="Python FastAPI backend powering LLM services for CareerOS (Cover Letters, STAR Bullets, Interview Grader, Career Copilot, Job Matcher, Simulations).",
     version="1.0.0",
-    debug=False
+    debug=False,
+    lifespan=lifespan
 )
 
 # Global unhandled exception handler to strictly prevent stack trace and internal leakages
@@ -69,18 +92,18 @@ else:
         "https://careeros.netlify.app"
     ]
 
-# Enable CORS for frontend local development & production deployments
-cors_origin_regex = os.getenv(
-    "CORS_ORIGIN_REGEX",
-    r"^https://.*(\.netlify\.app|\.vercel\.app|\.onrender\.com)$"
-)
+# Restrict CORS regex: Broad third-party hosting wildcards (*.vercel.app, *.netlify.app)
+# are strictly removed to prevent cross-origin data exfiltration from attacker-owned domains.
+# Only an explicitly configured environment variable is respected; defaults to None.
+raw_cors_regex = os.getenv("CORS_ORIGIN_REGEX", "").strip()
+cors_origin_regex = raw_cors_regex if raw_cors_regex else None
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins if "*" not in allowed_origins else ["*"],
     allow_origin_regex=cors_origin_regex,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -99,6 +122,7 @@ async def add_security_headers(request, call_next):
 
 # User-Aware & Multi-Tier Rate Limiting for all API endpoints
 import time
+import ipaddress
 from collections import defaultdict
 from fastapi.responses import JSONResponse
 
@@ -176,7 +200,6 @@ def resolve_rate_limit_tier(path: str) -> str:
         "/api/ai/outreach-message",
         "/api/ai/job-match-analysis",
         "/api/ai/rag-semantic-job-match",
-        "/api/ai/generate-roadmap",
         "/api/ai/simulation/review"
     ):
         return "heavy_ai"
@@ -237,13 +260,31 @@ async def rate_limit_middleware(request, call_next):
 
     # Fall back to client IP for unauthenticated requests
     if not client_id:
-        forwarded_for = request.headers.get("x-forwarded-for")
-        if forwarded_for:
-            client_ip = forwarded_for.split(",")[0].strip()
-        elif request.headers.get("cf-connecting-ip"):
-            client_ip = request.headers.get("cf-connecting-ip").strip()
-        else:
+        # FIX-008: Reject untrusted client-supplied proxy headers unless TRUST_PROXY_HEADERS is explicitly enabled
+        trust_proxy = os.getenv("TRUST_PROXY_HEADERS", "false").lower() in ("true", "1", "yes")
+        client_ip = None
+
+        if trust_proxy:
+            # If behind Cloudflare, use cf-connecting-ip
+            cf_ip = request.headers.get("cf-connecting-ip")
+            if cf_ip:
+                client_ip = cf_ip.strip()
+            else:
+                forwarded_for = request.headers.get("x-forwarded-for")
+                if forwarded_for:
+                    # In a trusted proxy chain, the rightmost IP is appended by the nearest trusted reverse proxy
+                    client_ip = forwarded_for.split(",")[-1].strip()
+
+        # Fallback to direct socket connection host
+        if not client_ip:
             client_ip = request.client.host if request.client else "127.0.0.1"
+
+        # Validate that client_ip is a syntactically valid IPv4 or IPv6 address
+        try:
+            ipaddress.ip_address(client_ip)
+        except ValueError:
+            client_ip = request.client.host if request.client else "127.0.0.1"
+
         client_id = f"ip:{client_ip}"
 
     # Determine endpoint tier and parameters
@@ -288,10 +329,10 @@ app.include_router(interview_evaluator.router, dependencies=[Depends(verify_auth
 app.include_router(career_copilot.router, dependencies=[Depends(verify_authenticated_student)])
 app.include_router(resume_analyzer.router, dependencies=[Depends(verify_authenticated_student)])
 app.include_router(job_matcher.router, dependencies=[Depends(verify_authenticated_student)])
-app.include_router(roadmap_generator.router, dependencies=[Depends(verify_authenticated_student)])
 app.include_router(simulation.router, dependencies=[Depends(verify_authenticated_student)])
 app.include_router(admin.router)
 app.include_router(campus.router)
+app.include_router(payments.router)
 
 
 @app.get("/api/health")
@@ -304,6 +345,7 @@ def health_check():
         "ai_configured": llm_engine.is_available(),
         "groq_configured": llm_engine.is_available(),
         "model": llm_engine.model,
+        "database_connected": is_db_connected(),
         "version": "1.0.0"
     }
 

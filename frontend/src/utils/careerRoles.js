@@ -429,44 +429,44 @@ export const ROLE_TOPICS_MAP = {
 
 export const ROLE_RECOMMENDED_ACTIONS = {
     'Cybersecurity Specialist': [
-        { title: 'Practice Traffic Analysis with Wireshark', desc: 'Inspect PCAP packet captures and identify abnormal TCP/UDP payloads.', link: '/roadmap' },
-        { title: 'Set up a SIEM / Log Analysis Lab', desc: 'Configure Elastic/Splunk to detect brute-force and privilege escalation alerts.', link: '/roadmap' },
+        { title: 'Practice Traffic Analysis with Wireshark', desc: 'Inspect PCAP packet captures and identify abnormal TCP/UDP payloads.', link: '/simulations' },
+        { title: 'Set up a SIEM / Log Analysis Lab', desc: 'Configure Elastic/Splunk to detect brute-force and privilege escalation alerts.', link: '/simulations' },
         { title: 'Test OWASP Top 10 Web Vulnerabilities', desc: 'Explore SQL injection, XSS, and broken access controls in Juice Shop or DVWA.', link: '/interview-prep' },
-        { title: 'Master Linux Security Hardening', desc: 'Implement iptables firewalls, SSH key restrictions, and file permission auditing.', link: '/roadmap' }
+        { title: 'Master Linux Security Hardening', desc: 'Implement iptables firewalls, SSH key restrictions, and file permission auditing.', link: '/simulations' }
     ],
     'Frontend Developer': [
-        { title: 'Build a Full-Featured React Application', desc: 'Implement custom hooks, compound components, and responsive layout architectures.', link: '/roadmap' },
-        { title: 'Master TypeScript with React', desc: 'Type component props, API responses, generic state handlers, and context providers.', link: '/roadmap' },
+        { title: 'Build a Full-Featured React Application', desc: 'Implement custom hooks, compound components, and responsive layout architectures.', link: '/simulations' },
+        { title: 'Master TypeScript with React', desc: 'Type component props, API responses, generic state handlers, and context providers.', link: '/simulations' },
         { title: 'Practice Modern CSS & Responsive UI', desc: 'Build pixel-perfect layouts using CSS Grid and modern design tokens.', link: '/profile' },
         { title: 'Review Frontend Performance & Rendering', desc: 'Master SSR vs CSR in Next.js, code-splitting, and memoization techniques.', link: '/interview-prep' }
     ],
     'Backend Developer': [
-        { title: 'Learn Redis fundamentals', desc: 'Complete cache-aside pattern tutorial and implement cache annotations.', link: '/roadmap' },
+        { title: 'Learn Redis fundamentals', desc: 'Complete cache-aside pattern tutorial and implement cache annotations.', link: '/simulations' },
         { title: 'Build a microservice with Spring Boot / FastAPI', desc: 'Containerize and publish your backend service with Docker and PostgreSQL.', link: '/profile' },
         { title: 'Practice backend interview questions', desc: 'Review top database indexing, transaction isolation, REST, and concurrency patterns.', link: '/interview-prep' },
-        { title: 'Implement asynchronous Kafka messaging', desc: 'Set up producer/consumer event streaming for decoupled order processing.', link: '/roadmap' }
+        { title: 'Implement asynchronous Kafka messaging', desc: 'Set up producer/consumer event streaming for decoupled order processing.', link: '/simulations' }
     ],
     'Full Stack Developer': [
         { title: 'Build an end-to-end full stack project', desc: 'Create a full CRUD web application connecting React frontend to backend API.', link: '/profile' },
-        { title: 'Design relational database schemas', desc: 'Write normalized PostgreSQL tables, indexes, transactions, and foreign keys.', link: '/roadmap' },
+        { title: 'Design relational database schemas', desc: 'Write normalized PostgreSQL tables, indexes, transactions, and foreign keys.', link: '/simulations' },
         { title: 'Implement secure JWT authentication', desc: 'Set up refresh token rotation, bcrypt password hashing, and role-based access.', link: '/interview-prep' },
-        { title: 'Deploy with Docker & CI/CD', desc: 'Write multi-stage Dockerfiles and automated GitHub Actions deployment pipelines.', link: '/roadmap' }
+        { title: 'Deploy with Docker & CI/CD', desc: 'Write multi-stage Dockerfiles and automated GitHub Actions deployment pipelines.', link: '/simulations' }
     ],
     'Data Analyst': [
-        { title: 'Perform Exploratory Data Analysis (EDA)', desc: 'Clean, manipulate, and analyze datasets with Pandas, NumPy, and visualization tools.', link: '/roadmap' },
+        { title: 'Perform Exploratory Data Analysis (EDA)', desc: 'Clean, manipulate, and analyze datasets with Pandas, NumPy, and visualization tools.', link: '/simulations' },
         { title: 'Build an interactive Power BI / Tableau dashboard', desc: 'Design KPI executive metrics, filter slices, and calculated measures for business insights.', link: '/profile' },
         { title: 'Master advanced SQL querying', desc: 'Practice window functions (RANK, DENSE_RANK, LAG/LEAD), CTEs, and complex joins.', link: '/interview-prep' },
-        { title: 'Automate reporting with Python scripts', desc: 'Build automated data extraction and transformation pipelines scheduled via cron.', link: '/roadmap' }
+        { title: 'Automate reporting with Python scripts', desc: 'Build automated data extraction and transformation pipelines scheduled via cron.', link: '/simulations' }
     ],
     'DevOps Engineer': [
-        { title: 'Provision Cloud Infrastructure with Terraform', desc: 'Write reusable HCL modules to deploy VPCs, subnets, and compute instances.', link: '/roadmap' },
+        { title: 'Provision Cloud Infrastructure with Terraform', desc: 'Write reusable HCL modules to deploy VPCs, subnets, and compute instances.', link: '/simulations' },
         { title: 'Orchestrate Microservices on Kubernetes', desc: 'Deploy Pods, Deployments, Services, and Ingress with resource limits on Minikube.', link: '/profile' },
-        { title: 'Build automated GitHub Actions CI/CD pipelines', desc: 'Automate linting, unit testing, Docker image building, and deployment stages.', link: '/roadmap' },
+        { title: 'Build automated GitHub Actions CI/CD pipelines', desc: 'Automate linting, unit testing, Docker image building, and deployment stages.', link: '/simulations' },
         { title: 'Configure Prometheus & Grafana Monitoring', desc: 'Scrape service metrics and construct alert rules for cluster resource usage.', link: '/interview-prep' }
     ],
     'AI/ML Engineer': [
-        { title: 'Train & Evaluate Scikit-Learn Models', desc: 'Build regression and classification pipelines with cross-validation and hyperparameter tuning.', link: '/roadmap' },
-        { title: 'Fine-tune a Deep Learning / NLP Model', desc: 'Utilize PyTorch and Hugging Face Transformers for text classification or embeddings.', link: '/roadmap' },
+        { title: 'Train & Evaluate Scikit-Learn Models', desc: 'Build regression and classification pipelines with cross-validation and hyperparameter tuning.', link: '/simulations' },
+        { title: 'Fine-tune a Deep Learning / NLP Model', desc: 'Utilize PyTorch and Hugging Face Transformers for text classification or embeddings.', link: '/simulations' },
         { title: 'Serve ML Predictions via FastAPI', desc: 'Wrap your trained ML model inside an asynchronous FastAPI REST endpoint with Docker.', link: '/profile' },
         { title: 'Practice ML System Design & Metrics', desc: 'Review precision, recall, ROC-AUC, feature drift, and model latency tradeoffs.', link: '/interview-prep' }
     ]
@@ -477,10 +477,10 @@ ROLE_RECOMMENDED_ACTIONS['Python Backend Developer'] = ROLE_RECOMMENDED_ACTIONS[
 ROLE_RECOMMENDED_ACTIONS['Cybersecurity Analyst'] = ROLE_RECOMMENDED_ACTIONS['Cybersecurity Specialist'];
 
 export const DEFAULT_ACTIONS = [
-    { title: 'Deepen core foundations', desc: 'Focus on clean architecture, design patterns, and algorithmic problem solving.', link: '/roadmap' },
+    { title: 'Deepen core foundations', desc: 'Focus on clean architecture, design patterns, and algorithmic problem solving.', link: '/simulations' },
     { title: 'Build a production-grade portfolio project', desc: 'Add authentication, relational databases, and live deployment to your GitHub.', link: '/profile' },
     { title: 'Practice role-specific interview questions', desc: 'Review key technical concepts and answer frameworks for upcoming campus rounds.', link: '/interview-prep' },
-    { title: 'Bridge top identified skill gaps', desc: 'Follow your personalized milestone roadmap to master missing technologies.', link: '/roadmap' }
+    { title: 'Bridge top identified skill gaps', desc: 'Practice hands-on engineering challenges in Workplace Simulations.', link: '/simulations' }
 ];
 
 const TECH_ALIAS_MAP = {

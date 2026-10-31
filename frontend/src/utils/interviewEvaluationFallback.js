@@ -88,17 +88,55 @@ export function generateLocalInterviewEvaluation({ targetRole = 'Software Engine
             };
         }
 
-        const wordCount = c.answer.split(/\s+/).length;
+        const words = c.answer.toLowerCase().match(/[a-z0-9_]+/g) || [];
+        const wordCount = words.length;
+        const uniqueWords = new Set(words);
         const lower = c.answer.toLowerCase();
+
+        // Anti-abuse check 1: Reject repetitive spam (e.g. "yes yes yes" or repeated words)
+        const repetitionRatio = wordCount > 0 ? (uniqueWords.size / wordCount) : 0;
+        const isSpammy = wordCount < 10 || repetitionRatio < 0.45;
+
+        // Anti-abuse check 2: Check relevance to the question topic
+        const questionKeywords = (c.question.toLowerCase().match(/\b[a-z]{4,}\b/g) || [])
+            .filter(w => !['what', 'when', 'where', 'which', 'explain', 'describe', 'difference', 'between', 'would', 'could', 'should'].includes(w));
+        const matchedQuestionWords = questionKeywords.filter(k => lower.includes(k));
+        const hasQuestionRelevance = matchedQuestionWords.length > 0;
+
+        if (isSpammy || !hasQuestionRelevance) {
+            const lowScore = isSpammy ? 15 : 35;
+            return {
+                question_idx: c.idx,
+                question: c.question,
+                topic: c.topic,
+                difficulty: c.difficulty,
+                status: 'ANSWERED',
+                score: lowScore,
+                candidate_answer: c.answer,
+                feedback: isSpammy
+                    ? 'Answer is too brief or contains excessive repetitive phrasing. Technical interviews require substantive, structured reasoning.'
+                    : 'Answer did not address the specific technical mechanics asked in the question.',
+                dimension_scores: [
+                    { name: 'Technical Accuracy', score: lowScore, feedback: 'Insufficient technical depth directly relevant to this question.' },
+                    { name: 'Structural Flow & STAR', score: Math.max(10, lowScore - 5), feedback: 'Lacks structured explanation or context.' },
+                    { name: 'Depth & Edge Cases', score: 10, feedback: 'No implementation details or edge cases explored.' },
+                    { name: 'Communication Clarity', score: Math.max(20, lowScore), feedback: 'Brief response without technical articulation.' }
+                ],
+                strengths: [],
+                missing_points: ['Provide at least 3-4 structured sentences explaining the core mechanics and trade-offs.'],
+                model_improved_answer: `When answering "${c.question}", define the core concept, explain how it operates internally, and compare alternative approaches.`
+            };
+        }
 
         // Technical keyword match heuristic
         const keywords = ['api', 'database', 'sql', 'cache', 'redis', 'index', 'latency', 'scale', 'async', 'thread', 'docker', 'service', 'transaction', 'acid', 'architecture', 'component', 'state', 'hook', 'design', 'test'];
         const matchedKw = keywords.filter(k => lower.includes(k));
 
-        const accuracyScore = Math.min(95, Math.max(45, 50 + Math.min(30, matchedKw.length * 6) + Math.min(15, Math.floor(wordCount / 8))));
-        const starScore = Math.min(95, Math.max(40, 50 + (lower.includes('when') || lower.includes('situation') ? 12 : 0) + (lower.includes('built') || lower.includes('implemented') ? 15 : 0) + (lower.includes('result') || lower.includes('improved') ? 15 : 0)));
-        const depthScore = Math.min(95, Math.max(40, 45 + Math.min(35, Math.floor(wordCount / 4)) + (lower.includes('trade-off') || lower.includes('because') ? 15 : 0)));
-        const clarityScore = Math.min(95, Math.max(55, 60 + Math.min(30, Math.floor(wordCount / 6))));
+        const baseAccuracy = Math.min(30, matchedKw.length * 5) + Math.min(25, matchedQuestionWords.length * 10);
+        const accuracyScore = Math.min(85, Math.max(40, 35 + baseAccuracy));
+        const starScore = Math.min(85, Math.max(35, 40 + (lower.includes('when') || lower.includes('situation') ? 10 : 0) + (lower.includes('built') || lower.includes('implemented') ? 15 : 0) + (lower.includes('result') || lower.includes('improved') ? 15 : 0)));
+        const depthScore = Math.min(85, Math.max(35, 35 + Math.min(25, Math.floor(wordCount / 6)) + (lower.includes('trade-off') || lower.includes('because') ? 15 : 0)));
+        const clarityScore = Math.min(88, Math.max(45, 50 + Math.min(25, Math.floor(uniqueWords.size / 3))));
 
         const qOverall = Math.round((accuracyScore + starScore + depthScore + clarityScore) / 4);
 

@@ -202,15 +202,6 @@ export const aiFastApiService = {
             throw formatApiError(err);
         }
     },
-    async generateRoadmap(req) {
-        try {
-            const res = await client.post('/api/ai/generate-roadmap', req);
-            return res.data;
-        }
-        catch (err) {
-            throw formatApiError(err);
-        }
-    },
     async suggestRoleSkills(role) {
         try {
             const res = await client.post('/api/ai/suggest-role-skills', { role });

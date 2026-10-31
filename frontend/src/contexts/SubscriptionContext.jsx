@@ -12,10 +12,10 @@ export const PLAN_CONFIG = {
         priceQuarterly: 0,
         badge: '🟢 Free',
         simulations_allowed: 1, // Only FIN-BEG-1
-        voice_interviews_allowed: 1, // 1 session (5 min)
+        voice_interviews_allowed: 1, // 1 session (5 questions)
         voice_duration_minutes: 5,
-        resume_scans_allowed: 1,
-        cover_letters_allowed: 0,
+        resume_scans_allowed: 2,
+        cover_letters_allowed: 2,
         can_access_intermediate: false,
         can_access_pro: false,
         guided_autofill: false,
@@ -23,16 +23,16 @@ export const PLAN_CONFIG = {
         model_answers: false,
         campus_placement_pass: false,
     },
-    premium: {
-        id: 'premium',
-        name: 'Student Premium',
+    pro: {
+        id: 'pro',
+        name: 'Placement Pro',
         priceMonthly: 149,
         priceQuarterly: 349, // 3-month placement pass discount
-        badge: '⚡ Premium',
-        simulations_allowed: 6, // FIN-BEG-1..3 + FIN-INT-1..3
-        voice_interviews_allowed: 5, // 5 sessions per month
+        badge: '⚡ Placement Pro',
+        simulations_allowed: 6,
+        voice_interviews_allowed: 10, // 10 sessions per month
         voice_duration_minutes: 20,
-        resume_scans_allowed: 15,
+        resume_scans_allowed: 25,
         cover_letters_allowed: 10,
         can_access_intermediate: true,
         can_access_pro: false,
@@ -41,16 +41,34 @@ export const PLAN_CONFIG = {
         model_answers: true,
         campus_placement_pass: false,
     },
-    pro: {
+    premium: {
         id: 'pro',
         name: 'Placement Pro',
-        priceMonthly: 299,
-        priceQuarterly: 699, // 3-month placement pass discount
-        badge: '👑 Placement Pro',
-        simulations_allowed: 9, // All 9 tasks including Pro Outages
-        voice_interviews_allowed: 12, // 12 sessions per month
+        priceMonthly: 149,
+        priceQuarterly: 349,
+        badge: '⚡ Placement Pro',
+        simulations_allowed: 6,
+        voice_interviews_allowed: 10,
+        voice_duration_minutes: 20,
+        resume_scans_allowed: 25,
+        cover_letters_allowed: 10,
+        can_access_intermediate: true,
+        can_access_pro: false,
+        guided_autofill: true,
+        pro_ide_mentor: false,
+        model_answers: true,
+        campus_placement_pass: false,
+    },
+    ultimate: {
+        id: 'ultimate',
+        name: 'Placement Ultimate',
+        priceMonthly: 249,
+        priceQuarterly: 599, // 3-month placement pass discount
+        badge: '👑 Placement Ultimate',
+        simulations_allowed: 20, // All tasks including Pro Outages
+        voice_interviews_allowed: 30, // 30 sessions per month
         voice_duration_minutes: 30,
-        resume_scans_allowed: 40,
+        resume_scans_allowed: 75,
         cover_letters_allowed: 30,
         can_access_intermediate: true,
         can_access_pro: true,
@@ -132,18 +150,20 @@ export const SubscriptionProvider = ({ children }) => {
         }
     }, [user, profile, subscriptionState.referral?.code]);
 
-    // Check if current user qualifies for Demo / VIP bypass (Founder, Admin, or Nikhil)
-    const email = (user?.email || profile?.email || '').toLowerCase().trim();
-    const role = (user?.app_metadata?.role || profile?.role || '').toLowerCase().trim();
+    // Check if current user qualifies for Demo / VIP bypass (Founder or Admin)
     const isFounder = isFounderUser(user, profile);
-    // ANTI-ABUSE CHECK: Only genuine founders/admins are permitted to activate demo VIP bypass
+    // ANTI-ABUSE CHECK 1: Only genuine founders/admins are permitted to activate demo VIP bypass
     const isVipBypass = isFounder && Boolean(subscriptionState.isDemoBypass);
 
-    // ANTI-ABUSE CHECK: Check if subscription duration has expired
+    // ANTI-ABUSE CHECK 2: Validate expiration timestamp and genuine activation dates
     const isExpired = subscriptionState.expiresAt && new Date(subscriptionState.expiresAt) < new Date();
+    const hasValidActivation = Boolean(subscriptionState.activatedAt && subscriptionState.expiresAt && !isExpired);
+    
+    // Server-assigned plan via auth metadata takes absolute precedence
+    const serverPlan = (user?.app_metadata?.plan_id || '').toLowerCase().trim();
 
-    // Active plan object
-    const activePlanId = isVipBypass ? 'pro' : (isExpired ? 'free' : (subscriptionState.planId || 'free'));
+    // Active plan resolution
+    const activePlanId = isVipBypass ? 'pro' : (serverPlan || (hasValidActivation ? subscriptionState.planId : 'free'));
     const currentPlan = PLAN_CONFIG[activePlanId] || PLAN_CONFIG.free;
 
     // Total voice interviews allowed (Base tier quota + referral bonus credits)

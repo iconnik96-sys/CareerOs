@@ -1,4 +1,4 @@
-import { isFounderUser } from '../utils/founderAuth';
+import { isFounderUser, isCampusAdmin } from '../utils/founderAuth';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,10 +16,7 @@ export const CampusDashboard = () => {
   const { addToast } = useToast();
 
   const isFounder = isFounderUser(user, profile);
-
-  const userRole = (user?.user_metadata?.role || profile?.role || '').toLowerCase().trim();
-  const userEmail = (user?.email || profile?.email || '').toLowerCase().trim();
-  const isAuthorized = isFounder || userRole === 'tpo' || userRole === 'admin' || userEmail.includes('tpo') || profile?.is_tpo;
+  const isAuthorized = isFounder || isCampusAdmin(user, profile);
 
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState(null);
@@ -1273,7 +1270,7 @@ export const CampusDashboard = () => {
                           {/* CGPA */}
                           <td style={{ padding: '1rem' }}>
                             <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
-                              {student.cgpa.toFixed(2)}
+                              {Number(student.cgpa || 0).toFixed(2)}
                             </strong>
                           </td>
 

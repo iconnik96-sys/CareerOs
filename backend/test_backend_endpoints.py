@@ -12,7 +12,34 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
 
 BASE_URL = "http://localhost:8000"
 
+def _make_auth_header():
+    import base64
+    import hmac
+    import hashlib
+    import os
+    jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "test-secret-key-for-local-runs-32ch")
+    header = base64.urlsafe_b64encode(b'{"alg":"HS256","typ":"JWT"}').decode().rstrip("=")
+    exp = int(time.time()) + 3600
+    payload_dict = {
+        "sub": "usr-test-runner",
+        "email": "test@careeros.ai",
+        "role": "authenticated",
+        "aud": "authenticated",
+        "exp": exp
+    }
+    payload = base64.urlsafe_b64encode(json.dumps(payload_dict).encode("utf-8")).decode().rstrip("=")
+    signing_input = f"{header}.{payload}".encode("utf-8")
+    sig = base64.urlsafe_b64encode(
+        hmac.new(jwt_secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    ).decode().rstrip("=")
+    token = f"{header}.{payload}.{sig}"
+    return {"Authorization": f"Bearer {token}"}
+
 def test_endpoint(name, method, url, **kwargs):
+    if "headers" not in kwargs:
+        kwargs["headers"] = _make_auth_header()
+    elif "Authorization" not in kwargs["headers"]:
+        kwargs["headers"].update(_make_auth_header())
     print(f"\n--- Testing {name}: {method} {url} ---")
     start = time.time()
     if method.upper() == "GET":
@@ -188,18 +215,8 @@ Frameworks & Tools: Spring Boot, Hibernate, REST APIs, Kafka, Redis, Docker, AWS
     assert "missing_skills" in job_res
     assert "skill_breakdown" in job_res
 
-    # 12. Generate Roadmap
-    roadmap_payload = {
-        "target_role": "Java Backend Developer",
-        "current_skills": ["Java", "SQL", "Git"],
-        "experience_level": "0-2 years (Fresher)"
-    }
-    roadmap_res = test_endpoint("Generate Career Roadmap", "POST", f"{BASE_URL}/api/ai/generate-roadmap", json=roadmap_payload)
-    assert "target_role" in roadmap_res
-    assert "phases" in roadmap_res and len(roadmap_res["phases"]) >= 4
-
     print("\n=============================================")
-    print("ALL 12 BACKEND ENDPOINTS PASSED WITH REAL AI (GROQ LLM) RESPONSES!")
+    print("ALL 11 BACKEND ENDPOINTS PASSED WITH REAL AI (GROQ LLM) RESPONSES!")
     print("=============================================")
 
 if __name__ == "__main__":

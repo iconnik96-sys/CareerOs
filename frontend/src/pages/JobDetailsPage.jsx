@@ -325,8 +325,8 @@ export const JobDetailsPage = () => {
                       <XCircle size={16} className="text-danger"/>
                       <span style={{ fontWeight: 600 }}>{sk}</span>
                     </div>
-                    <Link to="/roadmap" className="text-xs text-primary-accent" style={{ fontWeight: 600 }}>
-                      Learn in Roadmap →
+                    <Link to="/simulations" className="text-xs text-primary-accent" style={{ fontWeight: 600 }}>
+                      Practice in Lab →
                     </Link>
                   </div>))
               )}

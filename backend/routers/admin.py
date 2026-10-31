@@ -10,6 +10,24 @@ from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
 from services.usage_tracker import usage_tracker
+
+try:
+    import jwt
+    from jwt import PyJWKClient
+except ImportError:
+    jwt = None
+    PyJWKClient = None
+
+_jwks_client_cache = {}
+
+def get_jwks_client(supabase_url: str):
+    if not PyJWKClient or not supabase_url:
+        return None
+    clean_url = supabase_url.rstrip("/")
+    if clean_url not in _jwks_client_cache:
+        jwks_url = f"{clean_url}/auth/v1/.well-known/jwks.json"
+        _jwks_client_cache[clean_url] = PyJWKClient(jwks_url, cache_jwk_set=True, lifespan=3600)
+    return _jwks_client_cache[clean_url]
 from services.llm_engine import llm_engine, FALLBACK_MODELS
 
 router = APIRouter(prefix="/api/admin", tags=["Founder Admin Operations"])
@@ -22,40 +40,145 @@ SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "").strip()
 
 def decode_and_verify_jwt(token: str) -> Optional[Dict[str, Any]]:
     """
-    Cryptographically verifies and decodes a Supabase JWT (HS256).
-    Enforces signature validation if SUPABASE_JWT_SECRET is configured,
-    and checks expiration timestamps.
+    Cryptographically verifies and decodes a Supabase JWT.
+    Supports:
+    1. Asymmetric ES256 tokens using the Supabase JWKS endpoint (GoTrue Auth standard).
+    2. Symmetric HS256 tokens using SUPABASE_JWT_SECRET (legacy/test standard).
+    Enforces expiration checks, audience checks, and strictly rejects unsigned or tampered tokens (fails closed).
     """
+    if not token or not isinstance(token, str):
+        return None
+
     try:
         parts = token.split(".")
         if len(parts) != 3:
+            logger.warning("Rejected malformed JWT: does not contain 3 segments.")
             return None
         header_b64, payload_b64, sig_b64 = parts
 
-        # Verify signature if secret is configured
-        if SUPABASE_JWT_SECRET:
+        # Decode and strictly validate header algorithm
+        rem_h = len(header_b64) % 4
+        header_b64_padded = header_b64 + ("=" * (4 - rem_h)) if rem_h > 0 else header_b64
+        try:
+            header = json.loads(base64.urlsafe_b64decode(header_b64_padded.encode("utf-8")).decode("utf-8"))
+        except Exception:
+            logger.warning("Rejected JWT with invalid base64/JSON header.")
+            return None
+
+        if not isinstance(header, dict):
+            logger.warning("Rejected JWT with non-dict header.")
+            return None
+
+        alg = header.get("alg")
+        if alg not in ("HS256", "ES256"):
+            logger.warning(f"Rejected JWT with disallowed or missing algorithm: {alg}")
+            return None
+
+        # Mode A: Asymmetric ES256 verification via Supabase JWKS
+        if alg == "ES256":
+            supabase_url = os.getenv("VITE_SUPABASE_URL", os.getenv("SUPABASE_URL", "")).strip().rstrip("/")
+            if not supabase_url or not jwt or not PyJWKClient:
+                logger.error("Security Alert: Supabase URL or PyJWKClient unavailable for ES256 verification. Failing closed.")
+                return None
+            try:
+                jwks = get_jwks_client(supabase_url)
+                if not jwks:
+                    return None
+                signing_key = jwks.get_signing_key_from_jwt(token)
+                payload = jwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=["ES256"],
+                    options={"verify_exp": True, "verify_aud": False}
+                )
+
+                # Validate audience claim
+                aud = payload.get("aud")
+                if aud not in ("authenticated", "anon"):
+                    logger.warning(f"Rejected ES256 JWT with untrusted audience: {aud}")
+                    return None
+
+                # Validate issuer claim
+                expected_iss = f"{supabase_url}/auth/v1"
+                iss = payload.get("iss", "").rstrip("/")
+                if iss and iss != expected_iss:
+                    logger.warning(f"Rejected ES256 JWT with invalid issuer: {iss} (expected: {expected_iss})")
+                    return None
+
+                # Validate subject claim
+                sub = payload.get("sub")
+                if not sub or not isinstance(sub, str) or not sub.strip():
+                    logger.warning("Rejected ES256 JWT missing or empty subject claim ('sub').")
+                    return None
+
+                # Validate not-before claim
+                nbf = payload.get("nbf")
+                if nbf is not None and isinstance(nbf, (int, float)) and time.time() < nbf:
+                    logger.warning(f"Rejected ES256 JWT token not yet valid (nbf: {nbf}).")
+                    return None
+
+                return payload
+            except Exception as e:
+                logger.warning(f"ES256 signature verification failed: {e}")
+                return None
+
+        # Mode B: Symmetric HS256 verification via SUPABASE_JWT_SECRET
+        if alg == "HS256":
+            jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "").strip()
+            if not jwt_secret:
+                logger.error("Security Alert: SUPABASE_JWT_SECRET is not configured for HS256 verification. Failing closed.")
+                return None
+
             signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
             expected_sig = base64.urlsafe_b64encode(
-                hmac.new(SUPABASE_JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
+                hmac.new(jwt_secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
             ).decode("utf-8").rstrip("=")
             actual_sig = sig_b64.rstrip("=")
             if not hmac.compare_digest(expected_sig, actual_sig):
-                logger.warning("JWT signature verification failed.")
+                logger.warning("JWT signature verification failed: signature mismatch.")
                 return None
 
-        # Decode payload
-        rem = len(payload_b64) % 4
-        if rem > 0:
-            payload_b64 += "=" * (4 - rem)
-        payload = json.loads(base64.urlsafe_b64decode(payload_b64.encode("utf-8")).decode("utf-8"))
+            rem_p = len(payload_b64) % 4
+            payload_b64_padded = payload_b64 + ("=" * (4 - rem_p)) if rem_p > 0 else payload_b64
+            payload = json.loads(base64.urlsafe_b64decode(payload_b64_padded.encode("utf-8")).decode("utf-8"))
 
-        # Verify expiration
-        exp = payload.get("exp")
-        if exp and isinstance(exp, (int, float)) and time.time() > exp:
-            logger.warning("JWT token expired.")
-            return None
+            exp = payload.get("exp")
+            if exp is None or not isinstance(exp, (int, float)):
+                logger.warning("Rejected JWT missing expiration claim ('exp').")
+                return None
+            if time.time() > exp:
+                logger.warning("JWT token expired.")
+                return None
 
-        return payload
+            # Validate audience claim
+            aud = payload.get("aud")
+            if aud not in ("authenticated", "anon"):
+                logger.warning(f"Rejected HS256 JWT with untrusted or missing audience: {aud}")
+                return None
+
+            # Validate subject claim
+            sub = payload.get("sub")
+            if not sub or not isinstance(sub, str) or not sub.strip():
+                logger.warning("Rejected HS256 JWT missing or empty subject claim ('sub').")
+                return None
+
+            # Validate not-before claim
+            nbf = payload.get("nbf")
+            if nbf is not None and isinstance(nbf, (int, float)) and time.time() < nbf:
+                logger.warning(f"Rejected HS256 JWT token not yet valid (nbf: {nbf}).")
+                return None
+
+            # Validate issuer if configured
+            supabase_url = os.getenv("VITE_SUPABASE_URL", os.getenv("SUPABASE_URL", "")).strip().rstrip("/")
+            if supabase_url and payload.get("iss"):
+                expected_iss = f"{supabase_url}/auth/v1"
+                if payload["iss"].rstrip("/") != expected_iss:
+                    logger.warning(f"Rejected HS256 JWT with invalid issuer: {payload.get('iss')}")
+                    return None
+
+            return payload
+
+        return None
     except Exception as e:
         logger.warning(f"Error validating JWT: {e}")
         return None
@@ -83,7 +206,8 @@ def verify_admin_access(
             # Security Hardening: Only trust server-controlled app_metadata.
             # Client-writable user_metadata is strictly ignored to prevent privilege escalation.
             role = (payload.get("app_metadata", {}).get("role") or "").lower().strip()
-            if (FOUNDER_EMAIL and email == FOUNDER_EMAIL) or role in ("founder", "admin"):
+            founder_email = (os.getenv("FOUNDER_EMAIL") or FOUNDER_EMAIL).lower().strip()
+            if (founder_email and email == founder_email) or role in ("founder", "admin"):
                 return True
 
     logger.warning("Unauthorized attempt to access admin endpoint (invalid or missing credentials).")
@@ -102,6 +226,11 @@ def verify_authenticated_student(
     """
     if ADMIN_API_KEY and x_admin_key:
         if secrets.compare_digest(x_admin_key.strip(), ADMIN_API_KEY):
+            try:
+                from services.request_context import set_current_user_id
+                set_current_user_id("admin")
+            except Exception:
+                pass
             return {"role": "admin", "email": FOUNDER_EMAIL}
 
     if not authorization or not authorization.lower().startswith("bearer "):
@@ -119,6 +248,14 @@ def verify_authenticated_student(
             status_code=401,
             detail="Session expired or invalid: Please refresh your session or log in again."
         )
+
+    try:
+        from services.request_context import set_current_user_id
+        uid = payload.get("sub") or payload.get("id") or payload.get("user_id")
+        if uid:
+            set_current_user_id(str(uid))
+    except Exception:
+        pass
 
     return payload
 
@@ -195,7 +332,8 @@ def get_admin_metrics(founder_email: Optional[str] = None):
         },
         "feature_breakdown": stats["feature_breakdown"],
         "model_breakdown": stats["model_breakdown"],
-        "recent_logs": stats["recent_logs"]
+        "recent_logs": stats["recent_logs"],
+        "persistent_analytics": usage_tracker.get_founder_analytics(days=30)
     }
 
 @router.post("/switch-model", dependencies=[Depends(verify_admin_access)])

@@ -224,7 +224,9 @@ class LLMEngine:
         messages: Optional[List[Dict[str, str]]] = None,
         json_mode: bool = False,
         model_override: Optional[str] = None,
-        feature: str = "general"
+        feature: str = "general",
+        user_id: Optional[str] = None,
+        request_id: Optional[str] = None
     ) -> Optional[str]:
         """
         Universal completion handler supporting Google Gemini, Groq, OpenAI,
@@ -283,7 +285,10 @@ class LLMEngine:
                                 prompt_tokens=p_toks,
                                 completion_tokens=c_toks,
                                 success=True,
-                                latency_ms=latency_ms
+                                latency_ms=latency_ms,
+                                user_id=user_id,
+                                provider="groq",
+                                request_id=request_id
                             )
                             return content
                 else:
@@ -321,7 +326,10 @@ class LLMEngine:
                                     prompt_tokens=p_toks,
                                     completion_tokens=c_toks,
                                     success=True,
-                                    latency_ms=latency_ms
+                                    latency_ms=latency_ms,
+                                    user_id=user_id,
+                                    provider=self.provider,
+                                    request_id=request_id
                                 )
                                 return content
                     else:
@@ -337,7 +345,10 @@ class LLMEngine:
             prompt_tokens=len(str(call_messages)) // 4,
             completion_tokens=0,
             success=False,
-            latency_ms=latency_ms
+            latency_ms=latency_ms,
+            user_id=user_id,
+            provider=self.provider,
+            request_id=request_id
         )
         return None
 
@@ -348,7 +359,9 @@ class LLMEngine:
         temperature: float = 0.5,
         messages: Optional[List[Dict[str, str]]] = None,
         max_retries: int = 2,
-        feature: str = "general"
+        feature: str = "general",
+        user_id: Optional[str] = None,
+        request_id: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Executes a completion in JSON mode and parses the response.
@@ -364,7 +377,9 @@ class LLMEngine:
                 temperature=temperature if attempt == 0 else 0.2,
                 messages=messages,
                 json_mode=True,
-                feature=feature
+                feature=feature,
+                user_id=user_id,
+                request_id=request_id
             )
             if raw_text:
                 try:

@@ -223,30 +223,45 @@ export const PlacementArenaPage = () => {
 
   // Final Score Calculations
   const calculateFinalResults = () => {
-    // Round 1 Score (Max 100)
-    let r1Correct = 0;
-    round1Questions.forEach(q => {
-      const selected = round1Answers[q.id];
-      const correctOpt = q.options?.find(o => o.correct)?.id;
-      if (selected === correctOpt) r1Correct++;
+    const activeContestCode = contestData?.contestCode || 'SPRINT-14';
+    const evaluated = arenaService.evaluateContestAnswers(activeContestCode, {
+      round1Answers,
+      selectedPatch,
+      selectedArchDecision
     });
-    const totalR1 = round1Questions.length > 0 ? round1Questions.length : 1;
-    const r1Score = Math.round((r1Correct / totalR1) * 100);
 
-    // Round 2 Score (Max 100)
-    const r2CorrectId = round2Challenge?.patches?.find(p => p.correct)?.id;
-    const r2Score = r2CorrectId && selectedPatch === r2CorrectId ? 100 : (selectedPatch ? 20 : 0);
+    let r1Correct = evaluated.r1Correct;
+    let r1Score = evaluated.r1Score;
+    let r2Score = evaluated.r2Score;
+    let r3Score = evaluated.r3Score;
+    let overallIndex = evaluated.overallIndex;
 
-    // Round 3 Score (Max 100)
-    const r3CorrectId = round3Challenge?.decisions?.find(d => d.correct)?.id;
-    const r3Score = r3CorrectId && selectedArchDecision === r3CorrectId ? 100 : (selectedArchDecision ? 25 : 0);
+    // Resilient fallback if evaluation cache is missing
+    if (r1Correct === undefined) {
+      let correctCount = 0;
+      round1Questions.forEach(q => {
+        const selected = round1Answers[q.id];
+        const correctOpt = q.options?.find(o => o.correct)?.id;
+        if (selected && selected === correctOpt) correctCount++;
+      });
+      const totalR1 = Math.max(round1Questions.length, 1);
+      r1Correct = correctCount;
+      r1Score = round1Questions.length > 0 ? Math.round((r1Correct / totalR1) * 100) : 0;
 
-    // Weighted Overall Placement Index (Out of 100)
-    // Round 1 (40%), Round 2 (30%), Round 3 (30%)
-    const overallIndex = Math.round((r1Score * 0.4) + (r2Score * 0.3) + (r3Score * 0.3));
+      const r2CorrectId = round2Challenge?.patches?.find(p => p.correct)?.id;
+      r2Score = r2CorrectId && selectedPatch === r2CorrectId ? 100 : (selectedPatch ? 20 : 0);
 
-    // Time used in seconds
-    const totalTimeUsed = (480 - round1Timer) + (420 - round2Timer) + (300 - round3Timer);
+      const r3CorrectId = round3Challenge?.decisions?.find(d => d.correct)?.id;
+      r3Score = r3CorrectId && selectedArchDecision === r3CorrectId ? 100 : (selectedArchDecision ? 25 : 0);
+
+      overallIndex = Math.round((r1Score * 0.4) + (r2Score * 0.3) + (r3Score * 0.3));
+    }
+
+    // Safe timer bounds against NaN
+    const r1Used = Math.max(0, 480 - (Number(round1Timer) || 0));
+    const r2Used = Math.max(0, 420 - (Number(round2Timer) || 0));
+    const r3Used = Math.max(0, 300 - (Number(round3Timer) || 0));
+    const totalTimeUsed = r1Used + r2Used + r3Used;
 
     return {
       r1Correct,
@@ -669,7 +684,7 @@ export const PlacementArenaPage = () => {
                 </p>
               </div>
 
-              {/* 3 Rounds Visual Architecture Roadmap */}
+              {/* 3 Rounds Visual Architecture Overview */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
                 {/* Round 1 Card */}
                 <div style={{

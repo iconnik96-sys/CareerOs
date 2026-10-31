@@ -1,7 +1,9 @@
 import json
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from routers.admin import verify_authenticated_student
+from services.quota_service import check_and_consume_quota
 from pydantic import BaseModel, Field
 from services.llm_engine import llm_engine
 
@@ -29,7 +31,8 @@ class CopilotChatResponse(BaseModel):
 
 
 @router.post("/copilot-chat", response_model=CopilotChatResponse)
-def copilot_chat(req: CopilotChatRequest):
+def copilot_chat(req: CopilotChatRequest, user: Dict[str, Any] = Depends(verify_authenticated_student)):
+    check_and_consume_quota(user, 'career_copilot')
     if not llm_engine.is_available():
         raise HTTPException(
             status_code=503,

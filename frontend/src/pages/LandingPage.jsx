@@ -817,7 +817,7 @@ export const LandingPage = () => {
               </li>
               <li style={{ display: 'flex', gap: '0.6rem' }}>
                 <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span>
-                <span><strong>Campus Placement Pass:</strong> Complete phased roadmap targeting 12+ LPA engineering roles.</span>
+                <span><strong>Campus Placement Pass:</strong> Complete preparation system targeting 12+ LPA engineering roles.</span>
               </li>
             </ul>
           </div>
@@ -1072,7 +1072,7 @@ export const LandingPage = () => {
               <li style={{ display: 'flex', gap: '0.5rem' }}><Check size={16} color="#22c55e" /> 1 Beginner Outage Task (FIN-BEG-1)</li>
               <li style={{ display: 'flex', gap: '0.5rem' }}><Check size={16} color="#22c55e" /> 1 AI Voice Mock Interview</li>
               <li style={{ display: 'flex', gap: '0.5rem' }}><Check size={16} color="#22c55e" /> 1 ATS Resume Scan</li>
-              <li style={{ display: 'flex', gap: '0.5rem' }}><Check size={16} color="#22c55e" /> Canonical Career Roadmaps</li>
+              <li style={{ display: 'flex', gap: '0.5rem' }}><Check size={16} color="#22c55e" /> Curated Technical Skill Guides</li>
             </ul>
           </div>
 
@@ -1148,7 +1148,7 @@ export const LandingPage = () => {
               <li style={{ display: 'flex', gap: '0.5rem' }}><Check size={16} color="#6366f1" /> <strong>5 AI Voice Mock Interviews / month</strong></li>
               <li style={{ display: 'flex', gap: '0.5rem' }}><Check size={16} color="#6366f1" /> <strong>15 ATS Scans & Google XYZ STAR rewrites</strong></li>
               <li style={{ display: 'flex', gap: '0.5rem' }}><Check size={16} color="#6366f1" /> <strong>Auto-Apply Code Fix</strong> in Guided Browser IDE</li>
-              <li style={{ display: 'flex', gap: '0.5rem' }}><Check size={16} color="#6366f1" /> Custom Roadmaps & Application Kanban Tracker</li>
+              <li style={{ display: 'flex', gap: '0.5rem' }}><Check size={16} color="#6366f1" /> Skill-Gap Analysis & Application Kanban Tracker</li>
             </ul>
           </div>
 

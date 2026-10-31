@@ -131,7 +131,8 @@ export const ResumeAnalysisPage = () => {
         <EmptyState icon={<FileText size={32}/>} title="No Resume Found" description="Upload your resume to generate an instant AI evaluation and benchmark your technical skills." actionText="Upload Resume" actionIcon={<Upload size={16}/>} onAction={() => navigate('/resume')}/>
       </div>);
     }
-    const score = analysis?.match_score || 78;
+    const hasAnalysis = Boolean(analysis && typeof analysis.match_score === 'number');
+    const score = hasAnalysis ? analysis.match_score : 0;
     return (<div className="page-container">
       <div className="page-header">
         <div>
@@ -226,13 +227,17 @@ export const ResumeAnalysisPage = () => {
               <span style={{ fontSize: '0.8125rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
                 Overall Resume Score
               </span>
-              <CircularProgress percentage={score} size={160} strokeWidth={12} label="Score" subtitle="/ 100"/>
+              <CircularProgress percentage={score} size={160} strokeWidth={12} label={hasAnalysis ? "Score" : "Pending"} subtitle={hasAnalysis ? "/ 100" : "Analyze"}/>
               <div style={{ marginTop: '1.5rem' }}>
-                <span className={`badge ${score >= 80 ? 'badge-success' : score >= 65 ? 'badge-primary' : 'badge-warning'}`} style={{ marginBottom: '0.5rem' }}>
-                  <Award size={13}/> {score >= 80 ? 'Competitive for Placement Shortlists' : score >= 65 ? 'Solid Foundation — Address Gaps' : 'Needs Optimization'}
+                <span className={`badge ${!hasAnalysis ? 'badge-warning' : score >= 80 ? 'badge-success' : score >= 65 ? 'badge-primary' : 'badge-warning'}`} style={{ marginBottom: '0.5rem' }}>
+                  <Award size={13}/> {!hasAnalysis ? 'Awaiting Analysis' : score >= 80 ? 'Competitive for Placement Shortlists' : score >= 65 ? 'Solid Foundation — Address Gaps' : 'Needs Optimization'}
                 </span>
                 <p className="text-body text-xs" style={{ maxWidth: '280px', margin: '0 auto' }}>
-                  Addressing high-priority skill gaps below can boost your ATS match score to <strong>~90/100</strong>.
+                  {hasAnalysis ? (
+                    <>Addressing high-priority skill gaps below can boost your ATS match score to <strong>~90/100</strong>.</>
+                  ) : (
+                    <>Click <strong>Re-Analyze Resume</strong> above to benchmark your resume against your target role.</>
+                  )}
                 </p>
               </div>
             </Card>

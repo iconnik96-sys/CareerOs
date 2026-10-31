@@ -324,38 +324,8 @@ PROJECTS:
     check("Application status is now INTERVIEW", app_update.json()[0]["status"] == "INTERVIEW")
 
     print("\n==========================================")
-    print("STEP 6: CAREER ROADMAP GENERATION & PHASE TOGGLING")
+    print("STEP 6: SKIP ROADMAP (DEPRECATED & REMOVED)")
     print("==========================================")
-
-    # Generate 4-Phase Roadmap via FastAPI
-    roadmap_api_res = requests.post(f"{FASTAPI_URL}/api/ai/generate-roadmap", json={
-        "target_role": "Java Backend Developer",
-        "current_skills": ["Java", "SQL", "Git"],
-        "experience_level": "0-2 years (Fresher)"
-    })
-    check("AI Roadmap generation status 200", roadmap_api_res.status_code == 200)
-    roadmap_data = roadmap_api_res.json()
-    check("Roadmap has 4 phases", len(roadmap_data["phases"]) >= 4, f"Phases: {len(roadmap_data['phases'])}")
-
-    # Persist Roadmap in Supabase roadmaps table
-    roadmap_db_res = requests.post(f"{SUPABASE_URL}/rest/v1/roadmaps", headers=get_headers(token_a), json={
-        "user_id": user_a_id,
-        "target_role": "Java Backend Developer",
-        "phases": roadmap_data["phases"]
-    })
-    check("Persist Roadmap status 201/200", roadmap_db_res.status_code in [200, 201])
-
-    # Toggle a skill completion in Phase 1 and update Supabase
-    phases = roadmap_data["phases"]
-    phases[0]["skills"][0]["status"] = "COMPLETED"
-    phases[0]["status"] = "IN_PROGRESS"
-    roadmap_update = requests.patch(
-        f"{SUPABASE_URL}/rest/v1/roadmaps?user_id=eq.{user_a_id}&target_role=eq.Java Backend Developer",
-        headers=get_headers(token_a),
-        json={"phases": phases, "updated_at": "now()"}
-    )
-    check("Update Roadmap skill progress status 200", roadmap_update.status_code == 200)
-    check("Updated phase status verified in Supabase", roadmap_update.json()[0]["phases"][0]["skills"][0]["status"] == "COMPLETED")
 
     print("\n==========================================")
     print("STEP 7: MULTI-TENANT RLS ISOLATION AUDIT")

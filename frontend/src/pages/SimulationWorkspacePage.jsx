@@ -207,14 +207,22 @@ export const SimulationWorkspacePage = () => {
                 'Edge cases and error states handled gracefully'
             ];
 
-            const isApproved = code.trim().length > 30 && !code.includes('Insecure stub') && !code.includes('TODO');
+            // Anti-cheat verification on fallback code review
+            const lowerCode = code.toLowerCase();
+            const hasStructuralLogic = (code.includes('function') || code.includes('def ') || code.includes('class ') || code.includes('=>') || code.includes('return')) &&
+                                       (code.includes('if') || code.includes('try') || code.includes('catch') || code.includes('throw') || code.includes('assert'));
+            const hasStubMarkers = code.includes('Insecure stub') || code.includes('TODO') || lowerCode.includes('not implemented') || code.trim() === 'pass';
+            const isSubstantive = code.trim().length >= 80;
+
+            const isApproved = isSubstantive && hasStructuralLogic && !hasStubMarkers;
+            const evalScore = isApproved ? 85 : 45;
 
             const fallbackRes = {
                 status: isApproved ? 'APPROVED' : 'CHANGES_REQUESTED',
-                score: isApproved ? 95 : 45,
+                score: evalScore,
                 summary: isApproved
-                    ? `Marcus (Staff Software Engineer): Excellent work on ${tCode} (${title})! Your implementation satisfies the acceptance criteria, handles edge-case failure modes, and meets production engineering standards.`
-                    : `Marcus (Staff Software Engineer): Changes requested on ${tCode}. Please implement the required changes to meet the acceptance criteria before submitting your Pull Request.`,
+                    ? `Marcus (Staff Software Engineer): Good work on ${tCode} (${title}). Your pull request provides structural logic, handles basic edge cases, and satisfies core acceptance criteria.`
+                    : `Marcus (Staff Software Engineer): Changes requested on ${tCode}. Your implementation does not yet satisfy production engineering standards. Ensure all stubs and TODOs are replaced with defensive validation logic.`,
                 criteria_breakdown: criteria.map(c => ({
                     criterion: c,
                     status: isApproved ? 'PASS' : 'FAIL',

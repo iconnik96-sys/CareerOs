@@ -14,6 +14,7 @@ import {
   Award, Activity, ListChecks, Target, RotateCcw, AlertTriangle, Flame,
   Gift, Lock
 } from 'lucide-react';
+import { PageHeader } from '../components/common/PageHeader';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
@@ -478,20 +479,13 @@ export const InterviewPrepPage = () => {
     }
   };
 
-  return (<div className="page-container">
-    <div className="page-header">
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-          <span className="badge badge-purple">
-            <Sparkles size={12} /> Role-Calibrated Interview Preparation
-          </span>
-        </div>
-        <h1 className="page-title">{roleDisplayName} Technical Interview Prep</h1>
-        <p className="page-subtitle">
-          Curated questions stored in the database for {roleDisplayName} candidates with real-time STAR AI answer evaluation.
-        </p>
-      </div>
-    </div>
+  return (
+    <>
+      <PageHeader
+        title={`${roleDisplayName} Technical Interview Prep`}
+        subtitle={`Curated questions stored in database for ${roleDisplayName} candidates with real-time STAR AI evaluation.`}
+      />
+      <div className="page-container">
 
     {/* Live Interview Arena Modal (always accessible) */}
     <LiveInterviewModal
@@ -1528,6 +1522,7 @@ export const InterviewPrepPage = () => {
         )}
       </div>
     )}
-  </div>);
+  </div>
+  </>);
 };
 

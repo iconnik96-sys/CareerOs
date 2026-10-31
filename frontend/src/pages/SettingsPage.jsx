@@ -5,6 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import { User, Shield, Bell, Sliders, LogOut, Trash2, Sparkles, CheckCircle2, Database, Palette, Check } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { Card } from '../components/common/Card';
+import { PageHeader } from '../components/common/PageHeader';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { Modal } from '../components/common/Modal';
@@ -60,15 +61,13 @@ export const SettingsPage = () => {
         { id: 'notifications', label: 'Notifications', icon: <Bell size={16}/> },
         { id: 'preferences', label: 'System & Architecture', icon: <Sliders size={16}/> },
     ];
-    return (<div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">
-            Configure your account credentials, notifications, and platform preferences.
-          </p>
-        </div>
-      </div>
+    return (
+      <>
+        <PageHeader
+          title="Platform Settings"
+          subtitle="Configure your account credentials, notifications, and platform preferences."
+        />
+        <div className="page-container">
 
       <div className="grid grid-cols-12" style={{ gap: '1.5rem' }}>
         {/* Settings Navigation Menu */}
@@ -334,5 +333,6 @@ export const SettingsPage = () => {
           </Button>
         </div>
       </Modal>
-    </div>);
+    </div>
+    </>);
 };

@@ -77,12 +77,7 @@ export const PricingPage = () => {
     ];
 
     return (
-        <div style={{
-            maxWidth: '1200px',
-            margin: '0 auto',
-            padding: '2rem 1.5rem 4rem',
-            color: '#f8fafc'
-        }}>
+        <div className="page-container">
             {/* Founder / Demo Sandbox Bar (Strictly hidden for regular students) */}
             {isFounder && (
                 <div style={{

@@ -9,6 +9,7 @@ import { FileText, Upload, Sparkles, Trash2, RefreshCw, CheckCircle2, Calendar, 
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { PageHeader } from '../components/common/PageHeader';
 export const ResumePage = () => {
     const { user, profile } = useAuth();
     const { showToast } = useToast();
@@ -113,20 +114,22 @@ export const ResumePage = () => {
             showToast('Resume deleted', 'info');
         }
     };
-    return (<div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Resume Management</h1>
-          <p className="page-subtitle">
-            Upload your technical resume to parse skills, evaluate ATS keyword density, and unlock AI gap analysis.
-          </p>
-        </div>
-        {resume && (<Link to="/resume-analysis">
-            <Button variant="primary" leftIcon={<Sparkles size={16}/>}>
-              Analyze Resume
-            </Button>
-          </Link>)}
-      </div>
+    return (
+      <>
+        <PageHeader
+          title="Resume Management"
+          subtitle="Upload your technical resume to parse skills, evaluate ATS keyword density, and unlock AI gap analysis."
+          actions={
+            resume && (
+              <Link to="/resume-analysis">
+                <Button variant="primary" size="sm" leftIcon={<Sparkles size={14}/>}>
+                  Analyze Resume
+                </Button>
+              </Link>
+            )
+          }
+        />
+        <div className="page-container">
 
       {loading ? (<LoadingSpinner message="Loading resume records..."/>) : (<div className="grid grid-cols-12" style={{ gap: '1.5rem' }}>
           {/* Active Resume Card */}
@@ -299,5 +302,7 @@ export const ResumePage = () => {
             </Card>
           </div>
         </div>)}
-    </div>);
+      </div>
+    </>
+  );
 };

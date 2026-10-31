@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { applicationService } from '../services/applicationService';
 import { Plus, DollarSign, Trash2, Edit2, Kanban, Table as TableIcon } from 'lucide-react';
+import { PageHeader } from '../components/common/PageHeader';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -124,71 +125,66 @@ export const ApplicationsPage = () => {
       default: return 'neutral';
     }
   };
-  return (<div className="page-container">
-    {/* Header */}
-    <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
-      <div>
-        <h1 className="page-title">Jobs & Hiring Pipeline</h1>
-        <p className="page-subtitle">
-          Manage and monitor your job hiring funnel across all application stages.
-        </p>
-      </div>
-      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        {/* Top Pipeline Tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '3px', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-          <Link to="/jobs" style={{ textDecoration: 'none' }}>
-            <Button variant="ghost" size="sm" style={{ padding: '0.4rem 0.85rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-              Explore Matches
+  return (
+    <>
+      <PageHeader
+        title="Jobs & Hiring Pipeline"
+        subtitle="Manage and monitor your job hiring funnel across all application stages."
+        actions={
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Top Pipeline Tabs */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '3px', backgroundColor: 'var(--bg-card-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <Link to="/jobs" style={{ textDecoration: 'none' }}>
+                <Button variant="ghost" size="sm" style={{ padding: '0.4rem 0.85rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  Explore Matches
+                </Button>
+              </Link>
+              <Link to="/applications" style={{ textDecoration: 'none' }}>
+                <Button variant="primary" size="sm" style={{ padding: '0.4rem 0.85rem', fontSize: '0.8125rem' }}>
+                  Applications Pipeline ({applications.length})
+                </Button>
+              </Link>
+            </div>
+
+            {/* View Mode Switcher */}
+            <div style={{ display: 'flex', backgroundColor: 'var(--bg-card-subtle)', borderRadius: 'var(--radius-md)', padding: '2px', border: '1px solid var(--border-color)' }}>
+              <button onClick={() => setViewMode('table')} className={`btn-ghost btn-sm ${viewMode === 'table' ? 'active' : ''}`} style={{ backgroundColor: viewMode === 'table' ? 'var(--primary-subtle)' : 'transparent', color: viewMode === 'table' ? '#fff' : 'var(--text-secondary)' }}>
+                <TableIcon size={15} /> Table
+              </button>
+              <button onClick={() => setViewMode('kanban')} className={`btn-ghost btn-sm ${viewMode === 'kanban' ? 'active' : ''}`} style={{ backgroundColor: viewMode === 'kanban' ? 'var(--primary-subtle)' : 'transparent', color: viewMode === 'kanban' ? '#fff' : 'var(--text-secondary)' }}>
+                <Kanban size={15} /> Kanban
+              </button>
+            </div>
+
+            <Button variant="primary" size="sm" onClick={() => openAddModal('SAVED')} leftIcon={<Plus size={15} />}>
+              Add Application
             </Button>
-          </Link>
-          <Link to="/applications" style={{ textDecoration: 'none' }}>
-            <Button variant="primary" size="sm" style={{ padding: '0.4rem 0.85rem', fontSize: '0.8125rem' }}>
-              Applications Pipeline ({applications.length})
-            </Button>
-          </Link>
-        </div>
+          </div>
+        }
+      />
 
-        {/* View Mode Switcher */}
-        <div style={{ display: 'flex', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', padding: '2px', border: '1px solid var(--border-color)' }}>
-          <button onClick={() => setViewMode('table')} className={`btn-ghost btn-sm ${viewMode === 'table' ? 'active' : ''}`} style={{ backgroundColor: viewMode === 'table' ? 'var(--primary-light)' : 'transparent', color: viewMode === 'table' ? 'var(--primary)' : 'var(--text-secondary)' }}>
-            <TableIcon size={15} /> Table
-          </button>
-          <button onClick={() => setViewMode('kanban')} className={`btn-ghost btn-sm ${viewMode === 'kanban' ? 'active' : ''}`} style={{ backgroundColor: viewMode === 'kanban' ? 'var(--primary-light)' : 'transparent', color: viewMode === 'kanban' ? 'var(--primary)' : 'var(--text-secondary)' }}>
-            <Kanban size={15} /> Kanban
-          </button>
-        </div>
-
-        <Button variant="primary" onClick={() => openAddModal('SAVED')} leftIcon={<Plus size={16} />}>
-          Add Application
-        </Button>
+      <div className="page-container">
+        {/* Pipeline Quick Stats */}
+    <div className="metrics-grid">
+      <div className="metric-card">
+        <span className="metric-label">Total Tracked</span>
+        <span className="metric-value">{stats.total}</span>
+        <span className="metric-sub">Applications saved</span>
       </div>
-    </div>
-
-    {/* Pipeline Quick Stats */}
-    <div className="grid grid-cols-4" style={{ gap: '1rem', marginBottom: '1.5rem' }}>
-      <div className="stat-card" style={{ padding: '1rem' }}>
-        <div>
-          <div className="text-xs text-muted">Total Tracked</div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{stats.total}</div>
-        </div>
+      <div className="metric-card">
+        <span className="metric-label">Active Pipeline</span>
+        <span className="metric-value" style={{ color: 'var(--primary)' }}>{stats.activePipeline}</span>
+        <span className="metric-sub">In progress</span>
       </div>
-      <div className="stat-card" style={{ padding: '1rem' }}>
-        <div>
-          <div className="text-xs text-muted">Active in Pipeline</div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary)' }}>{stats.activePipeline}</div>
-        </div>
+      <div className="metric-card">
+        <span className="metric-label">Interviews</span>
+        <span className="metric-value" style={{ color: 'var(--accent-purple)' }}>{stats.interviews}</span>
+        <span className="metric-sub">Rounds scheduled</span>
       </div>
-      <div className="stat-card" style={{ padding: '1rem' }}>
-        <div>
-          <div className="text-xs text-muted">Interviews Scheduled</div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--accent-indigo)' }}>{stats.interviews}</div>
-        </div>
-      </div>
-      <div className="stat-card" style={{ padding: '1rem' }}>
-        <div>
-          <div className="text-xs text-muted">Offers Received</div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--success)' }}>{stats.offers}</div>
-        </div>
+      <div className="metric-card">
+        <span className="metric-label">Offers Received</span>
+        <span className="metric-value" style={{ color: 'var(--success)' }}>{stats.offers}</span>
+        <span className="metric-sub">Offer letters</span>
       </div>
     </div>
 
@@ -275,47 +271,45 @@ export const ApplicationsPage = () => {
         })}
       </div>) : (
       /* Table View */
-      <Card>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                <th style={{ padding: '0.75rem 1rem' }}>Company</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Role</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Location</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Status</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Applied Date</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Salary</th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {applications.map(app => (<tr key={app.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: 'var(--text-primary)' }}>{app.company}</td>
-                <td style={{ padding: '0.85rem 1rem', color: 'var(--text-secondary)' }}>{app.role}</td>
-                <td style={{ padding: '0.85rem 1rem', color: 'var(--text-muted)' }}>{app.location || '—'}</td>
-                <td style={{ padding: '0.85rem 1rem' }}>
-                  <Badge variant={getStatusBadgeVariant(app.status)}>
-                    {app.status}
-                  </Badge>
-                </td>
-                <td style={{ padding: '0.85rem 1rem', color: 'var(--text-muted)' }}>
-                  {new Date(app.applied_at).toLocaleDateString()}
-                </td>
-                <td style={{ padding: '0.85rem 1rem', color: 'var(--success)' }}>{app.salary || '—'}</td>
-                <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
-                  <button onClick={() => openEditModal(app)} className="btn-ghost" style={{ padding: '4px', color: 'var(--text-muted)', marginRight: '4px' }}>
-                    <Edit2 size={14} />
-                  </button>
-                  <button onClick={() => handleDelete(app.id, app.company)} className="btn-ghost" style={{ padding: '4px', color: 'var(--danger)' }}>
-                    <Trash2 size={14} />
-                  </button>
-                </td>
-              </tr>))}
-            </tbody>
-          </table>
-        </div>
-      </Card>)}
+      <div className="table-wrapper">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Role</th>
+              <th>Location</th>
+              <th>Status</th>
+              <th>Applied Date</th>
+              <th>Salary</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {applications.map(app => (<tr key={app.id}>
+              <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{app.company}</td>
+              <td>{app.role}</td>
+              <td style={{ color: 'var(--text-muted)' }}>{app.location || '—'}</td>
+              <td>
+                <Badge variant={getStatusBadgeVariant(app.status)}>
+                  {app.status}
+                </Badge>
+              </td>
+              <td style={{ color: 'var(--text-muted)' }}>
+                {new Date(app.applied_at).toLocaleDateString()}
+              </td>
+              <td style={{ color: 'var(--success)' }}>{app.salary || '—'}</td>
+              <td style={{ textAlign: 'right' }}>
+                <button onClick={() => openEditModal(app)} className="btn-ghost" style={{ padding: '4px', color: 'var(--text-muted)', marginRight: '4px' }}>
+                  <Edit2 size={14} />
+                </button>
+                <button onClick={() => handleDelete(app.id, app.company)} className="btn-ghost" style={{ padding: '4px', color: 'var(--danger)' }}>
+                  <Trash2 size={14} />
+                </button>
+              </td>
+            </tr>))}
+          </tbody>
+        </table>
+      </div>)}
 
     {/* Add / Edit Application Modal */}
     <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingAppId ? 'Edit Application' : 'Add Application'}>
@@ -352,5 +346,6 @@ export const ApplicationsPage = () => {
         </div>
       </form>
     </Modal>
-  </div>);
+  </div>
+  </>);
 };

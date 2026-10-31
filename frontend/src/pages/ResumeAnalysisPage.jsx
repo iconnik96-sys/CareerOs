@@ -12,6 +12,7 @@ import { CircularProgress } from '../components/common/CircularProgress';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { EmptyState } from '../components/common/EmptyState';
+import { PageHeader } from '../components/common/PageHeader';
 export const ResumeAnalysisPage = () => {
     const { user, profile } = useAuth();
     const { showToast } = useToast();
@@ -133,35 +134,31 @@ export const ResumeAnalysisPage = () => {
     }
     const hasAnalysis = Boolean(analysis && typeof analysis.match_score === 'number');
     const score = hasAnalysis ? analysis.match_score : 0;
-    return (<div className="page-container">
-      <div className="page-header">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            <span className="badge badge-purple">
+    return (
+      <>
+        <PageHeader
+          title="Resume Analysis"
+          subtitle="Deep scan of ATS keywords, technical stack strength, and actionable bullet improvements."
+          badge={
+            <span className="badge badge-purple" style={{ padding: '6px 12px', fontSize: '0.78rem', gap: 6 }}>
               <Sparkles size={12}/> AI Evaluation
             </span>
-            <span className="text-sm text-muted">
-              Target Role: <strong>{profile?.target_role || 'Java Backend Developer'}</strong>
-            </span>
-          </div>
-          <h1 className="page-title">Resume Analysis</h1>
-          <p className="page-subtitle">
-            Deep scan of ATS keywords, technical stack strength, and actionable bullet improvements.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <Button variant="primary" onClick={() => handleRunAnalysis()} isLoading={analyzing} leftIcon={<RefreshCw size={16}/>}>
-            Re-Analyze Resume
-          </Button>
-          <Link to="/job-analyzer">
-            <Button variant="outline" rightIcon={<ArrowRight size={16}/>}>
-              Compare with Job Description
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* Extracted Resume Text Drawer */}
+          }
+          actions={
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <Button variant="primary" size="sm" onClick={() => handleRunAnalysis()} isLoading={analyzing} leftIcon={<RefreshCw size={14}/>}>
+                Re-Analyze
+              </Button>
+              <Link to="/job-analyzer">
+                <Button variant="outline" size="sm" rightIcon={<ArrowRight size={14}/>}>
+                  Compare Job
+                </Button>
+              </Link>
+            </div>
+          }
+        />
+        <div className="page-container">
+          {/* Extracted Resume Text Drawer */}
       {resume && (<Card style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setShowRawText(!showRawText)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -341,5 +338,6 @@ export const ResumeAnalysisPage = () => {
             </Card>
           </div>
         </div>)}
-    </div>);
+      </div>
+    </>);
 };

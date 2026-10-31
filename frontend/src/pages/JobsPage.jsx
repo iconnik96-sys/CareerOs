@@ -8,6 +8,7 @@ import { applicationService } from '../services/applicationService';
 import { extractSkillsFromText } from '../utils/skillExtractor';
 import { getRoleDisplayName, isSkillMatch } from '../utils/careerRoles';
 import { Briefcase, Search, MapPin, Bookmark, BookmarkCheck, ArrowRight, DollarSign, Sparkles, ExternalLink, Check } from 'lucide-react';
+import { PageHeader } from '../components/common/PageHeader';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -188,32 +189,29 @@ export const JobsPage = () => {
     }, [jobs, userSkills, campusFilter]);
 
     return (
-        <div className="page-container">
-            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
-                <div>
-                    <h1 className="page-title">Jobs & Hiring Pipeline</h1>
-                    <p className="page-subtitle">
-                        Explore curated opportunities for freshers and early-career engineering talent matched with your skills.
-                    </p>
-                </div>
+        <>
+            <PageHeader
+                title="Jobs & Hiring Pipeline"
+                subtitle="Explore curated opportunities for freshers and early-career engineering talent matched with your skills."
+                actions={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '3px', backgroundColor: 'var(--bg-card-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                        <Link to="/jobs" style={{ textDecoration: 'none' }}>
+                            <Button variant="primary" size="sm" style={{ padding: '0.4rem 0.85rem', fontSize: '0.8125rem' }}>
+                                Explore Matches ({jobs.length})
+                            </Button>
+                        </Link>
+                        <Link to="/applications" style={{ textDecoration: 'none' }}>
+                            <Button variant="ghost" size="sm" style={{ padding: '0.4rem 0.85rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                                Applications Pipeline
+                            </Button>
+                        </Link>
+                    </div>
+                }
+            />
 
-                {/* Seamless Pipeline Tabs */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '3px', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                    <Link to="/jobs" style={{ textDecoration: 'none' }}>
-                        <Button variant="primary" size="sm" style={{ padding: '0.4rem 0.85rem', fontSize: '0.8125rem' }}>
-                            Explore Matches ({jobs.length})
-                        </Button>
-                    </Link>
-                    <Link to="/applications" style={{ textDecoration: 'none' }}>
-                        <Button variant="ghost" size="sm" style={{ padding: '0.4rem 0.85rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                            Applications Pipeline (Kanban)
-                        </Button>
-                    </Link>
-                </div>
-            </div>
-
-            {/* Search & Filter Bar */}
-            <Card style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
+            <div className="page-container">
+                {/* Search & Filter Bar */}
+            <Card style={{ marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
                     <div style={{ flex: 1, minWidth: 'min(100%, 260px)' }}>
                         <Input
@@ -446,7 +444,8 @@ export const JobsPage = () => {
                     })}
                 </div>
             )}
-        </div>
+            </div>
+        </>
     );
 };
 

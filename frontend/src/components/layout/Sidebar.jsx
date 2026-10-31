@@ -1,4 +1,4 @@
-import { isFounderUser, isCampusAdmin } from '../../utils/founderAuth';
+import { isCampusAdmin } from '../../utils/founderAuth';
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -6,7 +6,7 @@ import { useSubscription } from '../../contexts/SubscriptionContext';
 import {
   LayoutDashboard, User, FileText, ScanSearch, Briefcase, Layers,
   HelpCircle, Settings, LogOut, Sparkles, Terminal,
-  ShieldAlert, Building2, CreditCard, ArrowRight, Mic, Trophy
+  Building2, CreditCard, ArrowRight, Mic, Trophy
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
@@ -43,32 +43,68 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
 
   return (<aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}>
     {/* Brand Header */}
-    <div className="sidebar-brand">
-      <div className="brand-logo-icon">
+    <div
+      style={{
+        padding: '20px',
+        minHeight: '86px',
+        borderBottom: '1px solid var(--border-color)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        boxSizing: 'border-box'
+      }}
+    >
+      <div
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 'var(--radius-md)',
+          backgroundColor: 'var(--primary-subtle)',
+          border: '1px solid rgba(59, 130, 246, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--primary)',
+          flexShrink: 0
+        }}
+      >
         <Sparkles size={20} />
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <span className="brand-name">CareerOS</span>
-        <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.04em' }}>
-          STUDENT & FRESHER SAAS
-        </span>
+      <div>
+        <div style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.02em', color: '#fff' }}>
+          Career<span style={{ color: 'var(--primary)' }}>OS</span>
+        </div>
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.04em' }}>
+          STUDENT PORTAL
+        </div>
       </div>
     </div>
 
-    {/* 5 Core Navigation Items */}
-    <nav className="sidebar-nav" style={{ padding: '0.5rem 0.25rem' }}>
-
+    {/* Core Navigation Items */}
+    <nav style={{ padding: '16px 12px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
       {navItems.map(item => (
         <NavLink
           key={item.to}
           to={item.to}
           onClick={onCloseMobile}
-          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          style={({ isActive }) => ({
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '10px 14px',
+            borderRadius: 'var(--radius-md)',
+            color: isActive ? '#fff' : 'var(--text-secondary)',
+            backgroundColor: isActive ? 'var(--primary-subtle)' : 'transparent',
+            fontWeight: isActive ? 600 : 500,
+            fontSize: '0.86rem',
+            textDecoration: 'none',
+            transition: 'all 0.15s ease'
+          })}
         >
           {item.icon}
           <span style={{ flex: 1 }}>{item.label}</span>
           {item.badge && (
-            <span className="badge badge-purple" style={{ padding: '0.12rem 0.45rem', fontSize: '0.6875rem' }}>
+            <span className="badge badge-purple" style={{ padding: '2px 8px', fontSize: '0.6875rem' }}>
               {item.badge}
             </span>
           )}
@@ -84,74 +120,59 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
           <NavLink
             to="/campus"
             onClick={onCloseMobile}
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            style={{
-              background: 'linear-gradient(90deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.12))',
+            style={({ isActive }) => ({
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-md)',
+              background: isActive ? 'var(--primary-subtle)' : 'linear-gradient(90deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.12))',
               border: '1px solid rgba(99, 102, 241, 0.35)',
-              borderRadius: '8px',
               marginTop: '4px',
-              color: '#f1f5f9'
-            }}
+              color: '#f1f5f9',
+              fontWeight: 600,
+              fontSize: '0.86rem',
+              textDecoration: 'none',
+              transition: 'all 0.15s ease'
+            })}
           >
             <Building2 size={18} color="#818cf8" />
-            <span style={{ flex: 1, fontWeight: 700 }}>Campus / TPO Portal</span>
-            <span className="badge badge-purple" style={{ fontSize: '0.625rem', padding: '0.1rem 0.4rem' }}>
+            <span style={{ flex: 1 }}>Campus / TPO</span>
+            <span className="badge badge-purple" style={{ fontSize: '0.625rem', padding: '1px 6px' }}>
               TPO
             </span>
           </NavLink>
         </div>
       )}
 
-      {/* Exclusive Founder Access Link */}
-      {isFounderUser(user, profile) && (
-        <div style={{ marginTop: '0.5rem' }}>
-          <NavLink
-            to="/admin"
-            onClick={onCloseMobile}
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            style={{
-              background: 'linear-gradient(90deg, rgba(139, 92, 246, 0.18), rgba(236, 72, 153, 0.12))',
-              border: '1px solid rgba(139, 92, 246, 0.35)',
-              borderRadius: '8px',
-              color: '#f1f5f9'
-            }}
-          >
-            <ShieldAlert size={18} color="#c084fc" />
-            <span style={{ flex: 1, fontWeight: 700 }}>Founder Panel</span>
-            <span className="badge" style={{ background: '#8b5cf6', color: '#fff', fontSize: '0.625rem', padding: '0.1rem 0.4rem' }}>
-              ADMIN
-            </span>
-          </NavLink>
-        </div>
-      )}
     </nav>
 
     {/* Plan Quotas & Remaining Features Quick Card */}
     <div style={{
-      margin: '0.5rem 0.75rem 0.35rem',
-      padding: '0.65rem 0.75rem',
-      backgroundColor: 'rgba(255, 255, 255, 0.03)',
-      border: '1px solid rgba(255, 255, 255, 0.08)',
-      borderRadius: '10px',
+      margin: '12px 12px 8px',
+      padding: '12px 14px',
+      backgroundColor: 'var(--bg-card-subtle)',
+      border: '1px solid var(--border-color)',
+      borderRadius: 'var(--radius-md)',
       display: 'flex',
       flexDirection: 'column',
-      gap: '0.45rem'
+      gap: 8
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f8fafc' }}>
+        <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#f8fafc', letterSpacing: '0.02em' }}>
           {currentPlan.badge}
         </span>
         <NavLink
           to="/pricing"
           onClick={onCloseMobile}
           style={{
-            fontSize: '0.68rem',
-            color: '#818cf8',
+            fontSize: '0.72rem',
+            color: 'var(--primary)',
             fontWeight: 700,
             textDecoration: 'none',
             display: 'flex',
             alignItems: 'center',
-            gap: '2px'
+            gap: 2
           }}
         >
           <span>Upgrade</span>
@@ -159,22 +180,22 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
         </NavLink>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.7rem', color: '#94a3b8' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span>🛠️ Tasks</span>
-          <strong style={{ color: simsRemaining > 0 ? '#38bdf8' : '#ef4444' }}>
+          <strong style={{ color: simsRemaining > 0 ? '#38bdf8' : '#ef4444', fontFamily: 'var(--font-mono, monospace)' }}>
             {isVipBypass ? 'Unlimited' : `${simsRemaining} left`}
           </strong>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>🎙️ Voice Rounds</span>
-          <strong style={{ color: voiceRemaining > 0 ? '#a78bfa' : '#ef4444' }}>
+          <span>🎙️ Voice Mock</span>
+          <strong style={{ color: voiceRemaining > 0 ? '#a78bfa' : '#ef4444', fontFamily: 'var(--font-mono, monospace)' }}>
             {isVipBypass ? 'Unlimited' : `${voiceRemaining} left`}
           </strong>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span>📄 ATS Scans</span>
-          <strong style={{ color: scansRemaining > 0 ? '#34d399' : '#ef4444' }}>
+          <strong style={{ color: scansRemaining > 0 ? '#34d399' : '#ef4444', fontFamily: 'var(--font-mono, monospace)' }}>
             {isVipBypass ? 'Unlimited' : `${scansRemaining} left`}
           </strong>
         </div>
@@ -182,47 +203,46 @@ export const Sidebar = ({ mobileOpen, onCloseMobile }) => {
     </div>
 
     {/* Sidebar Footer User Info & Quick Action Icons */}
-    <div className="sidebar-footer">
-      <div className="user-profile-card" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.65rem 0.75rem' }}>
+    <div className="sidebar-footer" style={{ padding: '16px 20px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-sidebar)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <NavLink
           to="/profile"
           onClick={onCloseMobile}
           title="View Career Profile & Skills"
-          style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}
+          style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}
         >
           <img
             src={profile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
             alt="User Avatar"
-            className="user-avatar"
-            style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
+            style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-color)' }}
           />
-          <div className="user-info-text" style={{ minWidth: 0 }}>
-            <div className="user-name" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {profile?.full_name || 'Alex Rivera'}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {profile?.full_name || 'Student Profile'}
             </div>
-            <div className="user-email" style={{ fontSize: '0.6875rem', color: 'var(--primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Profile & Skills →
+            <div style={{ fontSize: '0.7rem', color: 'var(--primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Skills & Targets →
             </div>
           </div>
         </NavLink>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <NavLink
             to="/settings"
             onClick={onCloseMobile}
             title="Settings"
-            className={({ isActive }) => `btn-ghost ${isActive ? 'active' : ''}`}
-            style={{ padding: '6px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+            className="btn btn-secondary btn-sm"
+            style={{ padding: '6px', color: 'var(--text-muted)' }}
           >
-            <Settings size={16} />
+            <Settings size={15} />
           </NavLink>
           <button
             onClick={handleLogout}
             title="Logout"
-            className="btn-ghost"
-            style={{ padding: '6px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+            className="btn btn-secondary btn-sm"
+            style={{ padding: '6px', color: 'var(--text-muted)' }}
           >
-            <LogOut size={16} />
+            <LogOut size={15} />
           </button>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { HeaderProvider } from './contexts/HeaderContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 // Layout
 import { AppLayout } from './components/layout/AppLayout';
@@ -27,7 +28,6 @@ import { InterviewPrepPage } from './pages/InterviewPrepPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SimulationsPage } from './pages/SimulationsPage';
 import { SimulationWorkspacePage } from './pages/SimulationWorkspacePage';
-import { FounderAdminPage } from './pages/FounderAdminPage';
 import { CampusDashboard } from './pages/CampusDashboard';
 import { AcceptCampusInvitePage } from './pages/AcceptCampusInvitePage';
 import { StudentJoinBatchPage } from './pages/StudentJoinBatchPage';
@@ -48,26 +48,6 @@ const ProtectedRoute = ({ children }) => {
     // Require real authenticated user
     if (!user) {
         return <Navigate to="/login" replace />;
-    }
-    return <>{children}</>;
-};
-
-// Role-based guard for Founder / Admin console
-const FounderRoute = ({ children }) => {
-    const { user, profile, loading } = useAuth();
-    if (loading) {
-        return (
-            <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)' }}>
-                <div className="loading-spinner" style={{ width: 36, height: 36 }} />
-            </div>
-        );
-    }
-    if (!user) {
-        return <Navigate to="/login" replace />;
-    }
-    const isFounder = isFounderUser(user, profile);
-    if (!isFounder) {
-        return <Navigate to="/dashboard" replace />;
     }
     return <>{children}</>;
 };
@@ -99,7 +79,8 @@ export const App = () => {
                 <ThemeProvider>
                     <ToastProvider>
                         <SubscriptionProvider>
-                            <Router>
+                            <HeaderProvider>
+                                <Router>
                                 <Routes>
                                     {/* Public Landing & Auth */}
                                     <Route path="/" element={<LandingPage />} />
@@ -134,14 +115,15 @@ export const App = () => {
                                         <Route path="/simulations" element={<SimulationsPage />} />
                                         <Route path="/simulations/:trackKey" element={<SimulationWorkspacePage />} />
                                         <Route path="/settings" element={<SettingsPage />} />
-                                        <Route path="/admin" element={<FounderRoute><FounderAdminPage /></FounderRoute>} />
-                                        <Route path="/founder" element={<FounderRoute><FounderAdminPage /></FounderRoute>} />
+                                        <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
+                                        <Route path="/founder" element={<Navigate to="/dashboard" replace />} />
                                     </Route>
 
                                     {/* Fallback */}
                                     <Route path="*" element={<Navigate to="/" replace />} />
                                 </Routes>
                             </Router>
+                            </HeaderProvider>
                         </SubscriptionProvider>
                     </ToastProvider>
                 </ThemeProvider>

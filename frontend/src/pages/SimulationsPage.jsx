@@ -88,7 +88,7 @@ export const SimulationsPage = () => {
     };
 
     return (
-        <div className="page-container" style={{ padding: '1.5rem clamp(0.75rem, 3vw, 2rem) 5rem clamp(0.75rem, 3vw, 2rem)', maxWidth: 'var(--container-max)', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+        <div className="page-container">
             
             {/* 1. PROGRESS STEPPER BREADCRUMB (Clear & unconfusing for new students) */}
             <div style={{

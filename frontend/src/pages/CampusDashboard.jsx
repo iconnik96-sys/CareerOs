@@ -1,5 +1,6 @@
 import { isFounderUser, isCampusAdmin } from '../utils/founderAuth';
 import React, { useState, useEffect, useMemo } from 'react';
+import { PageHeader } from '../components/common/PageHeader';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -157,7 +158,30 @@ export const CampusDashboard = () => {
   const atRiskPct = metrics?.readiness_distribution?.at_risk_pct ?? 20;
 
   return (
-    <div className="campus-dashboard-container" style={{ padding: '2rem', maxWidth: '1440px', margin: '0 auto' }}>
+    <>
+      <PageHeader
+        title={institution.name || "Campus Placement Portal"}
+        subtitle={`TPO Placement Portal & Student Readiness Cohort (${institution.tier || "Tier-2/3 Priority"})`}
+        actions={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="btn btn-secondary btn-sm"
+              style={{ padding: '6px 12px' }}
+            >
+              <QrCode size={14} /> Invite Students
+            </button>
+            <button
+              onClick={handleExportCsv}
+              className="btn btn-primary btn-sm"
+              style={{ padding: '6px 12px' }}
+            >
+              <Download size={14} /> Export CSV
+            </button>
+          </div>
+        }
+      />
+      <div className="page-container">
       
       {/* Top Banner Header */}
       <div className="card" style={{
@@ -1611,6 +1635,7 @@ export const CampusDashboard = () => {
       )}
 
     </div>
+    </>
   );
 };
 export default CampusDashboard;

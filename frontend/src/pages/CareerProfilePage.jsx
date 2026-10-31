@@ -6,6 +6,7 @@ import { projectService } from '../services/projectService';
 import { ROLE_SKILLS_MAP, DEFAULT_FALLBACK_SKILLS, calculateCareerReadiness } from '../utils/careerRoles';
 import { User, GraduationCap, Target, Wrench, FolderGit2, Plus, X, GitBranch, Globe, Trash2, Edit2, Save, Sparkles } from 'lucide-react';
 import { Card } from '../components/common/Card';
+import { PageHeader } from '../components/common/PageHeader';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { Modal } from '../components/common/Modal';
@@ -280,18 +281,19 @@ export const CareerProfilePage = () => {
 
     const isDropdownOpen = showSuggestions && suggestions.length > 0;
 
-    return (<div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Career Profile</h1>
-          <p className="page-subtitle">
-            Manage your personal bio, target parameters, verified skills, and project portfolio.
-          </p>
-        </div>
-        <Button variant="primary" onClick={handleSaveProfile} isLoading={saving} leftIcon={<Save size={16}/>}>
-          Save Changes
-        </Button>
-      </div>
+    return (
+      <>
+        <PageHeader
+          title="Career Profile"
+          subtitle="Manage your personal bio, target parameters, verified skills, and project portfolio."
+          actions={
+            <Button variant="primary" size="sm" onClick={handleSaveProfile} isLoading={saving} leftIcon={<Save size={15}/>}>
+              Save Changes
+            </Button>
+          }
+        />
+
+        <div className="page-container">
 
       <div className="grid grid-cols-12">
         {/* Left Column: Personal, Education, Career Target */}
@@ -554,5 +556,6 @@ export const CareerProfilePage = () => {
           </div>
         </form>
       </Modal>
-    </div>);
+    </div>
+    </>);
 };

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
+import { PageHeader } from '../components/common/PageHeader';
 import { Badge } from '../components/common/Badge';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { profileService } from '../services/profileService';
@@ -434,51 +435,35 @@ export const AICareerStudioPage = () => {
     };
 
     return (
-        <div className="page-container">
-            {/* Page Header */}
-            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                    <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                        AI Career Studio
-                        {backendOnline && (
-                            <span
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.35rem',
-                                    fontSize: '0.72rem',
-                                    fontWeight: 600,
-                                    color: 'var(--text-muted)',
-                                    padding: '0.15rem 0.5rem',
-                                    borderRadius: 'var(--radius-full)',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                                    border: '1px solid var(--border-subtle)'
-                                }}
-                                title="FastAPI LLM Engine Connected"
-                            >
-                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)' }} />
-                                AI Engine Active
-                            </span>
-                        )}
-                    </h1>
-                    <p className="page-subtitle">
-                        Build <strong>Overleaf-Grade LaTeX Resumes with Live Preview</strong> and generate <strong>Tailored Outreach</strong>.
-                    </p>
-                </div>
-            </div>
+        <>
+            <PageHeader
+                title="AI Career Studio"
+                subtitle="Build Overleaf-grade LaTeX resumes with live preview and tailored outreach."
+                badge={backendOnline && (
+                    <div
+                        className="badge badge-success"
+                        style={{ padding: '6px 12px', fontSize: '0.78rem', gap: 6 }}
+                        title="FastAPI LLM Engine Connected"
+                    >
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)' }} />
+                        AI Engine Active
+                    </div>
+                )}
+            />
 
-            {/* Main Studio Navigation Tabs */}
+            <div className="page-container">
+                {/* Main Studio Navigation Tabs */}
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', overflowX: 'auto' }}>
                 <button
                     onClick={() => setActiveTab('resume_builder')}
                     style={{
-                        padding: '0.6rem 1.2rem',
+                        padding: '8px 16px',
                         borderRadius: 'var(--radius-md)',
-                        border: activeTab === 'resume_builder' ? '1px solid var(--primary)' : '1px solid transparent',
-                        backgroundColor: activeTab === 'resume_builder' ? 'var(--primary-light)' : 'transparent',
-                        color: activeTab === 'resume_builder' ? 'var(--primary)' : 'var(--text-secondary)',
-                        fontWeight: 700,
-                        fontSize: '0.875rem',
+                        border: activeTab === 'resume_builder' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid transparent',
+                        backgroundColor: activeTab === 'resume_builder' ? 'var(--primary-subtle)' : 'transparent',
+                        color: activeTab === 'resume_builder' ? '#fff' : 'var(--text-secondary)',
+                        fontWeight: activeTab === 'resume_builder' ? 700 : 500,
+                        fontSize: '0.86rem',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -486,19 +471,19 @@ export const AICareerStudioPage = () => {
                         transition: 'all 0.15s ease'
                     }}
                 >
-                    <FileText size={16} /> 📄 LaTeX Resume Studio
+                    <FileText size={16} /> LaTeX Resume Studio
                 </button>
 
                 <button
                     onClick={() => setActiveTab('cover_letter')}
                     style={{
-                        padding: '0.6rem 1.2rem',
+                        padding: '8px 16px',
                         borderRadius: 'var(--radius-md)',
-                        border: activeTab === 'cover_letter' ? '1px solid var(--primary)' : '1px solid transparent',
-                        backgroundColor: activeTab === 'cover_letter' ? 'var(--primary-light)' : 'transparent',
-                        color: activeTab === 'cover_letter' ? 'var(--primary)' : 'var(--text-secondary)',
-                        fontWeight: activeTab === 'cover_letter' ? 700 : 600,
-                        fontSize: '0.875rem',
+                        border: activeTab === 'cover_letter' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid transparent',
+                        backgroundColor: activeTab === 'cover_letter' ? 'var(--primary-subtle)' : 'transparent',
+                        color: activeTab === 'cover_letter' ? '#fff' : 'var(--text-secondary)',
+                        fontWeight: activeTab === 'cover_letter' ? 700 : 500,
+                        fontSize: '0.86rem',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -506,7 +491,7 @@ export const AICareerStudioPage = () => {
                         transition: 'all 0.15s ease'
                     }}
                 >
-                    <Zap size={16} /> ⚡ Cover Letter & Recruiter Outreach Hub
+                    <Zap size={16} /> Cover Letter & Recruiter Outreach Hub
                 </button>
             </div>
 
@@ -1086,6 +1071,7 @@ export const AICareerStudioPage = () => {
                     </div>
                 </div>
             )}
-        </div>
+            </div>
+        </>
     );
 };

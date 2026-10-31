@@ -1,231 +1,180 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Menu, Sparkles, ShieldCheck, Palette, Check, Gift, Crown, Zap,
-  ChevronDown, Terminal, Mic, FileText, ArrowRight, Lock, CheckCircle2, ChevronRight, Layers, Mail
+  Menu, Sparkles, Gift
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
+import { useHeader } from '../../contexts/HeaderContext';
 
 export const Navbar = ({ onOpenMobileSidebar, onToggleCopilot }) => {
     const navigate = useNavigate();
-    const { isSupabaseConnected, profile } = useAuth();
+    const location = useLocation();
+    const { profile } = useAuth();
+    const { headerConfig } = useHeader();
     const {
-        currentPlan,
-        activePlanId,
-        isVipBypass,
-        setIsReferralModalOpen,
-        usage,
-        referral,
-        totalVoiceInterviewsAllowed
+        setIsReferralModalOpen
     } = useSubscription();
 
-    const { theme, setTheme, themes } = useTheme();
-    const [themeMenuOpen, setThemeMenuOpen] = useState(false);
-    const themeMenuRef = useRef(null);
-    const [quotaMenuOpen, setQuotaMenuOpen] = useState(false);
-    const quotaMenuRef = useRef(null);
+    // Smart fallback title and subtitle based on current route
+    const getFallbackHeader = () => {
+        const path = location.pathname;
+        const firstName = profile?.full_name?.split(' ')[0] || 'Student';
+        const targetRole = profile?.target_role || 'Backend Developer';
 
-    // Compute live remaining quotas for all core features
-    const simsUsed = usage?.simulations_completed?.length || 0;
-    const simsTotal = currentPlan.simulations_allowed || 1;
-    const simsRemaining = isVipBypass ? '∞' : Math.max(0, simsTotal - simsUsed);
-
-    const voiceUsed = usage?.voice_interviews_count || 0;
-    const voiceTotal = totalVoiceInterviewsAllowed || 1;
-    const voiceRemaining = isVipBypass ? '∞' : Math.max(0, voiceTotal - voiceUsed);
-
-    const scansUsed = usage?.resume_scans_count || 0;
-    const scansTotal = currentPlan.resume_scans_allowed || 1;
-    const scansRemaining = isVipBypass ? '∞' : Math.max(0, scansTotal - scansUsed);
-
-    const clUsed = usage?.cover_letters_count || 0;
-    const clTotal = currentPlan.cover_letters_allowed || 0;
-    const clRemaining = isVipBypass ? '∞' : Math.max(0, clTotal - clUsed);
-
-    useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (themeMenuRef.current && !themeMenuRef.current.contains(e.target)) {
-                setThemeMenuOpen(false);
-            }
-            if (quotaMenuRef.current && !quotaMenuRef.current.contains(e.target)) {
-                setQuotaMenuOpen(false);
-            }
+        if (path === '/dashboard') {
+            return {
+                title: `Good morning, ${firstName} 👋`,
+                subtitle: `Here is your verified readiness and daily mission for ${targetRole}.`
+            };
+        }
+        if (path.startsWith('/ai-studio') || path.startsWith('/ai-career-studio')) {
+            return {
+                title: 'AI Career Studio',
+                subtitle: 'Build Overleaf-grade LaTeX resumes with live preview and tailored outreach.'
+            };
+        }
+        if (path.startsWith('/interview-prep')) {
+            return {
+                title: `${targetRole} Technical Interview Prep`,
+                subtitle: 'Curated questions stored in database with real-time STAR AI answer evaluation.'
+            };
+        }
+        if (path === '/jobs') {
+            return {
+                title: 'Jobs & Hiring Pipeline',
+                subtitle: 'Explore curated fresher opportunities matched with your verified skills.'
+            };
+        }
+        if (path.startsWith('/jobs/')) {
+            return {
+                title: 'Job Details & Fit Analysis',
+                subtitle: 'Detailed role specifications, requirements, and skill matching.'
+            };
+        }
+        if (path === '/applications') {
+            return {
+                title: 'Jobs & Hiring Pipeline',
+                subtitle: 'Manage and monitor your job hiring funnel across all application stages.'
+            };
+        }
+        if (path.startsWith('/simulations')) {
+            return {
+                title: 'Workplace Simulation Lab',
+                subtitle: 'Interactive production engineering tickets & pull request simulations.'
+            };
+        }
+        if (path === '/profile') {
+            return {
+                title: 'Career Profile',
+                subtitle: 'Personal bio, target parameters, verified skills, and project portfolio.'
+            };
+        }
+        if (path === '/pricing') {
+            return {
+                title: 'Plans & Upgrades',
+                subtitle: 'CareerOS Pro & Ultimate subscription plans for engineering students.'
+            };
+        }
+        if (path === '/settings') {
+            return {
+                title: 'Platform Settings',
+                subtitle: 'Configure your credentials, notifications, and platform preferences.'
+            };
+        }
+        if (path.startsWith('/campus') || path === '/tpo') {
+            return {
+                title: 'Campus Placement Portal',
+                subtitle: 'Placement cohort monitoring, verified skills matrix, and company hiring drives.'
+            };
+        }
+        return {
+            title: 'CareerOS',
+            subtitle: 'AI-Powered Student Career Acceleration Platform'
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    };
 
-    const activeThemeObj = themes.find(t => t.id === theme) || themes[0];
+    const fallback = getFallbackHeader();
+    const displayTitle = headerConfig.title || fallback.title;
+    const displaySubtitle = headerConfig.subtitle || fallback.subtitle;
+    const headerActions = headerConfig.actions;
 
-    return (<header className="top-navbar">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <button onClick={onOpenMobileSidebar} className="btn-ghost" style={{ padding: '6px' }} id="mobile-menu-toggle" aria-label="Toggle navigation menu">
-          <Menu size={20}/>
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-
-
-
-
-        {/* Referral Program Button */}
-        <button
-            onClick={() => setIsReferralModalOpen(true)}
+    return (
+      <header className="top-navbar">
+        {/* Left: Mobile Toggle + Page Title & Subtitle (Matching AdminHeader) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button
+            onClick={onOpenMobileSidebar}
             className="btn-ghost"
+            style={{ padding: '6px', borderRadius: 'var(--radius-md)' }}
+            id="mobile-menu-toggle"
+            aria-label="Toggle navigation menu"
+          >
+            <Menu size={20} color="var(--text-primary)" />
+          </button>
+
+          <div>
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', margin: 0, lineHeight: 1.25 }}>
+              {displayTitle}
+            </h1>
+            {displaySubtitle && (
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                {displaySubtitle}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Page Actions & Global Utilities */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* Custom Page Actions */}
+          {headerActions}
+
+          {/* Referral Program Button */}
+          <button
+            onClick={() => setIsReferralModalOpen(true)}
+            className="badge badge-purple"
             style={{
-                padding: '0.35rem 0.65rem',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'rgba(168, 85, 247, 0.12)',
-                border: '1px solid rgba(168, 85, 247, 0.35)',
-                color: '#c084fc',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                cursor: 'pointer'
+              padding: '6px 12px',
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              border: '1px solid rgba(139, 92, 246, 0.3)'
             }}
             title="Invite friends & get +2 Free Voice Mock Interviews"
-        >
+          >
             <Gift size={14} color="#c084fc" />
             <span className="hide-on-mobile">Refer (+2 Free)</span>
             <span className="show-on-mobile">+2 Free</span>
-        </button>
-
-        {onToggleCopilot && (<button onClick={onToggleCopilot} className="btn-ghost" style={{
-                padding: '0.35rem 0.65rem',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'rgba(124, 58, 237, 0.12)',
-                border: '1px solid rgba(124, 58, 237, 0.3)',
-                color: 'var(--primary)',
-                fontSize: '0.8125rem',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                cursor: 'pointer'
-            }}>
-            <Sparkles size={14}/>
-            <span className="hide-on-mobile">AI Copilot</span>
-          </button>)}
-
-        {isSupabaseConnected && (
-          <span
-            className="hide-on-mobile"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              fontSize: '0.72rem',
-              color: 'var(--text-muted)',
-              padding: '0.2rem 0.5rem',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border-subtle)'
-            }}
-            title="Database Connected (Supabase Live)"
-          >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)' }} />
-            Connected
-          </span>
-        )}
-
-        {/* Theme Switcher Popover */}
-        <div style={{ position: 'relative' }} ref={themeMenuRef}>
-          <button
-            onClick={() => setThemeMenuOpen(!themeMenuOpen)}
-            className="btn-ghost"
-            style={{
-              padding: '6px 10px',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--text-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              border: '1px solid var(--border-color)',
-              backgroundColor: 'var(--bg-tertiary)',
-              fontSize: '0.75rem',
-              fontWeight: 600
-            }}
-            title="Change Visual Theme"
-          >
-            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: activeThemeObj.primary, boxShadow: `0 0 6px ${activeThemeObj.primary}` }} />
-            <Palette size={15} />
-            <span style={{ display: 'none' }} className="theme-label-desktop">{activeThemeObj.name.split(' ')[0]}</span>
           </button>
 
-          {themeMenuOpen && (
-            <div
+          {onToggleCopilot && (
+            <button
+              onClick={onToggleCopilot}
+              className="badge badge-primary"
               style={{
-                position: 'absolute',
-                top: '120%',
-                right: 0,
-                width: 220,
-                backgroundColor: 'var(--bg-card)',
-                backdropFilter: 'blur(16px)',
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--radius-md)',
-                boxShadow: 'var(--shadow-lg)',
-                padding: '6px',
-                zIndex: 100,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px'
+                padding: '6px 12px',
+                fontSize: '0.78rem',
+                cursor: 'pointer',
+                border: '1px solid rgba(59, 130, 246, 0.3)'
               }}
             >
-              <div style={{ padding: '4px 8px', fontSize: '0.6875rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Select Color Theme
-              </div>
-              {themes.map(t => {
-                const isSelected = theme === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => {
-                      setTheme(t.id);
-                      setThemeMenuOpen(false);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '8px 10px',
-                      borderRadius: 'var(--radius-sm)',
-                      backgroundColor: isSelected ? 'var(--bg-tertiary)' : 'transparent',
-                      border: isSelected ? `1px solid ${t.primary}` : '1px solid transparent',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'background 0.15s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: t.primary, boxShadow: `0 0 6px ${t.primary}` }} />
-                      <div>
-                        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>{t.name}</div>
-                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{t.tagline.split(' ')[0]}</div>
-                      </div>
-                    </div>
-                    {isSelected && <Check size={14} style={{ color: t.primary }} />}
-                  </button>
-                );
-              })}
-            </div>
+              <Sparkles size={14} style={{ color: 'var(--primary)' }} />
+              <span className="hide-on-mobile">AI Copilot</span>
+            </button>
           )}
-        </div>
-      </div>
 
-      <style>{`
-        #mobile-menu-toggle {
-          display: none;
-        }
-        @media (max-width: 1024px) {
+        </div>
+
+        <style>{`
           #mobile-menu-toggle {
-            display: inline-flex !important;
+            display: none;
           }
-        }
-      `}</style>
-    </header>);
+          @media (max-width: 1024px) {
+            #mobile-menu-toggle {
+              display: inline-flex !important;
+            }
+          }
+        `}</style>
+      </header>
+    );
 };

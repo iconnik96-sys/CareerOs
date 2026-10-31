@@ -13,6 +13,7 @@ import { CircularProgress } from '../components/common/CircularProgress';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
+import { PageHeader } from '../components/common/PageHeader';
 import { useSubscription } from '../contexts/SubscriptionContext';
 
 export const DashboardPage = () => {
@@ -219,46 +220,36 @@ export const DashboardPage = () => {
     const streakDays = habitStatus.streak;
     const weekDays = habitStatus.weekDays;
 
-    return (<div className="page-container">
-      {/* 1. Header */}
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 className="page-title" style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#f8fafc', margin: 0 }}>
-            Good morning, {firstName} 👋
-          </h1>
-          <p className="page-subtitle" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '0.35rem 0 0 0' }}>
-            Here is your verified readiness and daily mission for <strong style={{ color: 'var(--text-primary)' }}>{roleDisplayName}</strong>.
-          </p>
-        </div>
+    return (
+      <>
+        <PageHeader
+          title={`Good morning, ${firstName} 👋`}
+          subtitle={`Here is your verified readiness and daily mission for ${roleDisplayName}.`}
+          actions={
+            <>
+              <div
+                className="badge badge-purple"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '0.78rem',
+                  gap: 6
+                }}
+              >
+                <Trophy size={14} style={{ color: 'var(--primary)' }} />
+                <span>Top 12% Peer Benchmark</span>
+              </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {/* Peer Benchmark Pill */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '0.45rem 0.95rem',
-            backgroundColor: 'rgba(99, 102, 241, 0.12)',
-            border: '1px solid rgba(99, 102, 241, 0.3)',
-            borderRadius: 'var(--radius-full)'
-          }}>
-            <Trophy size={15} style={{ color: 'var(--primary)' }} />
-            <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Top 12% Peer Benchmark
-            </span>
-          </div>
+              <Link to="/profile">
+                <Button variant="secondary" size="sm" style={{ padding: '6px 12px' }}>
+                  Edit Profile
+                </Button>
+              </Link>
+            </>
+          }
+        />
 
-          <Link to="/profile">
-            <Button variant="ghost" size="sm" style={{ color: 'var(--text-secondary)' }}>
-              Edit Profile
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-
-
-      {/* TIER 1: Today's Priority Mission (Hero Banner) */}
+        <div className="page-container">
+          {/* TIER 1: Today's Priority Mission (Hero Banner) */}
       <div className="card" style={{
         background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.16) 0%, rgba(6, 182, 212, 0.08) 100%)',
         border: '1px solid rgba(99, 102, 241, 0.35)',
@@ -613,5 +604,6 @@ export const DashboardPage = () => {
           </div>
         </div>
       </div>
-    </div>);
+    </div>
+    </>);
 };

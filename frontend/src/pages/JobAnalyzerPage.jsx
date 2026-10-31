@@ -13,6 +13,7 @@ import { Input } from '../components/common/Input';
 import { CircularProgress } from '../components/common/CircularProgress';
 import { InconvenienceNotice } from '../components/common/InconvenienceNotice';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
+import { PageHeader } from '../components/common/PageHeader';
 export const JobAnalyzerPage = () => {
     const { user } = useAuth();
     const { showToast } = useToast();
@@ -95,22 +96,19 @@ Requirements:
             desc: 'Seeking engineers with Python, FastAPI, PostgreSQL, Docker, and REST APIs to help scale developer testing platforms.'
         }
     ];
-    return (<div className="page-container">
-      <div className="page-header">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            <span className="badge badge-purple">
+    return (
+      <>
+        <PageHeader
+          title="Job Analyzer"
+          subtitle="Paste a job description and CareerOS will compare it against your profile and resume."
+          badge={
+            <span className="badge badge-purple" style={{ padding: '6px 12px', fontSize: '0.78rem', gap: 6 }}>
               <Sparkles size={12}/> AI Skill-Gap Engine
             </span>
-          </div>
-          <h1 className="page-title">Job Analyzer</h1>
-          <p className="page-subtitle">
-            Paste a job description and CareerOS will compare it against your profile and resume.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-12" style={{ gap: '1.5rem' }}>
+          }
+        />
+        <div className="page-container">
+          <div className="grid grid-cols-12" style={{ gap: '1.5rem' }}>
         {/* Left Column: Job Description Input Form */}
         <div className="col-span-6">
           <Card title="Job Description Input" icon={<FileText size={18} className="text-primary-accent"/>}>
@@ -283,5 +281,6 @@ Requirements:
             </div>)}
         </div>
       </div>
-    </div>);
+    </div>
+  </>);
 };

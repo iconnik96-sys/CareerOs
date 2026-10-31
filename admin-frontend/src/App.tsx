@@ -61,8 +61,8 @@ const ProtectedRoute: React.FC<{
 };
 
 export const App: React.FC = () => {
-  const [founder, setFounder] = useState<FounderProfile | null>(null);
-  const [isVerifying, setIsVerifying] = useState(true);
+  const [founder, setFounder] = useState<FounderProfile | null>(() => authService.getFounder());
+  const [isVerifying, setIsVerifying] = useState(() => !authService.getFounder());
 
   useEffect(() => {
     const unsub = authService.subscribe((profile) => {

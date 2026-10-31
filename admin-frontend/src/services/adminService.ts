@@ -17,11 +17,67 @@ class AdminService {
   private _systemHealthExpiresAt: number = 0;
   private _cachedSystemHealth: SystemHealthResponse | null = null;
 
+  private _cachedOverview: (OverviewMetrics & { daily_trends?: DailyTrendItem[] }) | null = null;
+  private _overviewFetchedAt: number = 0;
+  private _inFlightOverviewPromise: Promise<OverviewMetrics & { daily_trends?: DailyTrendItem[] }> | null = null;
+
+  public getCachedOverview(): (OverviewMetrics & { daily_trends?: DailyTrendItem[] }) | null {
+    return this._cachedOverview;
+  }
+
+  public hasCachedOverview(): boolean {
+    return this._cachedOverview !== null;
+  }
+
+  public getCachedTrends(): DailyTrendItem[] {
+    return this._cachedOverview?.daily_trends || [];
+  }
+
   /**
-   * Fetches the consolidated overview KPIs and 14-day trends in a single fast round-trip.
+   * Fetches the consolidated overview KPIs and 14-day trends.
+   * If cached data exists and not forced, returns cached snapshot immediately (0ms).
+   * Transparently triggers background revalidation if older than 30s.
    */
-  public async getOverview(): Promise<OverviewMetrics & { daily_trends?: DailyTrendItem[] }> {
-    return adminFetch('/api/admin/overview');
+  public async getOverview(forceRefresh = false): Promise<OverviewMetrics & { daily_trends?: DailyTrendItem[] }> {
+    const now = Date.now();
+    if (!forceRefresh && this._cachedOverview) {
+      if (now - this._overviewFetchedAt > 30000 && !this._inFlightOverviewPromise) {
+        this.refreshOverviewInBackground();
+      }
+      return this._cachedOverview;
+    }
+
+    if (this._inFlightOverviewPromise) {
+      return this._inFlightOverviewPromise;
+    }
+
+    this._inFlightOverviewPromise = adminFetch<OverviewMetrics & { daily_trends?: DailyTrendItem[] }>('/api/admin/overview')
+      .then((res) => {
+        this._cachedOverview = res;
+        this._overviewFetchedAt = Date.now();
+        this._inFlightOverviewPromise = null;
+        return res;
+      })
+      .catch((err) => {
+        this._inFlightOverviewPromise = null;
+        throw err;
+      });
+
+    return this._inFlightOverviewPromise;
+  }
+
+  private refreshOverviewInBackground() {
+    this._inFlightOverviewPromise = adminFetch<OverviewMetrics & { daily_trends?: DailyTrendItem[] }>('/api/admin/overview')
+      .then((res) => {
+        this._cachedOverview = res;
+        this._overviewFetchedAt = Date.now();
+        this._inFlightOverviewPromise = null;
+        return res;
+      })
+      .catch((err) => {
+        this._inFlightOverviewPromise = null;
+        throw err;
+      });
   }
 
   /**

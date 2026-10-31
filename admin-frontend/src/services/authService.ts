@@ -23,6 +23,15 @@ class AuthService {
   private listeners: Array<(founder: FounderProfile | null) => void> = [];
 
   constructor() {
+    const existing = getSessionAuth();
+    if (existing) {
+      this.currentFounder = {
+        authenticated: true,
+        email: existing.email || 'founder@careeros.ai',
+        role: 'founder',
+        auth_method: existing.type === 'admin_key' ? 'api_key' : 'bearer_jwt'
+      };
+    }
     window.addEventListener('careeros:auth_expired', () => {
       this.logout();
     });

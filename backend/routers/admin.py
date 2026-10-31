@@ -50,15 +50,15 @@ _cached_tables: Tuple[float, Set[str]] = (0.0, set())
 _cached_tables_lock = threading.Lock()
 
 def get_existing_public_tables() -> Set[str]:
-    """Caches public schema table names for 60 seconds to avoid repetitive slow remote queries."""
+    """Caches public schema table names for 1 hour to avoid repetitive slow remote queries."""
     global _cached_tables
     now = time.time()
-    if now - _cached_tables[0] < 60.0 and _cached_tables[1]:
+    if now - _cached_tables[0] < 3600.0 and _cached_tables[1]:
         return _cached_tables[1]
 
     with _cached_tables_lock:
         now = time.time()
-        if now - _cached_tables[0] < 60.0 and _cached_tables[1]:
+        if now - _cached_tables[0] < 3600.0 and _cached_tables[1]:
             return _cached_tables[1]
         try:
             from database import get_db_cursor, is_db_configured
@@ -76,7 +76,9 @@ def get_existing_public_tables() -> Set[str]:
 def has_table(table_name: str) -> bool:
     return table_name.lower() in get_existing_public_tables()
 
-def get_cached_response(key: str, ttl: float = 15.0) -> Optional[Any]:
+_revalidating_keys: Set[str] = set()
+
+def get_cached_response(key: str, ttl: float = 60.0) -> Optional[Any]:
     with _admin_cache_lock:
         if key in _admin_response_cache:
             ts, val = _admin_response_cache[key]
@@ -84,9 +86,48 @@ def get_cached_response(key: str, ttl: float = 15.0) -> Optional[Any]:
                 return val
     return None
 
+def get_cached_response_swr(key: str, fresh_ttl: float = 45.0, stale_ttl: float = 600.0) -> Tuple[Optional[Any], bool]:
+    """
+    Stale-While-Revalidate caching.
+    Returns (cached_value, needs_revalidation).
+    - If age < fresh_ttl: (data, False) -> instant fresh hit.
+    - If age < stale_ttl: (data, True) -> return stale immediately and trigger background refresh.
+    - If expired/missing: (None, True) -> must fetch.
+    """
+    with _admin_cache_lock:
+        if key in _admin_response_cache:
+            ts, val = _admin_response_cache[key]
+            age = time.time() - ts
+            if age < fresh_ttl:
+                return val, False
+            elif age < stale_ttl:
+                return val, True
+    return None, True
+
 def set_cached_response(key: str, val: Any) -> None:
     with _admin_cache_lock:
         _admin_response_cache[key] = (time.time(), val)
+
+def revalidate_in_background(key: str, compute_fn):
+    """Refreshes a cache entry in a background thread without blocking any incoming HTTP caller."""
+    with _admin_cache_lock:
+        if key in _revalidating_keys:
+            return
+        _revalidating_keys.add(key)
+
+    def worker():
+        try:
+            val = compute_fn()
+            if val is not None:
+                set_cached_response(key, val)
+        except Exception as e:
+            logger.warning(f"Background revalidation failed for {key}: {e}")
+        finally:
+            with _admin_cache_lock:
+                _revalidating_keys.discard(key)
+
+    t = threading.Thread(target=worker, daemon=True)
+    t.start()
 
 def invalidate_admin_cache() -> None:
     with _admin_cache_lock:
@@ -346,18 +387,8 @@ class PricingSimRequest(BaseModel):
     pro_users: int = 50
     ultimate_users: int = 20
 
-@router.get("/overview")
-def get_admin_consolidated_overview(admin_info: Dict[str, Any] = Depends(verify_admin_access)):
-    """
-    Consolidated single round-trip endpoint for the Founder Dashboard Overview.
-    Bundles user statistics, financial summaries, AI usage metrics, 14-day trends,
-    and system health into one cached payload.
-    """
-    cache_key = "admin_consolidated_overview"
-    cached = get_cached_response(cache_key, ttl=15.0)
-    if cached is not None:
-        return cached
-
+def compute_overview_payload() -> Dict[str, Any]:
+    """Computes the authoritative consolidated metrics snapshot from PostgreSQL and local trackers."""
     try:
         from database import get_db_cursor, is_db_configured
     except ImportError:
@@ -376,7 +407,7 @@ def get_admin_consolidated_overview(admin_info: Dict[str, Any] = Depends(verify_
     failed_payments = 0
     db_connected = False
     db_latency_ms = None
-    schema_version = "unknown"
+    schema_version = "v1.0 (baseline)"
     daily_trends = []
 
     if is_db_configured():
@@ -384,26 +415,20 @@ def get_admin_consolidated_overview(admin_info: Dict[str, Any] = Depends(verify_
             t0 = time.time()
             with get_db_cursor(commit=False) as cur:
                 if cur:
-                    cur.execute("SELECT 1;")
+                    # Single combined fast query across auth.users
+                    cur.execute("""
+                        SELECT 
+                            (SELECT COUNT(*) FROM auth.users) AS total_users,
+                            (SELECT COUNT(*) FROM auth.users WHERE created_at >= CURRENT_DATE) AS new_today,
+                            (SELECT COUNT(*) FROM auth.users WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE)) AS new_this_month;
+                    """)
+                    row = cur.fetchone()
                     db_latency_ms = round((time.time() - t0) * 1000, 2)
                     db_connected = True
+                    if row:
+                        total_users, new_today, new_this_month = row
 
-                    # 1. User counts from auth.users
-                    try:
-                        cur.execute("""
-                            SELECT 
-                                COUNT(*),
-                                COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE),
-                                COUNT(*) FILTER (WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE))
-                            FROM auth.users;
-                        """)
-                        row = cur.fetchone()
-                        if row:
-                            total_users, new_today, new_this_month = row
-                    except Exception as e:
-                        logger.warning(f"Could not count auth.users: {e}")
-
-                    # 2. Subscription breakdown if table exists
+                    # Subscription breakdown if table exists
                     if "subscriptions" in existing_tables:
                         try:
                             cur.execute("""
@@ -415,12 +440,12 @@ def get_admin_consolidated_overview(admin_info: Dict[str, Any] = Depends(verify_
                             for p_id, cnt in cur.fetchall():
                                 if p_id in subscribers:
                                     subscribers[p_id] = cnt
-                        except Exception as e:
-                            logger.warning(f"Could not count subscriptions: {e}")
+                        except Exception:
+                            pass
 
                     subscribers["free"] = max(0, total_users - subscribers["pro"] - subscribers["ultimate"])
 
-                    # 3. Payment transactions if table exists
+                    # Payment transactions if table exists
                     if "payment_transactions" in existing_tables:
                         try:
                             cur.execute("""
@@ -434,10 +459,10 @@ def get_admin_consolidated_overview(admin_info: Dict[str, Any] = Depends(verify_
                             if p_row:
                                 successful_payments, failed_payments, raw_rev = p_row
                                 total_revenue_inr = round(raw_rev / 100.0, 2)
-                        except Exception as e:
-                            logger.warning(f"Could not query payment transactions: {e}")
+                        except Exception:
+                            pass
 
-                    # 4. Schema migration version if table exists
+                    # Schema migration version if table exists
                     if "_schema_migrations" in existing_tables:
                         try:
                             cur.execute("SELECT version FROM public._schema_migrations ORDER BY applied_at DESC LIMIT 1;")
@@ -446,10 +471,8 @@ def get_admin_consolidated_overview(admin_info: Dict[str, Any] = Depends(verify_
                                 schema_version = m_row[0]
                         except Exception:
                             pass
-                    else:
-                        schema_version = "v1.0 (baseline)"
 
-                    # 5. Daily trends from ai_usage_daily_summary if table exists
+                    # Daily trends from ai_usage_daily_summary if table exists
                     if "ai_usage_daily_summary" in existing_tables:
                         try:
                             cur.execute("""
@@ -471,8 +494,8 @@ def get_admin_consolidated_overview(admin_info: Dict[str, Any] = Depends(verify_
                                     "cost_inr": float(r[3]),
                                     "avg_latency_ms": float(r[4])
                                 })
-                        except Exception as e:
-                            logger.warning(f"Could not query daily trends: {e}")
+                        except Exception:
+                            pass
         except Exception as e:
             logger.warning(f"Overview DB probe failed: {e}")
 
@@ -483,7 +506,7 @@ def get_admin_consolidated_overview(admin_info: Dict[str, Any] = Depends(verify_
 
     mrr_inr = (subscribers.get("pro", 0) * 149) + (subscribers.get("ultimate", 0) * 249)
 
-    response_payload = {
+    return {
         "status": "success",
         "total_users": total_users,
         "new_today": new_today,
@@ -513,8 +536,37 @@ def get_admin_consolidated_overview(admin_info: Dict[str, Any] = Depends(verify_
         "daily_trends": daily_trends
     }
 
-    set_cached_response(cache_key, response_payload)
-    return response_payload
+
+@router.get("/overview")
+def get_admin_consolidated_overview(admin_info: Dict[str, Any] = Depends(verify_admin_access)):
+    """
+    Consolidated single round-trip endpoint for the Founder Dashboard Overview.
+    Uses Stale-While-Revalidate (SWR): returns cached snapshot immediately (< 1ms)
+    and transparently refreshes in the background so the UI never blocks.
+    """
+    cache_key = "admin_consolidated_overview"
+    cached, needs_revalidation = get_cached_response_swr(cache_key, fresh_ttl=45.0, stale_ttl=600.0)
+
+    if cached is not None:
+        if needs_revalidation:
+            revalidate_in_background(cache_key, compute_overview_payload)
+        return cached
+
+    # Cold start: compute synchronously, populate cache, and return
+    fresh_data = compute_overview_payload()
+    set_cached_response(cache_key, fresh_data)
+    return fresh_data
+
+
+# Asynchronously pre-warm the overview cache on module load
+def _prewarm_admin_cache():
+    try:
+        data = compute_overview_payload()
+        set_cached_response("admin_consolidated_overview", data)
+    except Exception:
+        pass
+
+threading.Thread(target=_prewarm_admin_cache, daemon=True).start()
 
 
 @router.get("/metrics", dependencies=[Depends(verify_admin_access)])

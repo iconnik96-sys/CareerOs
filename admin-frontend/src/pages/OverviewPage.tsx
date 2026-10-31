@@ -19,20 +19,26 @@ import { BreakdownPieChart } from '../components/charts/BreakdownPieChart';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
 
 export const OverviewPage: React.FC = () => {
-  const [metrics, setMetrics] = useState<OverviewMetrics | null>(null);
-  const [trends, setTrends] = useState<DailyTrendItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const initialData = adminService.getCachedOverview();
+  const [metrics, setMetrics] = useState<OverviewMetrics | null>(initialData);
+  const [trends, setTrends] = useState<DailyTrendItem[]>(initialData?.daily_trends || []);
+  const [isLoading, setIsLoading] = useState(!initialData);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const fetchOverviewData = async () => {
+  const fetchOverviewData = async (force: boolean = false) => {
     try {
       setErrorMsg(null);
-      const overviewData = await adminService.getOverview();
+      if (force) {
+        setIsRefreshing(true);
+      }
+      const overviewData = await adminService.getOverview(force);
       setMetrics(overviewData);
       setTrends(overviewData.daily_trends || []);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to load operational metrics from backend.');
+      if (!metrics) {
+        setErrorMsg(err.message || 'Failed to load operational metrics from backend.');
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -40,12 +46,11 @@ export const OverviewPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchOverviewData();
+    fetchOverviewData(false);
   }, []);
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    fetchOverviewData();
+    fetchOverviewData(true);
   };
 
   const subscriberPieData = metrics
